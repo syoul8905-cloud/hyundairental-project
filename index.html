@@ -1,0 +1,1650 @@
+﻿<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>배송스케줄 통합 관제 대시보드 (Supabase Cloud)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700;800;900&display=swap');
+    body { font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif; }
+    .custom-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+    .custom-scroll::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 9999px; }
+    .custom-scroll::-webkit-scrollbar-thumb:hover { background-color: #94a3b8; }
+    .custom-map-icon { background: transparent; border: none; }
+    .leaflet-popup-content-wrapper {
+      border-radius: 14px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+      padding: 4px;
+      border: 1px solid #e2e8f0;
+    }
+    .leaflet-popup-content {
+      margin: 8px 12px;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 antialiased p-3 sm:p-4 select-none text-xs">
+
+  <!-- ========================================== -->
+  <!-- 1. GNB Header                              -->
+  <!-- ========================================== -->
+  <header class="bg-white rounded-2xl p-3.5 sm:p-4 shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-3 mb-3">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white text-lg shadow-md shadow-indigo-600/20">
+        <i class="fa-solid fa-truck-fast"></i>
+      </div>
+      <div>
+        <div class="flex items-center gap-2">
+          <h1 class="text-base font-black text-slate-900">배송스케줄 통합 관제 대시보드</h1>
+          <span id="syncBadge" class="bg-emerald-100 text-emerald-700 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 border border-emerald-200">
+            <span id="syncPulse" class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span id="syncStatusText">⚡ Supabase DB 실시간 연동</span>
+          </span>
+        </div>
+        <p class="text-[11px] text-slate-400">Supabase PostgreSQL 클라우드 직결 관제 & 실제 차량 내비게이션 주행 동선</p>
+      </div>
+    </div>
+
+    <!-- Date, Driver, Origin Selectors & Sync Controls -->
+    <div class="flex flex-wrap items-center gap-2">
+      <!-- Date Select (동적 자동 감지) -->
+      <div class="flex items-center gap-1.5 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200">
+        <span class="font-bold text-slate-500"><i class="fa-regular fa-calendar text-indigo-600"></i> 배송일자:</span>
+        <select id="sheetDateSelect" onchange="onDateChanged()" class="bg-transparent font-bold text-slate-800 focus:outline-none cursor-pointer">
+          <option value="">시트 날짜 불러오는 중...</option>
+        </select>
+      </div>
+
+      <!-- Driver Filter (담당 기사 기준 배송지 세팅) -->
+      <div class="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1.5 rounded-xl border border-slate-200">
+        <span class="font-bold text-slate-500"><i class="fa-solid fa-id-badge text-amber-600"></i> 담당 기사:</span>
+        <select id="driverFilterSelect" onchange="onDriverFilterChanged()" class="bg-transparent font-bold text-slate-800 focus:outline-none cursor-pointer max-w-[170px] truncate">
+          <option value="all">전체 기사 보기</option>
+        </select>
+      </div>
+
+      <!-- Origin Select & Edit -->
+      <div class="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1.5 rounded-xl border border-slate-200">
+        <span class="font-bold text-slate-500"><i class="fa-solid fa-flag text-emerald-600"></i> 출발지:</span>
+        <select id="originSelect" onchange="onOriginSelectChange()" class="bg-transparent font-bold text-slate-800 focus:outline-none cursor-pointer max-w-[190px] truncate">
+          <option value="gasan" selected>🏢 가산 센터 (금천구 가산디지털1로 168)</option>
+          <option value="home">🏠 기사 자택 (인천 남동구 인주대로 600)</option>
+          <option value="__manage__">⚙️ 출발지 주소 직접 수정/추가...</option>
+        </select>
+        <button onclick="openOriginModal()" title="출발지 주소 직접 수정 및 추가" class="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold rounded-lg text-[10px] border border-indigo-200 transition flex items-center gap-1 shadow-xs">
+          <i class="fa-solid fa-pen-to-square text-indigo-600"></i> 출발지 수정
+        </button>
+      </div>
+
+      <!-- Auto Sync Pause/Resume Toggle Button (자동 동기화 멈춤/시작) -->
+      <button id="autoSyncToggleBtn" onclick="toggleAutoSync()" title="실시간 자동 동기화(30초 주기)를 멈추거나 다시 시작합니다." class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition flex items-center gap-1.5 border border-slate-200 text-xs">
+        <i id="autoSyncIcon" class="fa-solid fa-pause text-amber-600"></i>
+        <span id="autoSyncText">자동동기화 멈춤</span>
+      </button>
+
+      <!-- Manual Sync Button -->
+      <button onclick="triggerSync(false)" class="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl transition flex items-center gap-1.5 shadow-sm shadow-indigo-600/20">
+        <i id="syncIcon" class="fa-solid fa-rotate"></i>
+        <span>수동 동기화</span>
+      </button>
+
+      <!-- Google Sheet Link -->
+      <a href="https://docs.google.com/spreadsheets/d/1Q0fJ5gvo6hYv1kJdj1B0Rih_-qNeZ1ecl0NjO6z6_Pw/edit" target="_blank" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition flex items-center gap-1.5 border border-slate-200">
+        <i class="fa-solid fa-table text-emerald-600"></i>
+        <span class="hidden sm:inline">스케줄표 열기</span>
+      </a>
+    </div>
+  </header>
+
+  <!-- ========================================== -->
+  <!-- 2. KPI Metrics Bar                         -->
+  <!-- ========================================== -->
+  <div class="grid grid-cols-4 gap-2.5 mb-3">
+    <div class="bg-white p-3 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
+      <div>
+        <p class="text-slate-400 font-medium">총 배송/회수</p>
+        <p id="kpiTotal" class="text-xl font-black text-slate-900 mt-0.5">0</p>
+      </div>
+      <div class="w-9 h-9 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center text-base">
+        <i class="fa-solid fa-boxes-stacked"></i>
+      </div>
+    </div>
+    <div class="bg-white p-3 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
+      <div>
+        <p class="text-slate-400 font-medium">배송 건수</p>
+        <p id="kpiDelivery" class="text-xl font-black text-indigo-600 mt-0.5">0</p>
+      </div>
+      <div class="w-9 h-9 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center text-base">
+        <i class="fa-solid fa-truck"></i>
+      </div>
+    </div>
+    <div class="bg-white p-3 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
+      <div>
+        <p class="text-slate-400 font-medium">회수 건수</p>
+        <p id="kpiRecovery" class="text-xl font-black text-purple-600 mt-0.5">0</p>
+      </div>
+      <div class="w-9 h-9 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center text-base">
+        <i class="fa-solid fa-rotate-left"></i>
+      </div>
+    </div>
+    <div class="bg-white p-3 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
+      <div>
+        <p class="text-slate-400 font-medium">담당 기사</p>
+        <p id="kpiDriver" class="text-xl font-black text-amber-600 mt-0.5">-</p>
+      </div>
+      <div class="w-9 h-9 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center text-base">
+        <i class="fa-solid fa-id-card"></i>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- 3. Section 1: Real-time Route Map          -->
+  <!-- ========================================== -->
+  <div class="bg-white rounded-2xl p-3.5 shadow-sm border border-slate-200 mb-3 space-y-2.5">
+    <div class="flex items-center justify-between flex-wrap gap-2 border-b border-slate-100 pb-2.5">
+      <div class="flex items-center gap-2">
+        <h2 class="font-black text-sm text-slate-900 flex items-center gap-1.5">
+          <i class="fa-solid fa-route text-indigo-600"></i> 차량 내비게이션 최적 주행 동선 관제
+        </h2>
+        <span id="routeSummaryBadge" class="bg-emerald-50 text-emerald-700 px-3 py-1 rounded-lg font-bold border border-emerald-200 flex items-center gap-1.5">
+          <i class="fa-solid fa-car"></i> 총 0개소 | 0 km | 약 0분
+        </span>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <!-- Add Stop Button -->
+        <button onclick="event.stopPropagation(); openAddStopModal()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl transition flex items-center gap-1.5 shadow-sm shadow-indigo-600/20">
+          <i class="fa-solid fa-plus"></i> 배송지 직접 입력
+        </button>
+        <!-- Naver Direct Link -->
+        <button onclick="openNaverDirectRoute()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl transition flex items-center gap-1.5 shadow-sm">
+          <i class="fa-solid fa-arrow-up-right-from-square"></i> 네이버 지도 전체 길찾기
+        </button>
+      </div>
+    </div>
+
+    <!-- Map & Timeline Layout -->
+    <div class="grid grid-cols-12 gap-3 items-start">
+      <!-- Left: Timeline (4 cols) -->
+      <div class="col-span-12 lg:col-span-4 bg-slate-50 rounded-xl p-3 border border-slate-200 space-y-2">
+        <div class="flex items-center justify-between border-b border-slate-200/60 pb-2">
+          <div>
+            <h3 class="font-bold text-slate-800 flex items-center gap-1.5">
+              <i class="fa-solid fa-list-ol text-indigo-600"></i> 방문 순서별 배송지 (<span id="timelineCount">0</span>)
+            </h3>
+            <span class="text-[10px] text-indigo-600 font-semibold flex items-center gap-1 mt-0.5">
+              <i class="fa-solid fa-arrows-up-down"></i> 드래그 또는 ▲▼ 로 순서 변경
+            </span>
+          </div>
+          <button onclick="resetOrder()" title="시트 원본 순서로 복원" class="text-[10px] bg-slate-200 hover:bg-slate-300 text-slate-700 px-2 py-1 rounded font-bold transition flex items-center gap-1">
+            <i class="fa-solid fa-rotate-left"></i> 원본순서
+          </button>
+        </div>
+        <div id="routeTimeline" class="space-y-1.5 max-h-[440px] overflow-y-auto custom-scroll pr-1"></div>
+      </div>
+
+      <!-- Right: Leaflet Map (8 cols) -->
+      <div class="col-span-12 lg:col-span-8 bg-white rounded-xl p-1.5 border border-slate-200 shadow-inner">
+        <div id="routeMapCanvas" class="w-full h-[460px] rounded-lg overflow-hidden relative"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- 4. Section 2: Master Delivery Table        -->
+  <!-- ========================================== -->
+  <div class="bg-white rounded-2xl p-3.5 shadow-sm border border-slate-200 space-y-3">
+    <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2.5">
+      <div class="flex items-center gap-2">
+        <h2 class="font-black text-sm text-slate-900 flex items-center gap-1.5">
+          <i class="fa-solid fa-table-list text-indigo-600"></i> 배송 현황 목록
+        </h2>
+        <span class="text-slate-400 font-bold">조회: <b id="tableCount" class="text-indigo-600">0</b>건</span>
+      </div>
+
+      <!-- Search & Filters -->
+      <div class="flex flex-wrap items-center gap-2">
+        <div class="relative w-64">
+          <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400"></i>
+          <input type="text" id="tableSearchInput" oninput="renderTable()" placeholder="고객사, 주소, 품목 검색..." class="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-indigo-500">
+        </div>
+
+        <select id="tableTypeFilter" onchange="renderTable()" class="py-1.5 px-3 bg-slate-50 border border-slate-200 rounded-lg font-medium">
+          <option value="all">전체 구분 (배송/회수)</option>
+          <option value="배송">배송</option>
+          <option value="회수">회수</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Table Container -->
+    <div class="overflow-hidden rounded-xl border border-slate-200">
+      <div class="overflow-x-auto custom-scroll max-h-[400px]">
+        <table class="w-full text-left whitespace-nowrap">
+          <thead class="bg-slate-50 text-slate-600 font-bold border-b border-slate-200 sticky top-0">
+            <tr>
+              <th class="py-2.5 px-3">계약번호</th>
+              <th class="py-2.5 px-2">구분</th>
+              <th class="py-2.5 px-3">고객사명</th>
+              <th class="py-2.5 px-3.5">배송지 주소</th>
+              <th class="py-2.5 px-2.5">방문시간</th>
+              <th class="py-2.5 px-3">품목 및 수량</th>
+              <th class="py-2.5 px-2.5">담당기사</th>
+              <th class="py-2.5 px-2.5">통화</th>
+              <th class="py-2.5 px-2.5 text-center">동선 관리</th>
+              <th class="py-2.5 px-2.5 text-center">네이버 지도</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody" class="divide-y divide-slate-100"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="fixed bottom-4 right-4 bg-slate-900 text-white px-4 py-2.5 rounded-xl shadow-lg border border-slate-800 flex items-center gap-2 transform translate-y-12 opacity-0 pointer-events-none transition-all duration-300 z-50">
+    <i class="fa-solid fa-circle-check text-emerald-400"></i>
+    <span id="toastMsg" class="font-medium text-xs">알림 메시지</span>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- 5. Modals (Edit Stop / Add Stop / Origin)  -->
+  <!-- ========================================== -->
+
+  <!-- Edit Stop Modal (배송지 주소/정보 수정) -->
+  <div id="editStopModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4" style="z-index: 99999 !important;" onclick="if(event.target===this)closeEditStopModal()">
+    <div class="bg-white rounded-2xl max-w-md w-full p-5 shadow-2xl border border-slate-200 space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <h3 class="font-black text-sm text-slate-900 flex items-center gap-2">
+          <i class="fa-solid fa-pen-to-square text-indigo-600"></i> 배송지 정보 및 주소 수정
+        </h3>
+        <button onclick="closeEditStopModal()" class="text-slate-400 hover:text-slate-600 text-base">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <input type="hidden" id="editStopIndex" value="-1">
+
+      <div class="space-y-3">
+        <div>
+          <label class="block text-[11px] font-bold text-slate-600 mb-1">고객사명</label>
+          <input type="text" id="editCustName" class="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-indigo-500 font-bold">
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-[11px] font-bold text-slate-600 mb-1">구분</label>
+            <select id="editType" class="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-indigo-500 font-semibold">
+              <option value="배송">배송</option>
+              <option value="회수">회수</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-[11px] font-bold text-slate-600 mb-1">방문시간</label>
+            <input type="text" id="editTime" placeholder="예: 10:00" class="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-indigo-500">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-[11px] font-bold text-slate-600 mb-1">배송지 기본 주소 (도로명/지번)</label>
+          <input type="text" id="editAddr" placeholder="예: 서울 강남구 테헤란로 419" class="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-indigo-500 font-mono">
+        </div>
+
+        <div>
+          <label class="block text-[11px] font-bold text-slate-600 mb-1">상세 주소 (층/호수/건물명)</label>
+          <input type="text" id="editDetailAddr" placeholder="예: 12층 1201호" class="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-indigo-500">
+        </div>
+
+        <div>
+          <label class="block text-[11px] font-bold text-slate-600 mb-1">담당 기사 배정</label>
+          <div class="flex items-center gap-2">
+            <input type="text" id="editDriver" placeholder="예: 김기사 (또는 미지정)" class="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-indigo-500 font-bold text-amber-700">
+            <select id="editDriverQuickSelect" onchange="if(this.value){document.getElementById('editDriver').value=this.value;}" class="px-2 py-1.5 bg-slate-100 border border-slate-200 rounded-lg text-xs font-semibold text-slate-600 cursor-pointer">
+              <option value="">기존 기사 선택...</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-[11px] font-bold text-slate-600 mb-1">품목 및 수량</label>
+          <input type="text" id="editItem" placeholder="예: 노트북 5대" class="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-indigo-500">
+        </div>
+      </div>
+
+      <div class="flex items-center justify-between gap-2 pt-3 border-t border-slate-100 flex-wrap">
+        <button onclick="closeEditStopModal()" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-xl text-xs transition">
+          취소
+        </button>
+        <div class="flex items-center gap-1.5">
+          <button onclick="saveEditStopModal(false)" title="대시보드 화면상에서만 임시 변경합니다." class="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-xl text-xs transition flex items-center gap-1">
+            <i class="fa-solid fa-desktop"></i> 화면만 수정
+          </button>
+          <button onclick="saveEditStopModal(true)" title="구글 스프레드시트(스케줄표)의 담당기사 열(D열)을 즉시 업데이트합니다." class="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-xs transition flex items-center gap-1.5 shadow-sm shadow-indigo-600/20">
+            <i class="fa-solid fa-cloud-arrow-up"></i> 시트에 기사 즉시 반영
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Stop Modal (배송지 직접 추가) -->
+  <div id="addStopModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4" style="z-index: 99999 !important;" onclick="if(event.target===this)closeAddStopModal()">
+    <div class="bg-white rounded-2xl max-w-md w-full p-5 shadow-2xl border border-slate-200 space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <h3 class="font-black text-sm text-slate-900 flex items-center gap-2">
+          <i class="fa-solid fa-location-dot text-emerald-600"></i> 신규 배송지 직접 추가
+        </h3>
+        <button onclick="closeAddStopModal()" class="text-slate-400 hover:text-slate-600 text-base">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="space-y-3">
+        <div>
+          <label class="block text-[11px] font-bold text-slate-600 mb-1">고객사명 *</label>
+          <input type="text" id="addCustName" placeholder="예: (주)알파비즈" class="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-indigo-500 font-bold">
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-[11px] font-bold text-slate-600 mb-1">구분</label>
+            <select id="addType" class="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-indigo-500 font-semibold">
+              <option value="배송" selected>배송</option>
+              <option value="회수">회수</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-[11px] font-bold text-slate-600 mb-1">방문시간</label>
+            <input type="text" id="addTime" placeholder="예: 14:30" class="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-indigo-500">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-[11px] font-bold text-slate-600 mb-1">배송지 기본 주소 *</label>
+          <input type="text" id="addAddr" placeholder="예: 서울 강남구 역삼로 123" class="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-indigo-500 font-mono">
+        </div>
+
+        <div>
+          <label class="block text-[11px] font-bold text-slate-600 mb-1">상세 주소</label>
+          <input type="text" id="addDetailAddr" placeholder="예: 5층 회의실" class="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-indigo-500">
+        </div>
+
+        <div>
+          <label class="block text-[11px] font-bold text-slate-600 mb-1">품목 및 수량</label>
+          <input type="text" id="addItem" placeholder="예: 태블릿 10대" class="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-indigo-500">
+        </div>
+      </div>
+
+      <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+        <button onclick="closeAddStopModal()" class="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-xl text-xs transition">
+          취소
+        </button>
+        <button onclick="saveAddStopModal()" class="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs transition flex items-center gap-1.5 shadow-sm shadow-emerald-600/20">
+          <i class="fa-solid fa-plus"></i> 동선에 추가하기
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Origin Address Edit Modal (출발지 관리) -->
+  <div id="originModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4" style="z-index: 99999 !important;" onclick="if(event.target===this)closeOriginModal()">
+    <div class="bg-white rounded-2xl max-w-md w-full p-5 shadow-2xl border border-slate-200 space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <h3 class="font-black text-sm text-slate-900 flex items-center gap-2">
+          <i class="fa-solid fa-flag text-emerald-600"></i> 출발지 주소 직접 수정 및 관리
+        </h3>
+        <button onclick="closeOriginModal()" class="text-slate-400 hover:text-slate-600 text-base">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="space-y-3" id="originModalInputs"></div>
+
+      <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+        <button onclick="closeOriginModal()" class="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-xl text-xs transition">
+          취소
+        </button>
+        <button onclick="saveOriginModal()" class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-xs transition flex items-center gap-1.5 shadow-sm shadow-indigo-600/20">
+          <i class="fa-solid fa-check"></i> 저장 후 반영
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    window.onerror = function(msg, url, line, col, error) {
+      var d = document.getElementById('debugError') || document.createElement('div');
+      d.id = 'debugError';
+      d.innerText = 'JS_ERR: ' + msg + ' at line ' + line + ':' + col;
+      document.body.appendChild(d);
+    };
+
+        // ==========================================
+    // Supabase Cloud DB Connection Config
+    // ==========================================
+    const SUPABASE_URL = "https://gideypynmhpjucgszyce.supabase.co";
+    const SUPABASE_ANON_KEY = "sb_publishable_pLF_neZMUjj3G7PsiH_tuw_rfRuu8eP";
+    const supabaseClient = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+    var SPREADSHEET_ID = '1Q0fJ5gvo6hYv1kJdj1B0Rih_-qNeZ1ecl0NjO6z6_Pw';
+    var records = [];
+    var originalRecords = [];
+    var draggedStopIndex = null;
+    var leafletMap = null;
+    var routeLayerGroup = null;
+
+    var SERVER_SHEETS = /*__AVAILABLE_SHEETS__*/[];
+    var DEFAULT_SHEET_DATES = ['26.09.08', '26.09.07', '26.09.04', '26.09.03', '26.09.02', '26.09.01'];
+
+    // 도로망 지오코딩 정밀 좌표 DB
+        var KNOWN_COORDINATES = {
+      "가산 센터": { lat: 37.4809, lng: 126.8826 },
+      "서울특별시 금천구 가산디지털1로 168": { lat: 37.4809, lng: 126.8826 },
+      "금천구 가산디지털1로": { lat: 37.4809, lng: 126.8826 },
+      "여의도 본사": { lat: 37.5255, lng: 126.9213 },
+      "인천 남동구 인주대로 600": { lat: 37.4475, lng: 126.7086 },
+      "대한기계학회": { lat: 37.5003, lng: 127.0298 },
+      "테헤란로7길 22": { lat: 37.5003, lng: 127.0298 },
+      "헥사곤지엠아이": { lat: 37.5115, lng: 127.0378 },
+      "언주로 603": { lat: 37.5115, lng: 127.0378 },
+      "렌탈허브": { lat: 37.4981, lng: 127.0374 },
+      "논현로81길 9": { lat: 37.4981, lng: 127.0374 },
+      "논현로81길": { lat: 37.4981, lng: 127.0374 },
+      "삼성화재": { lat: 37.4988, lng: 127.0315 },
+      "삼성화재해상": { lat: 37.4988, lng: 127.0315 },
+      "테헤란로 114": { lat: 37.4988, lng: 127.0315 },
+      "역삼빌딩": { lat: 37.4988, lng: 127.0315 },
+      "디티네트워크": { lat: 37.2721, lng: 127.1265 },
+      "기흥구 중부대로 262": { lat: 37.2721, lng: 127.1265 },
+      "경기 고양시 일산동구 중앙로 1283": { lat: 37.6582, lng: 126.7708 },
+      "경기 파주시 월롱면 대협로 75-25": { lat: 37.7946, lng: 126.8085 },
+      "서울 강남구 도산대로 317": { lat: 37.5238, lng: 127.0396 },
+      "서울 강남구 선릉로131길 8": { lat: 37.5186, lng: 127.0423 },
+      "서울 강남구 영동대로 513": { lat: 37.5118, lng: 127.0592 },
+      "서울특별시 서초구 서초대로 398": { lat: 37.4975, lng: 127.0255 },
+      "서울특별시 강남구 테헤란로 419": { lat: 37.5058, lng: 127.0526 },
+      "서울시 영등포구 경인로 775": { lat: 37.5147, lng: 126.8992 },
+      "경기도 하남시 미사강변서로 25": { lat: 37.5562, lng: 127.1985 },
+      "경기도 안양시 동안구 벌말로 126": { lat: 37.3995, lng: 126.9698 }
+    };
+
+    // ==========================================
+    // Origin Management Engine
+    // ==========================================
+    var DEFAULT_ORIGINS = [
+      { id: 'gasan', name: '🏢 가산 센터', addr: '서울특별시 금천구 가산디지털1로 168', lat: 37.4809, lng: 126.8826 },
+      { id: 'home', name: '🏠 기사 자택', addr: '인천 남동구 인주대로 600', lat: 37.4475, lng: 126.7086 }
+    ];
+
+    function getOrigins() {
+      try {
+        var s = localStorage.getItem('DELIVERY_ORIGINS_V3');
+        if (s) {
+          var p = JSON.parse(s);
+          if (Array.isArray(p) && p.length > 0) return p;
+        }
+      } catch(e) {}
+      return DEFAULT_ORIGINS;
+    }
+
+    function saveOrigins(list) {
+      try {
+        localStorage.setItem('DELIVERY_ORIGINS_V3', JSON.stringify(list));
+      } catch(e) {}
+    }
+
+    function renderOriginOptions() {
+      var origins = getOrigins();
+      var select = document.getElementById('originSelect');
+      var curr = select.value || origins[0].id;
+      select.innerHTML = '';
+      origins.forEach(function(o) {
+        var opt = document.createElement('option');
+        opt.value = o.id;
+        opt.innerText = o.name + ' (' + o.addr + ')';
+        if (o.id === curr) opt.selected = true;
+        select.appendChild(opt);
+      });
+      var editOpt = document.createElement('option');
+      editOpt.value = '__manage__';
+      editOpt.innerText = '⚙️ 출발지 주소 직접 수정/추가...';
+      select.appendChild(editOpt);
+    }
+
+    function onOriginSelectChange() {
+      var select = document.getElementById('originSelect');
+      if (select.value === '__manage__') {
+        openOriginModal();
+        var origins = getOrigins();
+        select.value = origins[0].id;
+        return;
+      }
+      renderRouteMap();
+    }
+
+    function openOriginModal() {
+      var modal = document.getElementById('originModal');
+      var container = document.getElementById('originModalInputs');
+      var origins = getOrigins();
+      container.innerHTML = '';
+      origins.forEach(function(o, idx) {
+        container.innerHTML += `
+          <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-1.5">
+            <div class="flex items-center justify-between">
+              <span class="font-bold text-slate-800 text-xs">${o.name}</span>
+            </div>
+            <input type="text" id="modal_origin_addr_${idx}" value="${o.addr}" 
+                   placeholder="도로명 주소 입력..." 
+                   class="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-indigo-500 font-mono">
+          </div>
+        `;
+      });
+      modal.classList.remove('hidden');
+    }
+
+    function closeOriginModal() {
+      document.getElementById('originModal').classList.add('hidden');
+    }
+
+    function saveOriginModal() {
+      var origins = getOrigins();
+      origins.forEach(function(o, idx) {
+        var inp = document.getElementById('modal_origin_addr_' + idx);
+        if (inp && inp.value.trim()) {
+          o.addr = inp.value.trim();
+          var coord = getCoordForAddress(o.addr);
+          o.lat = coord.lat;
+          o.lng = coord.lng;
+        }
+      });
+      saveOrigins(origins);
+      renderOriginOptions();
+      closeOriginModal();
+      renderRouteMap();
+      showToast('✅ 출발지 주소가 성공적으로 수정 및 영구 보존되었습니다!');
+    }
+
+    // ==========================================
+    // Dynamic Sheet Date Engine
+    // ==========================================
+    function generateAutoDateList() {
+      var list = [];
+      var now = new Date();
+      var utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+      var kst = new Date(utc + (9 * 3600000));
+      for (var i = 2; i >= -14; i--) {
+        var d = new Date(kst.getTime() + (i * 86400000));
+        var yy = String(d.getFullYear()).slice(-2);
+        var mm = String(d.getMonth() + 1).padStart(2, '0');
+        var dd = String(d.getDate()).padStart(2, '0');
+        list.push(yy + '.' + mm + '.' + dd);
+      }
+      return list;
+    }
+
+    function initSheetDateSelect() {
+      var sheetSelect = document.getElementById('sheetDateSelect');
+      var autoDates = generateAutoDateList();
+      var list = (SERVER_SHEETS && SERVER_SHEETS.length > 0) ? SERVER_SHEETS : autoDates;
+      
+      var now = new Date();
+      var utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+      var kst = new Date(utc + (9 * 3600000));
+      var todayStr = String(kst.getFullYear()).slice(-2) + '.' + String(kst.getMonth() + 1).padStart(2, '0') + '.' + String(kst.getDate()).padStart(2, '0');
+      
+      // 최신 시트 우선 자동 선택: 서버 시트 중 첫 번째(최신) 또는 오늘 날짜
+      var defaultTarget = (SERVER_SHEETS && SERVER_SHEETS.length > 0)
+        ? SERVER_SHEETS[0]
+        : ((list.indexOf(todayStr) !== -1) ? todayStr : list[0]);
+      var curr = sheetSelect.value || defaultTarget;
+
+      sheetSelect.innerHTML = '';
+      list.forEach(function(s) {
+        var opt = document.createElement('option');
+        opt.value = s;
+        var tag = '';
+        if (s === todayStr) tag = ' (오늘)';
+        else if (SERVER_SHEETS && SERVER_SHEETS.length > 0 && s === SERVER_SHEETS[0]) tag = ' (최신)';
+        opt.innerText = s + tag;
+        if (s === curr) opt.selected = true;
+        sheetSelect.appendChild(opt);
+      });
+      var customOpt = document.createElement('option');
+      customOpt.value = '__custom_date__';
+      customOpt.innerText = '📅 다른 날짜 시트 직접 입력...';
+      sheetSelect.appendChild(customOpt);
+    }
+
+    function onDateChanged() {
+      var select = document.getElementById('sheetDateSelect');
+      if (select.value === '__custom_date__') {
+        var defaultHint = (SERVER_SHEETS && SERVER_SHEETS.length > 0) ? SERVER_SHEETS[0] : '26.09.08';
+        var inputDate = prompt('조회할 시트의 날짜 탭 이름을 입력하세요 (예: ' + defaultHint + '):', defaultHint);
+        if (inputDate && inputDate.trim()) {
+          var formatted = inputDate.trim();
+          var opt = document.createElement('option');
+          opt.value = formatted;
+          opt.innerText = formatted + ' (직접입력)';
+          opt.selected = true;
+          select.insertBefore(opt, select.firstChild);
+          triggerSync(false);
+        } else {
+          select.selectedIndex = 0;
+        }
+        return;
+      }
+      triggerSync(false);
+    }
+
+        var DISTRICT_COORDINATES = [
+      { key: "테헤란로 114", lat: 37.4988, lng: 127.0315 },
+      { key: "테헤란로", lat: 37.5020, lng: 127.0380 },
+      { key: "강남대로", lat: 37.4980, lng: 127.0270 },
+      { key: "논현로81길", lat: 37.4981, lng: 127.0374 },
+      { key: "논현로", lat: 37.5050, lng: 127.0360 },
+      { key: "언주로", lat: 37.5080, lng: 127.0420 },
+      { key: "영동대로", lat: 37.5118, lng: 127.0592 },
+      { key: "도산대로", lat: 37.5238, lng: 127.0396 },
+      { key: "선릉로", lat: 37.5080, lng: 127.0480 },
+      { key: "봉은사로", lat: 37.5110, lng: 127.0500 },
+      { key: "역삼동", lat: 37.4990, lng: 127.0360 },
+      { key: "역삼", lat: 37.4990, lng: 127.0360 },
+      { key: "논현동", lat: 37.5115, lng: 127.0330 },
+      { key: "논현", lat: 37.5115, lng: 127.0330 },
+      { key: "삼성동", lat: 37.5140, lng: 127.0560 },
+      { key: "대치동", lat: 37.4980, lng: 127.0620 },
+      { key: "신사동", lat: 37.5240, lng: 127.0220 },
+      { key: "청담동", lat: 37.5250, lng: 127.0500 },
+      { key: "서초대로", lat: 37.4950, lng: 127.0180 },
+      { key: "반포대로", lat: 37.4980, lng: 127.0060 },
+      { key: "가산디지털", lat: 37.4809, lng: 126.8826 },
+      { key: "가산동", lat: 37.4809, lng: 126.8826 },
+      { key: "디지털로", lat: 37.4850, lng: 126.8900 },
+      { key: "중부대로", lat: 37.2721, lng: 127.1265 },
+      // 서울 자치구
+      { key: "강남구", lat: 37.4979, lng: 127.0350 },
+      { key: "강남", lat: 37.4979, lng: 127.0350 },
+      { key: "서초구", lat: 37.4837, lng: 127.0324 },
+      { key: "서초", lat: 37.4837, lng: 127.0324 },
+      { key: "송파구", lat: 37.5145, lng: 127.1060 },
+      { key: "송파", lat: 37.5145, lng: 127.1060 },
+      { key: "영등포구", lat: 37.5264, lng: 126.8962 },
+      { key: "금천구", lat: 37.4568, lng: 126.8955 },
+      { key: "구로구", lat: 37.4954, lng: 126.8874 },
+      { key: "마포구", lat: 37.5663, lng: 126.9016 },
+      { key: "용산구", lat: 37.5326, lng: 126.9900 },
+      { key: "종로구", lat: 37.5730, lng: 126.9794 },
+      { key: "중구", lat: 37.5638, lng: 126.9976 },
+      { key: "성동구", lat: 37.5634, lng: 127.0368 },
+      { key: "광진구", lat: 37.5385, lng: 127.0823 },
+      { key: "동대문구", lat: 37.5744, lng: 127.0398 },
+      { key: "강서구", lat: 37.5509, lng: 126.8495 },
+      { key: "양천구", lat: 37.5170, lng: 126.8665 },
+      { key: "관악구", lat: 37.4784, lng: 126.9516 },
+      { key: "동작구", lat: 37.5124, lng: 126.9393 },
+      // 경기/인천
+      { key: "기흥구", lat: 37.2803, lng: 127.1154 },
+      { key: "수지구", lat: 37.3220, lng: 127.0975 },
+      { key: "처인구", lat: 37.2343, lng: 127.2013 },
+      { key: "용인", lat: 37.2410, lng: 127.1775 },
+      { key: "분당구", lat: 37.3827, lng: 127.1189 },
+      { key: "분당", lat: 37.3827, lng: 127.1189 },
+      { key: "판교", lat: 37.3947, lng: 127.1112 },
+      { key: "성남", lat: 37.4200, lng: 127.1265 },
+      { key: "수원", lat: 37.2636, lng: 127.0286 },
+      { key: "하남", lat: 37.5393, lng: 127.2148 },
+      { key: "안양", lat: 37.3943, lng: 126.9568 },
+      { key: "부천", lat: 37.5034, lng: 126.7660 },
+      { key: "남동구", lat: 37.4475, lng: 126.7086 },
+      { key: "인천", lat: 37.4563, lng: 126.7052 },
+      { key: "일산", lat: 37.6582, lng: 126.7708 },
+      { key: "고양", lat: 37.6584, lng: 126.8320 },
+      { key: "파주", lat: 37.7600, lng: 126.7800 },
+      { key: "화성", lat: 37.1995, lng: 126.8315 },
+      { key: "평택", lat: 36.9921, lng: 127.1129 },
+      { key: "김포", lat: 37.6152, lng: 126.7157 }
+    ];
+
+    function getCoordForAddress(addr) {
+      if (!addr) return { lat: 37.4809, lng: 126.8826 };
+      var clean = String(addr).trim();
+
+      // 1. KNOWN_COORDINATES 정밀 매핑 (빌딩/상호/세부주소)
+      for (var key in KNOWN_COORDINATES) {
+        if (clean.indexOf(key) !== -1 || key.indexOf(clean) !== -1) {
+          return KNOWN_COORDINATES[key];
+        }
+      }
+
+      // 2. 지역구/도로명 정밀 매칭 (절대 다른 시/구로 이탈하지 않음)
+      for (var i = 0; i < DISTRICT_COORDINATES.length; i++) {
+        var d = DISTRICT_COORDINATES[i];
+        if (clean.indexOf(d.key) !== -1) {
+          var hash = 0;
+          for (var j = 0; j < clean.length; j++) hash = ((hash << 5) - hash) + clean.charCodeAt(j);
+          var jitterLat = ((Math.abs(hash) % 10) - 5) * 0.0003;
+          var jitterLng = (((Math.abs(hash) >> 3) % 10) - 5) * 0.0003;
+          return { lat: d.lat + jitterLat, lng: d.lng + jitterLng };
+        }
+      }
+
+      // 3. 안전 기본값: 가산 센터
+      return { lat: 37.4809, lng: 126.8826 };
+    }
+
+    // ==========================================
+    // Real-time Auto Sync Controller & State
+    // ==========================================
+    var isAutoSyncEnabled = true;
+    var autoSyncTimer = null;
+
+    function initAutoSync() {
+      if (autoSyncTimer) clearInterval(autoSyncTimer);
+      autoSyncTimer = setInterval(function() {
+        if (isAutoSyncEnabled) {
+          triggerSync(true);
+        }
+      }, 30000);
+      updateAutoSyncUI();
+    }
+
+    function toggleAutoSync() {
+      isAutoSyncEnabled = !isAutoSyncEnabled;
+      updateAutoSyncUI();
+      if (isAutoSyncEnabled) {
+        showToast('▶️ 실시간 자동 동기화가 활성화되었습니다 (30초 주기)');
+        triggerSync(false);
+      } else {
+        showToast('⏸️ 실시간 자동 동기화가 일시정지되었습니다 (수동 모드)');
+      }
+    }
+
+    function updateAutoSyncUI() {
+      var btn = document.getElementById('autoSyncToggleBtn');
+      var icon = document.getElementById('autoSyncIcon');
+      var text = document.getElementById('autoSyncText');
+      var badge = document.getElementById('syncBadge');
+      var pulse = document.getElementById('syncPulse');
+      var statusText = document.getElementById('syncStatusText');
+
+      if (isAutoSyncEnabled) {
+        if (btn) {
+          btn.className = "px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition flex items-center gap-1.5 border border-slate-200 text-xs cursor-pointer";
+          if (icon) icon.className = "fa-solid fa-pause text-amber-600";
+          if (text) text.innerText = "자동동기화 멈춤";
+        }
+        if (badge) {
+          badge.className = "bg-emerald-100 text-emerald-700 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 border border-emerald-200";
+        }
+        if (pulse) pulse.className = "w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse";
+      } else {
+        if (btn) {
+          btn.className = "px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold rounded-xl transition flex items-center gap-1.5 border border-amber-300 text-xs shadow-xs cursor-pointer";
+          if (icon) icon.className = "fa-solid fa-play text-emerald-600";
+          if (text) text.innerText = "자동동기화 켜기";
+        }
+        if (badge) {
+          badge.className = "bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 border border-amber-300";
+        }
+        if (pulse) pulse.className = "w-1.5 h-1.5 rounded-full bg-amber-500";
+        if (statusText) statusText.innerText = "자동동기화 멈춤 (수동)";
+      }
+    }
+
+    // ==========================================
+    // JSONP Google Sheets GViz Sync Engine
+    // ==========================================
+    window.onGvizResponse = function(json) {
+      try {
+        var syncIcon = document.getElementById('syncIcon');
+        if (syncIcon) syncIcon.classList.remove('fa-spin');
+
+        var sheetDate = document.getElementById('sheetDateSelect').value;
+        parseGvizData(json, sheetDate);
+
+        var nowStr = new Date().toLocaleTimeString('ko-KR', { hour12: false });
+        var statusEl = document.getElementById('syncStatusText');
+        if (statusEl) {
+          statusEl.innerText = isAutoSyncEnabled ? ('실시간 연동됨 (' + nowStr + ')') : ('수동 연동됨 (' + nowStr + ')');
+        }
+        if (!window._isSilentSync) {
+          showToast('✅ 구글 시트(' + sheetDate + ') ' + records.length + '건 동기화 완료!');
+        }
+      } catch (err) {
+        console.error('onGvizResponse error:', err);
+        var statusEl2 = document.getElementById('syncStatusText');
+        if (statusEl2) statusEl2.innerText = '동기화 처리 오류: ' + err.message;
+      }
+    };
+
+        async function triggerSync(isSilent) {
+      if (isSilent && !isAutoSyncEnabled) return;
+      window._isSilentSync = !!isSilent;
+      var syncIcon = document.getElementById('syncIcon');
+      if (!isSilent && syncIcon) syncIcon.classList.add('fa-spin');
+      var statusEl = document.getElementById('syncStatusText');
+      if (!isSilent && statusEl) statusEl.innerText = '⚡ Supabase 동기화 중...';
+
+      if (!supabaseClient) {
+        if (syncIcon) syncIcon.classList.remove('fa-spin');
+        if (statusEl) statusEl.innerText = 'Supabase 라이브러리 로드 실패';
+        return;
+      }
+
+      try {
+        var selectedDate = document.getElementById('sheetDateSelect') ? document.getElementById('sheetDateSelect').value : '';
+        var query = supabaseClient.from('delivery_schedules').select('*').order('id', { ascending: true });
+        
+        if (selectedDate && selectedDate !== 'all') {
+          // 일치하는 배송일자 또는 원본시트 조회 (예: 2026-09-03, 26.09.03)
+          var cleanDate = selectedDate.replace(/\./g, '-');
+          var shortDate = selectedDate.replace(/-/g, '.');
+          query = query.or('delivery_date.eq.' + selectedDate + ',delivery_date.eq.' + cleanDate + ',source_sheet.eq.' + shortDate + ',source_sheet.eq.' + selectedDate);
+        }
+
+        var res = await query;
+        if (res.error) throw res.error;
+
+        var data = res.data || [];
+        // 만약 특정 날짜로 필터링했는데 0건이면 전체 데이터를 표시
+        if (data.length === 0 && selectedDate && selectedDate !== 'all') {
+          var fallbackRes = await supabaseClient.from('delivery_schedules').select('*').order('id', { ascending: true });
+          if (!fallbackRes.error && fallbackRes.data && fallbackRes.data.length > 0) {
+            data = fallbackRes.data;
+          }
+        }
+
+        records = data.map(function(row) {
+          return {
+            ID: row.id,
+            배송일자: row.delivery_date || '',
+            계약번호: row.contract_no || '',
+            구분: row.category || '배송',
+            담당기사: row.driver_name || '',
+            고객사: row.customer_name || '',
+            주소: row.address || '',
+            기본주소: row.address || '',
+            상세주소: '',
+            방문시간: row.visit_time || '',
+            담당자_연락처: row.contact || '',
+            품목_수량: row.items || '',
+            단프라보관: row.danpra_storage || '',
+            통화여부: row.call_status || '',
+            의뢰상태: row.status || '진행중',
+            배송방법: row.delivery_method || '직배송',
+            추후일정_특이사항: row.memo_special || '',
+            비고_전문: row.memo_full || '',
+            원본시트: row.source_sheet || ''
+          };
+        });
+
+        originalRecords = JSON.parse(JSON.stringify(records));
+        updateDriverFilterOptions();
+        updateKPIs();
+        renderTable();
+        renderRouteMap();
+
+        if (syncIcon) syncIcon.classList.remove('fa-spin');
+        var nowStr = new Date().toLocaleTimeString('ko-KR', { hour12: false });
+        if (statusEl) {
+          statusEl.innerText = '⚡ Supabase 동기화됨 (' + nowStr + ')';
+        }
+        if (!window._isSilentSync) {
+          showToast('⚡ Supabase DB ' + records.length + '건 실시간 동기화 완료!');
+        }
+      } catch (err) {
+        console.error('Supabase sync error:', err);
+        if (syncIcon) syncIcon.classList.remove('fa-spin');
+        if (statusEl) statusEl.innerText = '동기화 오류: ' + (err.message || err);
+        showToast('❌ DB 연동 실패: ' + (err.message || err));
+      }
+    }
+
+    // ==========================================
+    // Driver Filter & Records Engine
+    // ==========================================
+    function getFilteredRecords() {
+      var driverFilter = document.getElementById('driverFilterSelect') ? document.getElementById('driverFilterSelect').value : 'all';
+      if (!driverFilter || driverFilter === 'all') {
+        return records;
+      }
+      return records.filter(function(r) {
+        var d = (r.담당기사 || '').trim();
+        if (driverFilter === '') return d === '';
+        return d === driverFilter;
+      });
+    }
+
+    function updateDriverFilterOptions() {
+      var select = document.getElementById('driverFilterSelect');
+      if (!select) return;
+      var curr = select.value || 'all';
+
+      var driverCounts = {};
+      var hasUnassigned = false;
+
+      records.forEach(function(r) {
+        var d = (r.담당기사 || '').trim();
+        if (d) {
+          driverCounts[d] = (driverCounts[d] || 0) + 1;
+        } else {
+          hasUnassigned = true;
+          driverCounts['__unassigned__'] = (driverCounts['__unassigned__'] || 0) + 1;
+        }
+      });
+
+      var drivers = Object.keys(driverCounts).filter(function(k) { return k !== '__unassigned__'; }).sort();
+
+      select.innerHTML = '<option value="all">전체 기사 보기 (' + records.length + '건)</option>';
+
+      drivers.forEach(function(d) {
+        var opt = document.createElement('option');
+        opt.value = d;
+        opt.innerText = '🚗 ' + d + ' (' + driverCounts[d] + '건)';
+        if (d === curr) opt.selected = true;
+        select.appendChild(opt);
+      });
+
+      if (hasUnassigned) {
+        var unOpt = document.createElement('option');
+        unOpt.value = '';
+        unOpt.innerText = '⚠️ 기사 미지정 (' + driverCounts['__unassigned__'] + '건)';
+        if (curr === '') unOpt.selected = true;
+        select.appendChild(unOpt);
+      }
+
+      // Also populate quick select in edit modal
+      var editSelect = document.getElementById('editDriverQuickSelect');
+      if (editSelect) {
+        editSelect.innerHTML = '<option value="">기존 기사 선택...</option>';
+        drivers.forEach(function(d) {
+          var opt2 = document.createElement('option');
+          opt2.value = d;
+          opt2.innerText = d;
+          editSelect.appendChild(opt2);
+        });
+      }
+    }
+
+    function onDriverFilterChanged() {
+      updateKPIs();
+      renderRouteMap();
+      renderTable();
+      var filterVal = document.getElementById('driverFilterSelect').value;
+      if (filterVal && filterVal !== 'all') {
+        showToast('🚗 [' + filterVal + '] 기사 전용 동선으로 세팅되었습니다!');
+      } else {
+        showToast('🚗 전체 배송 동선으로 표시됩니다.');
+      }
+    }
+
+    function parseGvizData(json, sheetName) {
+      if (!json || !json.table || !json.table.rows) return;
+
+      var rows = json.table.rows;
+      var parsedRecords = [];
+      var idCounter = 1;
+
+      for (var r = 0; r < rows.length; r++) {
+        var c = rows[r].c;
+        if (!c) continue;
+
+        var contractNo = (c[0] && c[0].v != null) ? String(c[0].v).trim() : '';
+        var typeVal = (c[2] && c[2].v != null) ? String(c[2].v).trim() : '배송';
+        var driver = (c[3] && c[3].v != null) ? String(c[3].v).trim() : '';
+        var cust = (c[4] && c[4].v != null) ? String(c[4].v).trim() : '';
+        var addr = (c[5] && c[5].v != null) ? String(c[5].v).trim() : '';
+        var detailAddr = (c[6] && c[6].v != null) ? String(c[6].v).trim() : '';
+        var timeVal = (c[7] && c[7].v != null) ? String(c[7].v).trim() : '';
+        var noteVal = (c[8] && c[8].v != null) ? String(c[8].v).trim() : '';
+        var callVal = (c[9] && c[9].v != null) ? String(c[9].v).trim() : '';
+
+        if (contractNo.indexOf('계약') !== -1 || cust.indexOf('고객') !== -1 || addr.indexOf('주소') !== -1) {
+          continue;
+        }
+
+        if (!cust && !addr) continue;
+
+        var fullAddr = detailAddr ? (addr + ' ' + detailAddr) : addr;
+        var noteLines = noteVal.split('\n');
+        var itemLine = noteLines.length > 1 ? noteLines[1] : (noteLines[0] || '-');
+
+        parsedRecords.push({
+          ID: idCounter++,
+          계약번호: contractNo,
+          구분: typeVal || '배송',
+          담당기사: driver,
+          고객사: cust,
+          주소: fullAddr,
+          기본주소: addr,
+          상세주소: detailAddr,
+          방문시간: timeVal,
+          품목_수량: itemLine,
+          비고_전문: noteVal,
+          통화여부: callVal
+        });
+      }
+
+      records = parsedRecords;
+      originalRecords = JSON.parse(JSON.stringify(parsedRecords));
+      updateDriverFilterOptions();
+      updateKPIs();
+      renderTable();
+      try {
+        renderRouteMap();
+      } catch (mapErr) {
+        console.warn('Map render deferred:', mapErr);
+      }
+    }
+
+    // ==========================================
+    // KPIs Update (선택된 기사 기준 맞춤 집계)
+    // ==========================================
+    function updateKPIs() {
+      var active = getFilteredRecords();
+      var kpiTotal = document.getElementById('kpiTotal');
+      if (kpiTotal) kpiTotal.innerText = active.length;
+
+      var countDeliv = active.filter(function(r) { return r.구분.indexOf('회수') === -1; }).length;
+      var countRecov = active.filter(function(r) { return r.구분.indexOf('회수') !== -1; }).length;
+      var kpiDeliv = document.getElementById('kpiDelivery');
+      var kpiRecov = document.getElementById('kpiRecovery');
+      if (kpiDeliv) kpiDeliv.innerText = countDeliv;
+      if (kpiRecov) kpiRecov.innerText = countRecov;
+
+      var currentFilterDriver = document.getElementById('driverFilterSelect') ? document.getElementById('driverFilterSelect').value : 'all';
+      var driverText = '-';
+      if (currentFilterDriver && currentFilterDriver !== 'all') {
+        driverText = currentFilterDriver || '미지정';
+      } else {
+        var uniqueDrivers = [];
+        active.forEach(function(r) {
+          var d = (r.담당기사 || '').trim();
+          if (d && uniqueDrivers.indexOf(d) === -1) uniqueDrivers.push(d);
+        });
+        driverText = uniqueDrivers.length > 0 ? (uniqueDrivers.length === 1 ? uniqueDrivers[0] : uniqueDrivers[0] + ' 외 ' + (uniqueDrivers.length - 1) + '명') : '미지정';
+      }
+      var kpiDriver = document.getElementById('kpiDriver');
+      if (kpiDriver) kpiDriver.innerText = driverText;
+    }
+
+    // ==========================================
+    // Real-time Route Map Logic (네이버 지도 스타일 + OSRM 주행 엔진)
+    // ==========================================
+    function initMap() {
+      if (leafletMap) return;
+      var container = document.getElementById('routeMapCanvas');
+      if (!container) return;
+
+      leafletMap = L.map('routeMapCanvas', {
+        center: [37.4809, 126.8826],
+        zoom: 12,
+        zoomControl: true
+      });
+
+      // Carto Voyager 타일
+      L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&hl=ko', {
+        maxZoom: 19,
+        attribution: '© Google Maps (한글 지도)'
+      }).addTo(leafletMap);
+
+      routeLayerGroup = L.layerGroup().addTo(leafletMap);
+    }
+
+    async function fetchDrivingRoute(waypoints) {
+      if (!waypoints || waypoints.length < 2) return null;
+      var coordString = waypoints.map(function(p) {
+        return p.lng.toFixed(6) + ',' + p.lat.toFixed(6);
+      }).join(';');
+
+      var url = 'https://router.project-osrm.org/route/v1/driving/' + coordString + '?overview=full&geometries=geojson';
+      try {
+        var resp = await fetch(url);
+        if (!resp.ok) throw new Error('Route HTTP ' + resp.status);
+        var data = await resp.json();
+        if (data.code === 'Ok' && data.routes && data.routes.length > 0) {
+          var r = data.routes[0];
+          var latLngs = r.geometry.coordinates.map(function(c) {
+            return [c[1], c[0]];
+          });
+          return {
+            latLngs: latLngs,
+            distanceKm: Math.round((r.distance / 1000) * 10) / 10,
+            durationMin: Math.round(r.duration / 60)
+          };
+        }
+      } catch (err) {
+        console.warn('OSRM routing fetch failed, fallback to straight route:', err);
+      }
+      return null;
+    }
+
+    async function renderRouteMap() {
+      initMap();
+      if (!leafletMap) return;
+
+      var origins = getOrigins();
+      var selectedId = document.getElementById('originSelect').value;
+      var originCoord = origins.find(function(o) { return o.id === selectedId; }) || origins[0];
+
+      routeLayerGroup.clearLayers();
+      var waypoints = [];
+
+      waypoints.push(originCoord);
+      var originIcon = L.divIcon({
+        className: 'custom-map-icon',
+        html: `
+          <div style="background:#03c75a; color:white; padding:5px 10px; border-radius:20px; font-weight:800; font-size:11px; box-shadow:0 3px 8px rgba(3,199,90,0.4); border:2px solid #ffffff; display:flex; align-items:center; gap:5px; white-space:nowrap; cursor:pointer;">
+            <i class="fa-solid fa-flag"></i> 출발: ${originCoord.name}
+          </div>
+        `,
+        iconSize: [110, 28],
+        iconAnchor: [55, 14]
+      });
+      L.marker([originCoord.lat, originCoord.lng], { icon: originIcon })
+        .bindPopup(`
+          <div style="font-size:12px; min-width:180px; padding:2px;">
+            <div style="font-weight:bold; color:#03c75a; margin-bottom:4px; font-size:13px;"><i class="fa-solid fa-flag"></i> 출발지: ${originCoord.name}</div>
+            <div style="color:#64748b; font-size:11px; margin-bottom:6px;">${originCoord.addr}</div>
+            <button onclick="openOriginModal()" style="display:inline-block; background:#f1f5f9; color:#475569; padding:4px 8px; border-radius:6px; font-weight:bold; font-size:10px; border:1px solid #cbd5e1; cursor:pointer;">
+              <i class="fa-solid fa-pen"></i> 출발지 주소 수정
+            </button>
+          </div>
+        `)
+        .addTo(routeLayerGroup);
+
+      var activeRecords = getFilteredRecords();
+      var timelineBox = document.getElementById('routeTimeline');
+      document.getElementById('timelineCount').innerText = activeRecords.length;
+      timelineBox.innerHTML = `
+        <div class="p-2 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span class="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center font-black text-[10px]">출발</span>
+            <div>
+              <p class="font-bold text-slate-900">${originCoord.name}</p>
+              <p class="text-[10px] text-slate-400 truncate max-w-[170px]">${originCoord.addr}</p>
+            </div>
+          </div>
+          <button onclick="event.stopPropagation(); openOriginModal();" class="px-2 py-1 bg-white hover:bg-emerald-100 text-emerald-700 font-bold rounded-lg text-[10px] border border-emerald-300 shadow-xs transition flex items-center gap-1">
+            <i class="fa-solid fa-pen-to-square text-emerald-600"></i> 수정
+          </button>
+        </div>
+      `;
+
+      activeRecords.forEach(function(r, subIdx) {
+        var realIdx = records.indexOf(r);
+        var stopNumber = subIdx + 1;
+        var coord = getCoordForAddress(r.기본주소 || r.주소);
+        waypoints.push({ lat: coord.lat, lng: coord.lng });
+
+        var isRecov = r.구분.indexOf('회수') !== -1;
+        var pinColor = isRecov ? '#9333ea' : '#2563eb';
+        var stopIcon = L.divIcon({
+          className: 'custom-map-icon',
+          html: `
+            <div style="position:relative; width:30px; height:38px; display:flex; flex-direction:column; align-items:center; filter:drop-shadow(0 3px 6px rgba(0,0,0,0.35)); cursor:pointer;">
+              <div style="width:28px; height:28px; border-radius:50%; background:${pinColor}; color:white; font-weight:900; font-size:12px; display:flex; align-items:center; justify-content:center; border:2.5px solid white;">
+                ${stopNumber}
+              </div>
+              <div style="width:0; height:0; border-left:5px solid transparent; border-right:5px solid transparent; border-top:8px solid ${pinColor}; margin-top:-2px;"></div>
+            </div>
+          `,
+          iconSize: [30, 38],
+          iconAnchor: [15, 38]
+        });
+
+        var marker = L.marker([coord.lat, coord.lng], { icon: stopIcon }).addTo(routeLayerGroup);
+        marker.bindPopup(`
+          <div style="font-size:12px; min-width:200px; padding:2px;">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
+              <span style="font-weight:900; color:${pinColor}; font-size:13px;">#${stopNumber} ${r.고객사}</span>
+              <span style="background:${isRecov ? '#f3e8ff' : '#dbeafe'}; color:${isRecov ? '#7e22ce' : '#1d4ed8'}; font-size:10px; font-weight:bold; padding:2px 6px; border-radius:4px;">${r.구분}</span>
+            </div>
+            <div style="color:#475569; font-size:11px; margin-bottom:3px;"><i class="fa-solid fa-location-dot text-slate-400"></i> ${r.주소}</div>
+            <div style="background:#f8fafc; padding:4px 6px; border-radius:6px; font-size:10px; color:#64748b; margin-bottom:6px; border:1px solid #f1f5f9;">
+              ⏰ 방문: <b>${r.방문시간 || '시간무관'}</b> | 🚗 기사: <b>${r.담당기사 || '미지정'}</b>
+            </div>
+            <div style="display:flex; gap:4px;">
+              <button onclick="openEditStopModal(${realIdx})" style="background:#4f46e5; color:white; font-weight:bold; padding:4px 8px; border-radius:6px; font-size:10px; border:none; cursor:pointer;">
+                <i class="fa-solid fa-pen"></i> 정보/기사 수정
+              </button>
+              <a href="https://map.naver.com/v5/search/${encodeURIComponent(r.기본주소 || r.주소)}" target="_blank" style="background:#03c75a; color:white; font-weight:bold; padding:4px 8px; border-radius:6px; text-decoration:none; font-size:10px; display:inline-flex; align-items:center; gap:2px;">
+                <i class="fa-solid fa-arrow-up-right-from-square"></i> 네이버 지도
+              </a>
+            </div>
+          </div>
+        `);
+
+        var isFirst = (subIdx === 0);
+        var isLast = (subIdx === activeRecords.length - 1);
+        var prevRealIdx = !isFirst ? records.indexOf(activeRecords[subIdx - 1]) : -1;
+        var nextRealIdx = !isLast ? records.indexOf(activeRecords[subIdx + 1]) : -1;
+
+        timelineBox.innerHTML += `
+          <div class="p-2 rounded-xl bg-white border border-slate-200 hover:border-indigo-400 transition cursor-pointer space-y-1 shadow-sm relative group"
+               draggable="true"
+               ondragstart="onDragStart(event, ${realIdx})"
+               ondragover="onDragOver(event)"
+               ondrop="onDrop(event, ${realIdx})"
+               ondragend="onDragEnd(event)"
+               onclick="zoomToStop(${coord.lat}, ${coord.lng})">
+            
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-1.5 font-bold text-slate-800">
+                <span class="cursor-grab active:cursor-grabbing text-slate-300 group-hover:text-indigo-600 px-0.5" title="마우스로 끌어서 순서 변경">
+                  <i class="fa-solid fa-grip-vertical text-xs"></i>
+                </span>
+                <span class="w-4 h-4 rounded-full ${isRecov ? 'bg-purple-600' : 'bg-indigo-600'} text-white flex items-center justify-center text-[10px] font-black">${stopNumber}</span>
+                <span class="truncate max-w-[110px]">${r.고객사}</span>
+                ${r.담당기사 ? `<span class="text-[9px] bg-amber-50 text-amber-700 px-1 py-0.2 rounded font-semibold border border-amber-200">${r.담당기사}</span>` : ''}
+              </div>
+
+              <div class="flex items-center gap-1">
+                <span class="text-[10px] text-slate-400 font-medium mr-0.5">${r.방문시간 || '무관'}</span>
+                <button onclick="event.stopPropagation(); openEditStopModal(${realIdx});" 
+                        class="w-5 h-5 rounded bg-indigo-50 hover:bg-indigo-100 text-indigo-600 flex items-center justify-center text-[10px]" 
+                        title="배송지 정보 및 담당기사 수정">
+                  <i class="fa-solid fa-pen"></i>
+                </button>
+                <button onclick="event.stopPropagation(); deleteStop(${realIdx});" 
+                        class="w-5 h-5 rounded bg-rose-50 hover:bg-rose-100 text-rose-600 flex items-center justify-center text-[10px]" 
+                        title="동선에서 삭제">
+                  <i class="fa-solid fa-trash-can"></i>
+                </button>
+                <button onclick="event.stopPropagation(); moveStop(${realIdx}, ${prevRealIdx});" 
+                        class="w-5 h-5 rounded bg-slate-100 hover:bg-indigo-100 hover:text-indigo-600 text-slate-600 flex items-center justify-center text-[9px] font-bold ${isFirst ? 'opacity-30 cursor-not-allowed' : ''}" 
+                        title="한 칸 위로" ${isFirst ? 'disabled' : ''}>
+                  ▲
+                </button>
+                <button onclick="event.stopPropagation(); moveStop(${realIdx}, ${nextRealIdx});" 
+                        class="w-5 h-5 rounded bg-slate-100 hover:bg-indigo-100 hover:text-indigo-600 text-slate-600 flex items-center justify-center text-[9px] font-bold ${isLast ? 'opacity-30 cursor-not-allowed' : ''}" 
+                        title="한 칸 아래로" ${isLast ? 'disabled' : ''}>
+                  ▼
+                </button>
+              </div>
+            </div>
+            <p class="text-[10px] text-slate-500 truncate pl-6 cursor-pointer hover:text-indigo-600 hover:underline" onclick="event.stopPropagation(); openEditStopModal(${realIdx});" title="클릭하여 배송지 및 담당기사 수정">${r.주소}</p>
+          </div>
+        `;
+      });
+
+      if (waypoints.length > 1) {
+        var osrmResult = await fetchDrivingRoute(waypoints);
+        if (osrmResult && osrmResult.latLngs && osrmResult.latLngs.length > 0) {
+          L.polyline(osrmResult.latLngs, { color: '#1e3a8a', weight: 6.5, opacity: 0.5 }).addTo(routeLayerGroup);
+          L.polyline(osrmResult.latLngs, { color: '#2563eb', weight: 4.5, opacity: 0.95 }).addTo(routeLayerGroup);
+
+          var hours = Math.floor(osrmResult.durationMin / 60);
+          var mins = osrmResult.durationMin % 60;
+          var durStr = hours > 0 ? (hours + '시간 ' + mins + '분') : (mins + '분');
+
+          document.getElementById('routeSummaryBadge').innerHTML = `
+            <i class="fa-solid fa-car text-indigo-600"></i> 총 <b>${activeRecords.length}</b>개소 | 주행 <b>${osrmResult.distanceKm} km</b> | 약 <b>${durStr}</b> (실제 내비게이션)
+          `;
+        } else {
+          var straightPoints = waypoints.map(function(p) { return [p.lat, p.lng]; });
+          L.polyline(straightPoints, { color: '#2563eb', weight: 3, opacity: 0.8, dashArray: '4, 6' }).addTo(routeLayerGroup);
+          document.getElementById('routeSummaryBadge').innerHTML = `
+            <i class="fa-solid fa-car text-indigo-600"></i> 총 <b>${activeRecords.length}</b>개소 (직선 경로 모드)
+          `;
+        }
+      } else {
+        document.getElementById('routeSummaryBadge').innerText = '총 ' + activeRecords.length + '개소 | 0 km | 약 0분';
+      }
+
+      if (routeLayerGroup && leafletMap) {
+        var bounds = routeLayerGroup.getBounds();
+        if (bounds.isValid()) leafletMap.fitBounds(bounds, { padding: [30, 30] });
+      }
+    }
+
+    function zoomToStop(lat, lng) {
+      if (leafletMap) leafletMap.setView([lat, lng], 15, { animate: true });
+    }
+
+    function moveStop(fromIdx, toIdx) {
+      if (fromIdx === toIdx || fromIdx < 0 || fromIdx >= records.length || toIdx < 0 || toIdx >= records.length) return;
+      var moved = records.splice(fromIdx, 1)[0];
+      records.splice(toIdx, 0, moved);
+      renderRouteMap();
+      renderTable();
+      showToast('📍 [' + moved.고객사 + '] 순서가 ' + (toIdx + 1) + '번째로 변경되었습니다!');
+    }
+
+    function onDragStart(e, idx) {
+      draggedStopIndex = idx;
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', idx);
+      e.currentTarget.classList.add('opacity-40', 'border-dashed', 'border-indigo-500');
+    }
+
+    function onDragOver(e) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+    }
+
+    function onDrop(e, targetIdx) {
+      e.preventDefault();
+      if (draggedStopIndex !== null && draggedStopIndex !== targetIdx) {
+        moveStop(draggedStopIndex, targetIdx);
+      }
+      draggedStopIndex = null;
+    }
+
+    function onDragEnd(e) {
+      e.currentTarget.classList.remove('opacity-40', 'border-dashed', 'border-indigo-500');
+      draggedStopIndex = null;
+    }
+
+    function resetOrder() {
+      if (originalRecords && originalRecords.length > 0) {
+        records = JSON.parse(JSON.stringify(originalRecords));
+        renderRouteMap();
+        renderTable();
+        showToast('🔄 시트 원본 순서로 복원되었습니다.');
+      }
+    }
+
+    function openEditStopModal(idx) {
+      if (idx < 0 || idx >= records.length) return;
+      var r = records[idx];
+      document.getElementById('editStopIndex').value = idx;
+      document.getElementById('editCustName').value = r.고객사 || '';
+      document.getElementById('editType').value = (r.구분 && r.구분.indexOf('회수') !== -1) ? '회수' : '배송';
+      document.getElementById('editTime').value = r.방문시간 || '';
+      document.getElementById('editAddr').value = r.기본주소 || r.주소 || '';
+      document.getElementById('editDetailAddr').value = r.상세주소 || '';
+      document.getElementById('editDriver').value = r.담당기사 || '';
+      document.getElementById('editItem').value = r.품목_수량 || '';
+      document.getElementById('editStopModal').classList.remove('hidden');
+    }
+
+    function closeEditStopModal() {
+      document.getElementById('editStopModal').classList.add('hidden');
+    }
+
+    function saveEditStopModal(applyToSheet) {
+      var idx = parseInt(document.getElementById('editStopIndex').value, 10);
+      if (idx < 0 || idx >= records.length) return;
+
+      var cust = document.getElementById('editCustName').value.trim();
+      var addr = document.getElementById('editAddr').value.trim();
+      var detail = document.getElementById('editDetailAddr').value.trim();
+      var time = document.getElementById('editTime').value.trim();
+      var type = document.getElementById('editType').value;
+      var item = document.getElementById('editItem').value.trim();
+      var driver = document.getElementById('editDriver').value.trim();
+
+      if (!cust && !addr) {
+        alert('고객사명 또는 주소를 입력해주세요.');
+        return;
+      }
+
+      var r = records[idx];
+      r.고객사 = cust;
+      r.기본주소 = addr;
+      r.상세주소 = detail;
+      r.주소 = detail ? (addr + ' ' + detail) : addr;
+      r.방문시간 = time;
+      r.구분 = type;
+      r.품목_수량 = item;
+      r.담당기사 = driver;
+
+      closeEditStopModal();
+      updateDriverFilterOptions();
+      updateKPIs();
+      renderRouteMap();
+      renderTable();
+
+      if (supabaseClient && r.ID) {
+        supabaseClient.from('delivery_schedules').update({
+          customer_name: cust,
+          address: r.주소,
+          visit_time: time,
+          category: type,
+          items: item,
+          driver_name: driver
+        }).eq('id', r.ID).then(function(res) {
+          if (res.error) console.error('DB Update error:', res.error);
+          else showToast('💾 Supabase DB에 수정사항이 저장되었습니다!');
+        });
+      }
+      if (applyToSheet) {
+        var sheetDate = document.getElementById('sheetDateSelect').value;
+        updateDriverToSheet(sheetDate, r.계약번호, r.고객사, driver);
+      } else {
+        showToast('✅ [' + cust + '] 정보가 대시보드 화면에 수정되었습니다!');
+      }
+    }
+
+    function updateDriverToSheet(sheetDate, contractNo, cust, driver) {
+      showToast('⏳ 구글 시트에 담당기사(' + (driver || '미지정') + ') 반영 중...');
+
+      // 1. Apps Script dialog 환경인 경우 (google.script.run)
+      if (window.google && google.script && google.script.run) {
+        google.script.run
+          .withSuccessHandler(function(res) {
+            if (res && res.success) {
+              showToast('✅ 구글 시트 반영 완료! (' + cust + ' ➔ ' + (driver || '미지정') + ')');
+            } else {
+              alert('시트 반영 오류: ' + (res ? res.message : '실패'));
+            }
+          })
+          .withFailureHandler(function(err) {
+            alert('구글 시트 반영 실패: ' + err.message);
+          })
+          .updateDriverInSheet(sheetDate, contractNo, cust, driver);
+        return;
+      }
+
+      // 2. 외부 브라우저 / 독립 웹앱 환경: JSONP API 호출
+      var webAppUrl = (window.location && window.location.href && window.location.href.indexOf('script.google.com') !== -1)
+        ? window.location.href.split('?')[0]
+        : 'https://script.google.com/macros/s/AKfycbyaCUxOK7Fbetl8xWBHjf_Cbuf8YRANSMlVWVyVfcBB2oX9Q8dsIr8qW8iXdduCZ7eP-w/exec';
+
+      var oldScript = document.getElementById('driverUpdateScript');
+      if (oldScript) oldScript.remove();
+
+      var script = document.createElement('script');
+      script.id = 'driverUpdateScript';
+      var query = '?action=updateDriver'
+                + '&sheetDate=' + encodeURIComponent(sheetDate)
+                + '&contractNo=' + encodeURIComponent(contractNo || '')
+                + '&cust=' + encodeURIComponent(cust || '')
+                + '&driver=' + encodeURIComponent(driver)
+                + '&callback=onDriverUpdateResponse';
+      script.src = webAppUrl + query;
+      script.onerror = function() {
+        showToast('⚠️ 웹앱 연결 오류. Apps Script 배포 상태를 확인해주세요.');
+      };
+      document.body.appendChild(script);
+    }
+
+    window.onDriverUpdateResponse = function(res) {
+      if (res && res.success) {
+        showToast('✅ 구글 시트 반영 완료! (' + (res.count || 1) + '건 담당기사: "' + res.driver + '")');
+      } else {
+        alert('구글 시트 반영 실패: ' + (res ? res.message : '확인 필요'));
+      }
+    };
+
+    function openAddStopModal() {
+      document.getElementById('addCustName').value = '';
+      document.getElementById('addType').value = '배송';
+      document.getElementById('addTime').value = '';
+      document.getElementById('addAddr').value = '';
+      document.getElementById('addDetailAddr').value = '';
+      document.getElementById('addItem').value = '';
+      document.getElementById('addStopModal').classList.remove('hidden');
+    }
+
+    function closeAddStopModal() {
+      document.getElementById('addStopModal').classList.add('hidden');
+    }
+
+    function saveAddStopModal() {
+      var cust = document.getElementById('addCustName').value.trim();
+      var addr = document.getElementById('addAddr').value.trim();
+      var detail = document.getElementById('addDetailAddr').value.trim();
+      var time = document.getElementById('addTime').value.trim();
+      var type = document.getElementById('addType').value;
+      var item = document.getElementById('addItem').value.trim();
+
+      if (!cust || !addr) {
+        alert('고객사명과 기본 주소는 필수 입력 사항입니다.');
+        return;
+      }
+
+      var fullAddr = detail ? (addr + ' ' + detail) : addr;
+      var currentFilterDriver = document.getElementById('driverFilterSelect') ? document.getElementById('driverFilterSelect').value : '';
+      var assignedDriver = (currentFilterDriver && currentFilterDriver !== 'all') 
+        ? currentFilterDriver 
+        : (records.length > 0 ? (records[0].담당기사 || '현장기사') : '현장기사');
+
+      var newRecord = {
+        ID: Date.now(),
+        계약번호: '추가건',
+        구분: type,
+        담당기사: assignedDriver,
+        고객사: cust,
+        주소: fullAddr,
+        기본주소: addr,
+        상세주소: detail,
+        방문시간: time,
+        품목_수량: item || '-',
+        비고_전문: item,
+        통화여부: '미통화'
+      };
+
+      records.push(newRecord);
+      updateDriverFilterOptions();
+      updateKPIs();
+      closeAddStopModal();
+      renderRouteMap();
+      renderTable();
+      showToast('➕ [' + cust + '] 새 배송지가 동선에 직접 추가되었습니다!');
+    }
+
+    function deleteStop(idx) {
+      if (idx < 0 || idx >= records.length) return;
+      var target = records[idx];
+      if (confirm('[' + target.고객사 + '] 건을 오늘의 배송 동선에서 삭제하시겠습니까?')) {
+        var deletedId = target.ID;
+        records.splice(idx, 1);
+        if (supabaseClient && deletedId) {
+          supabaseClient.from('delivery_schedules').delete().eq('id', deletedId).then(function(res) {
+            if (res.error) console.error('DB Delete error:', res.error);
+            else showToast('🗑️ Supabase DB에서 삭제되었습니다.');
+          });
+        }
+        updateDriverFilterOptions();
+        updateKPIs();
+        renderRouteMap();
+        renderTable();
+        showToast('🗑️ [' + target.고객사 + '] 건이 동선에서 삭제되었습니다.');
+      }
+    }
+
+    function openNaverDirectRoute() {
+      var activeRecords = getFilteredRecords();
+      if (activeRecords.length === 0) { alert('선택된 기사의 배송 목록이 없습니다.'); return; }
+      var origins = getOrigins();
+      var selectedId = document.getElementById('originSelect').value;
+      var originCoord = origins.find(function(o) { return o.id === selectedId; }) || origins[0];
+      var firstAddr = activeRecords[0].기본주소 || activeRecords[0].주소;
+      window.open('https://map.naver.com/v5/search/' + encodeURIComponent(firstAddr), '_blank');
+    }
+
+    function renderTable() {
+      var tbody = document.getElementById('tableBody');
+      var kw = (document.getElementById('tableSearchInput').value || '').toLowerCase().trim();
+      var typeFilter = document.getElementById('tableTypeFilter').value;
+      var driverFilter = document.getElementById('driverFilterSelect') ? document.getElementById('driverFilterSelect').value : 'all';
+
+      var filtered = records.filter(function(r) {
+        if (typeFilter !== 'all' && r.구분.indexOf(typeFilter) === -1) return false;
+        if (driverFilter !== 'all') {
+          var d = (r.담당기사 || '').trim();
+          if (driverFilter === '' && d !== '') return false;
+          if (driverFilter !== '' && d !== driverFilter) return false;
+        }
+        if (kw) {
+          var matchStr = (r.고객사 + ' ' + r.주소 + ' ' + r.품목_수량 + ' ' + r.담당기사 + ' ' + r.계약번호).toLowerCase();
+          if (matchStr.indexOf(kw) === -1) return false;
+        }
+        return true;
+      });
+
+      document.getElementById('tableCount').innerText = filtered.length;
+      tbody.innerHTML = '';
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="10" class="py-8 text-center text-slate-400">배송 내역이 없습니다.</td></tr>';
+        return;
+      }
+
+      filtered.forEach(function(r) {
+        var realIdx = records.indexOf(r);
+        var tr = document.createElement('tr');
+        tr.className = 'hover:bg-slate-50 transition';
+        tr.innerHTML = `
+          <td class="py-2.5 px-3 font-mono text-slate-500">${r.계약번호 || '-'}</td>
+          <td class="py-2.5 px-2"><span class="px-2 py-0.5 rounded font-bold text-[10px] ${r.구분.indexOf('회수') !== -1 ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}">${r.구분}</span></td>
+          <td class="py-2.5 px-3 font-bold text-slate-900">${r.고객사}</td>
+          <td class="py-2.5 px-3.5 text-slate-600 max-w-xs truncate" title="${r.주소}">${r.주소}</td>
+          <td class="py-2.5 px-2.5 text-slate-500 font-medium">${r.방문시간 || '-'}</td>
+          <td class="py-2.5 px-3 text-slate-800 font-semibold max-w-xs truncate" title="${r.품목_수량}">${r.품목_수량 || '-'}</td>
+          <td class="py-2.5 px-2.5">
+            <span class="font-bold ${r.담당기사 ? 'text-amber-800 bg-amber-50 px-2 py-0.5 rounded border border-amber-200' : 'text-slate-400'} text-[11px]">${r.담당기사 || '미지정'}</span>
+          </td>
+          <td class="py-2.5 px-2.5 text-slate-500 font-bold">${r.통화여부 || '-'}</td>
+          <td class="py-2.5 px-2.5 text-center">
+            <div class="flex items-center justify-center gap-1">
+              <button onclick="openEditStopModal(${realIdx})" class="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded font-bold text-[10px] inline-flex items-center gap-1 border border-indigo-200" title="주소/기사 수정 및 시트 반영">
+                <i class="fa-solid fa-pen"></i> 수정
+              </button>
+              <button onclick="deleteStop(${realIdx})" class="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded font-bold text-[10px] inline-flex items-center gap-1 border border-rose-200" title="삭제">
+                <i class="fa-solid fa-trash-can"></i>
+              </button>
+            </div>
+          </td>
+          <td class="py-2.5 px-2.5 text-center">
+            <a href="https://map.naver.com/v5/search/${encodeURIComponent(r.기본주소 || r.주소)}" target="_blank" class="px-2 py-1 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded font-bold text-[10px] inline-flex items-center gap-1 border border-emerald-200">
+              <i class="fa-solid fa-location-arrow"></i> 길찾기
+            </a>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function showToast(msg) {
+      var toast = document.getElementById('toast');
+      document.getElementById('toastMsg').innerText = msg;
+      toast.classList.remove('translate-y-12', 'opacity-0', 'pointer-events-none');
+      setTimeout(function() {
+        toast.classList.add('translate-y-12', 'opacity-0', 'pointer-events-none');
+      }, 2500);
+    }
+
+    async function bootstrapDashboard() {
+      await initSheetDateSelect();
+      renderOriginOptions();
+      initAutoSync();
+      await triggerSync(false);
+    }
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', bootstrapDashboard);
+    } else {
+      bootstrapDashboard();
+    }
+  </script>
+</body>
+</html>
+
+
