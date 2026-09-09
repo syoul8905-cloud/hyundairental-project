@@ -1007,10 +1007,10 @@
           .delete()
           .eq('source_sheet', 'SYSTEM_CONFIG_USERS');
         await supabaseClient.from('delivery_schedules').insert([{
-          customer_name: '시스템_계정_설정',
+          customer_name: 'SYSTEM_CONFIG_USERS',
           source_sheet: 'SYSTEM_CONFIG_USERS',
           memo_full: JSON.stringify(authUsers),
-          delivery_date: '2099-12-31'
+          delivery_date: '1970-01-01'
         }]);
       } catch (e) {
         console.warn('Save auth users to cloud error:', e);
@@ -1731,7 +1731,12 @@
       var curr = select.value;
       select.innerHTML = '';
 
-      var dates = availableDates && availableDates.length > 0 ? availableDates : [new Date().toISOString().split('T')[0]];
+      var todayStr = new Date().toISOString().split('T')[0];
+      var validDates = (availableDates || []).filter(function(d) {
+        return d && d !== '2099-12-31' && d !== '1970-01-01' && d !== 'SYSTEM_CONFIG';
+      });
+
+      var dates = validDates.length > 0 ? validDates : [todayStr];
       dates.forEach(function(d) {
         var opt = document.createElement('option');
         opt.value = d;
@@ -1744,7 +1749,8 @@
       allOpt.innerText = '전체 일정 보기';
       select.appendChild(allOpt);
 
-      var chosenDate = dates[0];
+      // 기본 선택: 오늘 일정이 있으면 오늘 날짜, 없으면 가장 최근 등록 일자
+      var chosenDate = dates.indexOf(todayStr) !== -1 ? todayStr : dates[0];
       if (curr && (dates.indexOf(curr) !== -1 || curr === 'all')) {
         chosenDate = curr;
       }
@@ -1755,11 +1761,16 @@
     async function loadAvailableDates() {
       if (!supabaseClient) return [];
       try {
-        var res = await supabaseClient.from('delivery_schedules').select('delivery_date').order('delivery_date', { ascending: false });
+        var res = await supabaseClient.from('delivery_schedules')
+          .select('delivery_date, source_sheet')
+          .neq('source_sheet', 'SYSTEM_CONFIG_USERS')
+          .order('delivery_date', { ascending: false });
         if (res.data && res.data.length > 0) {
           var dateSet = new Set();
           res.data.forEach(function(row) {
-            if (row.delivery_date) dateSet.add(row.delivery_date);
+            if (row.delivery_date && row.delivery_date !== '2099-12-31' && row.delivery_date !== '1970-01-01' && row.source_sheet !== 'SYSTEM_CONFIG_USERS') {
+              dateSet.add(row.delivery_date);
+            }
           });
           var sortedDates = Array.from(dateSet).sort().reverse();
           initDateSelect(sortedDates);
@@ -3162,7 +3173,10 @@
         var selectInp = document.getElementById('sheetDateSelect');
         var selectedDate = (selectInp && selectInp.value) ? selectInp.value : (dateInp ? dateInp.value : '');
 
-        var query = supabaseClient.from('delivery_schedules').select('*').order('id', { ascending: true });
+        var query = supabaseClient.from('delivery_schedules')
+          .select('*')
+          .neq('source_sheet', 'SYSTEM_CONFIG_USERS')
+          .order('id', { ascending: true });
 
         if (selectedDate && selectedDate !== 'all') {
           var cleanDate = selectedDate.replace(/\./g, '-');
@@ -3173,7 +3187,15 @@
         var res = await query;
         if (res.error) throw res.error;
 
-        var data = res.data || [];
+        var rawData = res.data || [];
+        var data = rawData.filter(function(row) {
+          return row.source_sheet !== 'SYSTEM_CONFIG_USERS' &&
+                 row.customer_name !== 'SYSTEM_CONFIG_USERS' &&
+                 row.customer_name !== '시스템_계정_설정' &&
+                 row.delivery_date !== '2099-12-31' &&
+                 row.delivery_date !== '1970-01-01';
+        });
+
         records = data.map(function(row) {
           return {
             ID: row.id,
@@ -3207,7 +3229,9 @@
         // 고유 배송일자 목록 추출 (전체 조회 시에만 재동기화)
         if (!selectedDate || selectedDate === 'all') {
           var dateSet = new Set();
-          records.forEach(function(r) { if (r.배송일자) dateSet.add(r.배송일자); });
+          records.forEach(function(r) { 
+            if (r.배송일자 && r.배송일자 !== '2099-12-31' && r.배송일자 !== '1970-01-01') dateSet.add(r.배송일자); 
+          });
           if (dateSet.size > 0) {
             initDateSelect(Array.from(dateSet).sort().reverse());
           }
