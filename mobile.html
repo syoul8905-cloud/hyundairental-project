@@ -228,6 +228,19 @@
         </button>
       </div>
 
+      <!-- Origin Info Bar in Mobile Map Modal -->
+      <div id="mobileMapOriginBar" class="p-2.5 bg-emerald-50 border-b border-emerald-200 flex items-center justify-between text-xs shrink-0">
+        <div class="flex items-center gap-1.5 truncate">
+          <span class="w-5 h-5 rounded bg-emerald-600 text-white flex items-center justify-center text-[10px] shrink-0 font-bold">
+            <i class="fa-solid fa-flag"></i>
+          </span>
+          <span class="font-black text-emerald-900 text-xs">출발지:</span>
+          <span id="mobileModalOriginName" class="font-bold text-emerald-800 underline underline-offset-2 truncate text-xs">가산 센터</span>
+          <span id="mobileModalOriginBadge" class="text-[9px] bg-emerald-200 text-emerald-900 px-1.5 py-0.2 rounded font-bold shrink-0">🏢 가산 센터</span>
+        </div>
+        <span id="mobileModalOriginAddr" class="text-[10px] text-slate-500 truncate max-w-[140px] font-mono" title=""></span>
+      </div>
+
       <!-- Route Toolbar (실제 경로 계산 & 거리/시간 뱃지) -->
       <div class="p-2.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between gap-2 text-xs shrink-0">
         <div class="flex items-center gap-1.5 flex-wrap">
@@ -341,8 +354,16 @@
     const supabaseClient = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 
     var currentUser = null;
+    var currentDriverName = '';
     var currentDate = new Date().toISOString().split('T')[0];
     var driverRecords = [];
+
+    function getCurrentDriverName() {
+      if (currentUser && currentUser.id) return currentUser.id;
+      if (currentDriverName) return currentDriverName;
+      var saved = localStorage.getItem('DELIVERY_SAVED_ID');
+      return saved || '';
+    }
 
     // Kakao Map & Route Variables
     var mobileKakaoMap = null;
@@ -683,6 +704,39 @@
         return;
       }
 
+      // 1. 타임라인 맨 윗단에 고정된 출발지 카드 렌더링
+      var drvName = getCurrentDriverName();
+      var originCoord = getDriverOrigin(drvName, currentDate);
+      var isGasan = (originCoord.type === 'gasan' || (originCoord.addr && originCoord.addr.indexOf('벚꽃로 278') !== -1));
+
+      var originCard = document.createElement('div');
+      originCard.className = 'bg-gradient-to-r from-emerald-50 via-teal-50 to-slate-50 rounded-2xl p-3.5 border-2 border-emerald-300 shadow-xs space-y-1.5 mb-2';
+      originCard.innerHTML = `
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-1.5 font-black text-emerald-950">
+            <span class="w-5 h-5 rounded-lg bg-emerald-600 text-white flex items-center justify-center text-[10px] shadow-xs">
+              <i class="fa-solid fa-flag"></i>
+            </span>
+            <span class="text-xs">출발지:</span>
+            <span class="text-xs font-black text-emerald-800 underline underline-offset-2">${originCoord.name || '가산 센터'}</span>
+            <span class="text-[9px] ${isGasan ? 'bg-emerald-100 text-emerald-900 border-emerald-300' : 'bg-teal-100 text-teal-900 border-teal-300'} px-1.5 py-0.2 rounded-full font-bold border">
+              ${isGasan ? '🏢 가산 센터' : '🏠 등록 거점'}
+            </span>
+          </div>
+          <span class="text-[10px] font-mono text-slate-500 font-bold">${currentDate}</span>
+        </div>
+        <div class="text-[11px] text-slate-700 bg-white/95 px-2.5 py-1.5 rounded-xl border border-emerald-200 shadow-xs flex items-center justify-between gap-1.5">
+          <div class="flex items-center gap-1.5 truncate">
+            <i class="fa-solid fa-location-dot text-emerald-600 text-xs shrink-0"></i>
+            <span class="truncate font-semibold text-slate-800 text-[11px]" title="${originCoord.addr}">${originCoord.addr}</span>
+          </div>
+          <button type="button" onclick="openMobileMapModal()" class="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 shrink-0 ml-1">
+            지도 ↗
+          </button>
+        </div>
+      `;
+      container.appendChild(originCard);
+
       driverRecords.forEach(function(r, idx) {
         var isFirst = (idx === 0);
         var isLast = (idx === total - 1);
@@ -877,6 +931,24 @@
     function openMobileMapModal() {
       document.getElementById('mobileMapModal').classList.remove('hidden');
       document.getElementById('mobileMapStopCount').innerText = driverRecords.length + '개소';
+
+      var drvName = getCurrentDriverName();
+      var originCoord = getDriverOrigin(drvName, currentDate);
+      var isGasan = (originCoord.type === 'gasan' || (originCoord.addr && originCoord.addr.indexOf('벚꽃로 278') !== -1));
+
+      var nameEl = document.getElementById('mobileModalOriginName');
+      var badgeEl = document.getElementById('mobileModalOriginBadge');
+      var addrEl = document.getElementById('mobileModalOriginAddr');
+      if (nameEl) nameEl.innerText = originCoord.name || '가산 센터';
+      if (badgeEl) {
+        badgeEl.innerText = isGasan ? '🏢 가산 센터' : '🏠 등록 거점';
+        badgeEl.className = 'text-[9px] ' + (isGasan ? 'bg-emerald-200 text-emerald-900' : 'bg-teal-200 text-teal-900') + ' px-1.5 py-0.2 rounded font-bold shrink-0';
+      }
+      if (addrEl) {
+        addrEl.innerText = originCoord.addr;
+        addrEl.title = originCoord.addr;
+      }
+
       setTimeout(function() {
         initOrUpdateMobileMap();
       }, 150);
@@ -893,8 +965,10 @@
         return;
       }
 
+      var drvName = getCurrentDriverName();
+      var originCoord = getDriverOrigin(drvName, currentDate);
+
       if (!mobileKakaoMap) {
-        var originCoord = getDriverOrigin(currentDriverName);
         var options = {
           center: new kakao.maps.LatLng(originCoord.lat, originCoord.lng),
           level: 7
@@ -902,6 +976,7 @@
         mobileKakaoMap = new kakao.maps.Map(container, options);
       } else {
         mobileKakaoMap.relayout();
+        mobileKakaoMap.setCenter(new kakao.maps.LatLng(originCoord.lat, originCoord.lng));
       }
 
       renderMobileMapStops();
@@ -920,18 +995,19 @@
       if (!mobileKakaoMap || !window.kakao) return;
       clearMobileMapOverlays();
 
+      var drvName = getCurrentDriverName();
+      var originCoord = getDriverOrigin(drvName, currentDate);
       var bounds = new kakao.maps.LatLngBounds();
-      var originCoord = getDriverOrigin(currentDriverName);
       bounds.extend(new kakao.maps.LatLng(originCoord.lat, originCoord.lng));
 
       // 출발지 마커
       var originContent = document.createElement('div');
-      originContent.className = 'kakao-pin px-2 py-0.5 bg-emerald-600 border-2 border-white text-[10px] font-bold rounded-lg flex items-center gap-1 shadow-md';
+      originContent.className = 'kakao-pin px-2.5 py-1 bg-emerald-600 border-2 border-white text-[11px] font-bold rounded-xl flex items-center gap-1 shadow-md text-white';
       originContent.innerHTML = '<i class="fa-solid fa-flag"></i> ' + (originCoord.name || '출발지');
       var originOverlay = new kakao.maps.CustomOverlay({
         position: new kakao.maps.LatLng(originCoord.lat, originCoord.lng),
         content: originContent,
-        yAnchor: 0.5
+        yAnchor: 1.2
       });
       originOverlay.setMap(mobileKakaoMap);
       mobileMapOverlays.push(originOverlay);
@@ -946,11 +1022,12 @@
 
         var times = getStopTimes(r);
         var isArrived = !!times.arrive || r.status === '도착완료';
+        var isDriving = !isArrived && (!!times.depart || r.status === '운행중');
 
         var markerDiv = document.createElement('div');
-        markerDiv.className = 'kakao-pin w-7 h-7 ' + (isArrived ? 'bg-emerald-600' : 'bg-indigo-600') + ' border-2 border-white text-xs shadow-md';
-        markerDiv.innerHTML = isArrived ? '<i class="fa-solid fa-check"></i>' : (idx + 1);
-        markerDiv.title = (idx + 1) + '. ' + r.customer_name;
+        markerDiv.className = 'kakao-pin px-2 py-0.5 ' + (isArrived ? 'bg-emerald-600' : isDriving ? 'bg-indigo-600' : 'bg-slate-700') + ' border-2 border-white text-[10px] font-bold rounded-lg flex items-center gap-1 shadow-md text-white cursor-pointer';
+        markerDiv.innerHTML = '<b>' + (idx + 1) + '</b> ' + (r.customer_name || '배송지');
+        markerDiv.title = (idx + 1) + '. ' + (r.customer_name || '');
         markerDiv.onclick = function() {
           mobileKakaoMap.setLevel(4);
           mobileKakaoMap.panTo(pos);
@@ -959,7 +1036,7 @@
         var stopOverlay = new kakao.maps.CustomOverlay({
           position: pos,
           content: markerDiv,
-          yAnchor: 0.5
+          yAnchor: 1.2
         });
         stopOverlay.setMap(mobileKakaoMap);
         mobileMapOverlays.push(stopOverlay);
@@ -981,13 +1058,18 @@
         renderMobileRoadPolylineOnMap(cachedMobileRoadData);
       }
 
-      mobileKakaoMap.setBounds(bounds);
+      if (driverRecords.length > 0) {
+        mobileKakaoMap.setBounds(bounds);
+      } else {
+        mobileKakaoMap.setCenter(new kakao.maps.LatLng(originCoord.lat, originCoord.lng));
+      }
     }
 
     function fitMobileMapBounds() {
       if (!mobileKakaoMap) return;
       var bounds = new kakao.maps.LatLngBounds();
-      var originCoord = getDriverOrigin(currentDriverName);
+      var drvName = getCurrentDriverName();
+      var originCoord = getDriverOrigin(drvName, currentDate);
       bounds.extend(new kakao.maps.LatLng(originCoord.lat, originCoord.lng));
       driverRecords.forEach(function(r) {
         var coord = getCoordForAddress(r.address);
@@ -1009,7 +1091,8 @@
 
       try {
         if (!cachedMobileRoadData) {
-          var originCoord = getDriverOrigin(currentDriverName);
+          var drvName = getCurrentDriverName();
+          var originCoord = getDriverOrigin(drvName, currentDate);
           var points = [originCoord].concat(driverRecords.map(function(r) { return getCoordForAddress(r.address); }));
           var coordsParam = points.map(function(p) { return p.lng + ',' + p.lat; }).join(';');
           var url = 'https://router.project-osrm.org/route/v1/driving/' + coordsParam + '?overview=full&geometries=geojson';
