@@ -1,0 +1,20 @@
+﻿{
+  "name": "현대렌탈 기사용 배송관제",
+  "short_name": "현대렌탈배송",
+  "start_url": "./mobile.html",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#4f46e5",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/2830/2830305.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/2830/2830305.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
