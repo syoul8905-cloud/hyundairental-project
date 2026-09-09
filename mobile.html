@@ -528,6 +528,56 @@
       return diff;
     }
 
+    function cleanPhoneNumber(raw) {
+      if (!raw) return '';
+      var cleaned = String(raw).trim();
+      if (/^\d+(\.\d+)?[eE]\+\d+$/.test(cleaned)) {
+        try {
+          cleaned = BigInt(Math.floor(Number(cleaned))).toString();
+        } catch (e) {
+          cleaned = Number(cleaned).toFixed(0);
+        }
+      }
+      var digits = cleaned.replace(/[^0-9]/g, '');
+      if (!digits) return '';
+
+      if ((digits.length === 10 || digits.length === 9) && digits.startsWith('10')) {
+        digits = '0' + digits;
+      }
+
+      if (digits.startsWith('02')) {
+        if (digits.length === 9) return digits.replace(/(\d{2})(\d{3})(\d{4})/, '$1-$2-$3');
+        if (digits.length === 10) return digits.replace(/(\d{2})(\d{4})(\d{4})/, '$1-$2-$3');
+      } else if (digits.startsWith('01') || digits.startsWith('070') || digits.startsWith('050') || digits.startsWith('03') || digits.startsWith('04') || digits.startsWith('05') || digits.startsWith('06')) {
+        if (digits.length === 10) return digits.replace(/(\d{3})(\d{3})(\d{4})/, '$1-$2-$3');
+        if (digits.length === 11) return digits.replace(/(\d{3})(\d{4})(\d{4})/, '$1-$2-$3');
+      }
+      if (cleaned.indexOf('-') !== -1) return cleaned;
+      return digits;
+    }
+
+    function parseContactInfo(raw) {
+      if (!raw) return { name: '', phone: '' };
+      var str = String(raw).trim();
+      if (/^\d+(\.\d+)?[eE]\+\d+$/.test(str)) {
+        return { name: '', phone: cleanPhoneNumber(str) };
+      }
+      var phoneMatch = str.match(/(?:0\d{1,2}|10)[-\s]?\d{3,4}[-\s]?\d{4}/);
+      var phone = '';
+      var name = str;
+      if (phoneMatch) {
+        phone = cleanPhoneNumber(phoneMatch[0]);
+        name = str.replace(phoneMatch[0], '').replace(/[\(\)\[\],\/]/g, ' ').trim();
+      } else {
+        var onlyDigits = str.replace(/[^0-9]/g, '');
+        if (onlyDigits.length >= 8 && onlyDigits.length <= 11) {
+          phone = cleanPhoneNumber(onlyDigits);
+          name = '';
+        }
+      }
+      return { name: name, phone: phone };
+    }
+
     function getStopTimes(record) {
       var depart = '';
       var arrive = '';
@@ -801,8 +851,10 @@
         var isArrived = !!times.arrive || r.status === '도착완료';
         var isDriving = !isArrived && (!!times.depart || r.status === '운행중');
 
-        var phoneMatch = (r.contact || '').match(/0\d{1,2}-?\d{3,4}-?\d{4}/);
-        var phoneNum = phoneMatch ? phoneMatch[0] : '';
+        var contactObj = parseContactInfo(r.contact);
+        var phoneNum = contactObj.phone;
+        var contactName = contactObj.name;
+        var contactDisplay = contactName ? (contactName + (phoneNum ? ' (' + phoneNum + ')' : '')) : (phoneNum || '');
 
         var card = document.createElement('div');
         card.className = 'bg-white rounded-2xl p-4 border ' + (isArrived ? 'border-emerald-200 bg-emerald-50/20' : isDriving ? 'border-indigo-300 ring-2 ring-indigo-500/20 shadow-md' : 'border-slate-200 shadow-xs') + ' space-y-3 transition';
@@ -843,6 +895,12 @@
               <i class="fa-solid fa-location-dot text-rose-500 mt-0.5 shrink-0"></i>
               <span class="break-all font-semibold">${r.address || '주소 정보 없음'}</span>
             </div>
+            ${contactDisplay ? `
+              <div class="mt-1.5 pt-1.5 border-t border-slate-200/60 text-[11px] text-slate-700 flex items-center gap-1.5">
+                <i class="fa-solid fa-user text-indigo-500 shrink-0"></i>
+                <span class="font-bold text-slate-800">담당: ${contactDisplay}</span>
+              </div>
+            ` : ''}
             ${r.items ? `
               <div class="mt-1.5 pt-1.5 border-t border-slate-200/60 text-[11px] text-slate-600 flex items-center gap-1">
                 <i class="fa-solid fa-box-open text-slate-400"></i>
@@ -873,8 +931,8 @@
           <div class="grid grid-cols-12 gap-2 pt-1">
             <div class="col-span-4">
               ${phoneNum ? `
-                <a href="tel:${phoneNum}" class="btn-touch w-full bg-emerald-500 hover:bg-emerald-600 text-white font-black text-xs rounded-xl shadow-xs transition gap-1">
-                  <i class="fa-solid fa-phone"></i> 통화
+                <a href="tel:${phoneNum}" class="btn-touch w-full bg-emerald-500 hover:bg-emerald-600 text-white font-black text-xs rounded-xl shadow-xs transition gap-1" title="${contactDisplay}">
+                  <i class="fa-solid fa-phone"></i> ${contactName ? contactName : '통화'}
                 </a>
               ` : `
                 <button disabled class="btn-touch w-full bg-slate-100 text-slate-300 font-bold text-xs rounded-xl cursor-not-allowed">

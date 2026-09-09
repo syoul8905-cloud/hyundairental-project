@@ -110,6 +110,12 @@
           <span>CSV 등록</span>
         </button>
 
+        <!-- Driver Assignment Notification Button -->
+        <button onclick="openCurrentDriverNotifyModal()" title="현재 기사 배정 일정 알림 전송 (카카오톡/SMS)" class="px-2.5 py-1 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-lg transition flex items-center gap-1 shadow-sm text-xs whitespace-nowrap">
+          <i class="fa-solid fa-bell"></i>
+          <span>배정 알림</span>
+        </button>
+
         <!-- Kakao Map Settings Button -->
         <button onclick="openKakaoKeyModal()" title="카카오맵 API 키 설정" class="px-2 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold rounded-lg transition flex items-center gap-1 border border-amber-200 text-xs whitespace-nowrap">
           <i class="fa-solid fa-map-location-dot text-amber-600"></i>
@@ -190,30 +196,44 @@
 
     <!-- Mobile Sub-Header Controls (Shown on small/tablet screens lg:hidden) -->
     <div class="block lg:hidden mt-2 pt-2 border-t border-slate-100 space-y-1.5">
-      <div class="flex items-center justify-between gap-1.5 flex-wrap">
+      <!-- Row 1: Date Picker & Quick Navigation Stepper -->
+      <div class="flex items-center justify-between gap-1.5 w-full">
         <!-- Date Stepper & Picker -->
-        <div class="flex items-center gap-1 bg-slate-50 px-2 py-1 rounded-lg border border-slate-200 text-xs shrink-0 cursor-pointer relative" onclick="openCalendarPicker(event)">
-          <i class="fa-regular fa-calendar-days text-indigo-600"></i>
-          <span id="calendarDateDisplayMobile" class="font-black text-slate-900 text-xs">2026-09-09</span>
+        <div class="flex-1 flex items-center justify-between bg-slate-50 px-2.5 py-1.5 rounded-xl border border-slate-200 text-xs cursor-pointer relative shadow-xs" onclick="openCalendarPicker(event)">
+          <div class="flex items-center gap-1.5">
+            <i class="fa-regular fa-calendar-days text-indigo-600"></i>
+            <span id="calendarDateDisplayMobile" class="font-black text-slate-900 text-xs">2026-09-09</span>
+          </div>
+          <i class="fa-solid fa-calendar text-[11px] text-indigo-400"></i>
         </div>
 
-        <div class="flex items-center bg-slate-50 rounded-lg border border-slate-200 p-0.5 shrink-0">
-          <button onclick="shiftDate(-1)" class="w-6 h-6 flex items-center justify-center rounded text-slate-600 text-xs font-bold hover:bg-white">◀</button>
-          <button onclick="goToToday()" class="px-2 h-6 flex items-center justify-center rounded text-slate-800 text-[11px] font-bold hover:bg-white">오늘</button>
-          <button onclick="shiftDate(1)" class="w-6 h-6 flex items-center justify-center rounded text-slate-600 text-xs font-bold hover:bg-white">▶</button>
+        <div class="flex items-center bg-slate-50 rounded-xl border border-slate-200 p-0.5 shrink-0 shadow-xs">
+          <button onclick="shiftDate(-1)" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-600 text-xs font-bold hover:bg-white active:bg-slate-200 transition">◀</button>
+          <button onclick="goToToday()" class="px-2.5 h-7 flex items-center justify-center rounded-lg text-slate-800 text-xs font-black hover:bg-white active:bg-slate-200 transition">오늘</button>
+          <button onclick="shiftDate(1)" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-600 text-xs font-bold hover:bg-white active:bg-slate-200 transition">▶</button>
         </div>
+      </div>
 
+      <!-- Row 2: Mobile Driver Filter & Refresh Button -->
+      <div class="flex items-center gap-1.5 w-full">
         <!-- Mobile Driver Filter -->
-        <div class="flex-1 flex items-center bg-amber-50 px-2 py-1 rounded-lg border border-amber-200 text-xs min-w-[120px]">
-          <i class="fa-solid fa-car text-amber-600 mr-1 shrink-0"></i>
-          <select id="driverFilterSelectMobile" onchange="onMobileDriverFilterChanged(this.value)" class="w-full bg-transparent font-bold text-amber-950 text-xs focus:outline-none cursor-pointer truncate">
+        <div class="flex-1 flex items-center bg-amber-50 px-2.5 py-1.5 rounded-xl border border-amber-200 text-xs shadow-xs min-w-0">
+          <i class="fa-solid fa-id-badge text-amber-600 mr-1.5 shrink-0 text-sm"></i>
+          <select id="driverFilterSelectMobile" onchange="onMobileDriverFilterChanged(this.value)" class="w-full bg-transparent font-black text-amber-950 text-xs focus:outline-none cursor-pointer truncate">
             <option value="all">전체 기사 보기</option>
           </select>
         </div>
 
-        <!-- Sync Button -->
-        <button onclick="triggerSync(false)" class="w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 text-white flex items-center justify-center text-xs shrink-0 shadow-xs" title="새로고침">
-          <i class="fa-solid fa-rotate"></i>
+        <!-- Mobile Notify Button -->
+        <button onclick="openCurrentDriverNotifyModal()" class="h-8 px-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white flex items-center justify-center gap-1 text-xs shrink-0 shadow-xs transition" title="기사 배정 일정 알림 전송">
+          <i class="fa-solid fa-bell text-xs"></i>
+          <span class="font-bold text-[11px]">알림</span>
+        </button>
+
+        <!-- Refresh Button -->
+        <button onclick="triggerSync(false)" class="h-8 px-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 active:bg-slate-900 text-white flex items-center justify-center gap-1 text-xs shrink-0 shadow-xs transition" title="새로고침">
+          <i class="fa-solid fa-rotate text-xs"></i>
+          <span class="font-bold text-[11px]">동기화</span>
         </button>
       </div>
     </div>
@@ -633,6 +653,17 @@
         </div>
 
         <div>
+          <label class="block text-[11px] font-bold text-slate-600 mb-1 flex items-center justify-between">
+            <span class="flex items-center gap-1"><i class="fa-solid fa-phone text-emerald-600"></i> 현장 담당자 및 연락처</span>
+            <span class="text-[10px] text-slate-400 font-normal">예: 홍길동 010-1234-5678</span>
+          </label>
+          <div class="grid grid-cols-2 gap-2">
+            <input type="text" id="editRecipient" placeholder="담당자명 (예: 김철수)" class="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-indigo-500 font-bold">
+            <input type="text" id="editPhone" placeholder="전화번호 (예: 010-1234-5678)" class="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-indigo-500 font-mono">
+          </div>
+        </div>
+
+        <div>
           <label class="block text-[11px] font-bold text-slate-600 mb-1">품목 및 수량</label>
           <input type="text" id="editItem" placeholder="예: 노트북 5대" class="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-indigo-500">
         </div>
@@ -716,6 +747,17 @@
         </div>
 
         <div>
+          <label class="block text-[11px] font-bold text-slate-600 mb-1 flex items-center justify-between">
+            <span class="flex items-center gap-1"><i class="fa-solid fa-phone text-emerald-600"></i> 현장 담당자 및 연락처</span>
+            <span class="text-[10px] text-slate-400 font-normal">예: 홍길동 010-1234-5678</span>
+          </label>
+          <div class="grid grid-cols-2 gap-2">
+            <input type="text" id="addRecipient" placeholder="담당자명 (예: 김철수)" class="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-indigo-500 font-bold">
+            <input type="text" id="addPhone" placeholder="전화번호 (예: 010-1234-5678)" class="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-indigo-500 font-mono">
+          </div>
+        </div>
+
+        <div>
           <label class="block text-[11px] font-bold text-slate-600 mb-1 flex items-center gap-1">
             <i class="fa-solid fa-comment-dots text-amber-500"></i> 비고
           </label>
@@ -729,6 +771,59 @@
         </button>
         <button onclick="saveAddStopModal()" class="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs transition flex items-center gap-1.5 shadow-sm">
           <i class="fa-solid fa-plus"></i> 동선에 추가하기
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Assignment Notification Modal (스마트 배정 알림 전송) -->
+  <div id="assignmentNotifyModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50" onclick="if(event.target===this)closeAssignmentNotifyModal()">
+    <div class="bg-white rounded-3xl max-w-md w-full p-5 sm:p-6 shadow-2xl border border-slate-200 space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <h3 class="font-black text-sm text-slate-900 flex items-center gap-2">
+          <span class="w-7 h-7 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center text-xs">
+            <i class="fa-solid fa-paper-plane"></i>
+          </span>
+          <span>기사 배정 완료 알림 전송</span>
+        </h3>
+        <button onclick="closeAssignmentNotifyModal()" class="w-7 h-7 rounded-full bg-slate-100 text-slate-400 hover:text-slate-600 flex items-center justify-center text-xs">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="space-y-3 text-xs">
+        <div class="p-3 bg-amber-50/80 border border-amber-200 rounded-2xl flex items-center justify-between">
+          <div>
+            <span class="text-amber-900 font-bold block" id="notifyModalDriverName">🚗 기사님</span>
+            <span class="text-amber-700 text-[11px]" id="notifyModalScheduleSummary">총 0건의 배송/회수가 배정되었습니다.</span>
+          </div>
+          <span class="px-2 py-1 bg-amber-200/70 text-amber-950 font-black rounded-lg text-[10px]" id="notifyModalDateBadge">2026-09-10</span>
+        </div>
+
+        <div>
+          <label class="block text-[11px] font-bold text-slate-600 mb-1">알림 메시지 미리보기 (자동 생성)</label>
+          <textarea id="notifyModalMessageText" rows="6" readonly class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[11px] font-mono text-slate-800 leading-relaxed resize-none focus:outline-none"></textarea>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2 pt-1">
+          <!-- 카카오톡 공유 / 전송 -->
+          <button onclick="sendNotifyViaKakao()" class="py-2.5 px-3 bg-[#FEE500] hover:bg-[#FDD835] active:bg-[#FBC02D] text-[#3C1E1E] font-black rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-sm transition">
+            <i class="fa-solid fa-comment"></i> 카카오톡 공유
+          </button>
+          <!-- SMS 문자 전송 -->
+          <button onclick="sendNotifyViaSms()" class="py-2.5 px-3 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-black rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-sm transition">
+            <i class="fa-solid fa-message"></i> SMS 문자 전송
+          </button>
+        </div>
+
+        <button onclick="copyNotifyMessage()" class="w-full py-2 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-700 font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition border border-slate-200">
+          <i class="fa-regular fa-copy text-indigo-600"></i> 메시지 텍스트 복사하기
+        </button>
+      </div>
+
+      <div class="pt-2 border-t border-slate-100 flex justify-end">
+        <button onclick="closeAssignmentNotifyModal()" class="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl text-xs transition">
+          닫기
         </button>
       </div>
     </div>
@@ -2601,6 +2696,186 @@
     }
 
     // ==========================================
+    // Phone Number & Contact Normalization Engine
+    // ==========================================
+    function cleanPhoneNumber(raw) {
+      if (!raw) return '';
+      var cleaned = String(raw).trim();
+      // Excel 지수 표기법 처리 (예: 1.01234E+10)
+      if (/^\d+(\.\d+)?[eE]\+\d+$/.test(cleaned)) {
+        try {
+          cleaned = BigInt(Math.floor(Number(cleaned))).toString();
+        } catch (e) {
+          cleaned = Number(cleaned).toFixed(0);
+        }
+      }
+      var digits = cleaned.replace(/[^0-9]/g, '');
+      if (!digits) return '';
+
+      // 엑셀에서 앞자리 0이 누락된 경우 (예: 1012345678 -> 01012345678, 102345678 -> 0102345678)
+      if ((digits.length === 10 || digits.length === 9) && digits.startsWith('10')) {
+        digits = '0' + digits;
+      }
+
+      // 한국 표준 번호 서식 (010, 02, 031 등)
+      if (digits.startsWith('02')) {
+        if (digits.length === 9) return digits.replace(/(\d{2})(\d{3})(\d{4})/, '$1-$2-$3');
+        if (digits.length === 10) return digits.replace(/(\d{2})(\d{4})(\d{4})/, '$1-$2-$3');
+      } else if (digits.startsWith('01') || digits.startsWith('070') || digits.startsWith('050') || digits.startsWith('03') || digits.startsWith('04') || digits.startsWith('05') || digits.startsWith('06')) {
+        if (digits.length === 10) return digits.replace(/(\d{3})(\d{3})(\d{4})/, '$1-$2-$3');
+        if (digits.length === 11) return digits.replace(/(\d{3})(\d{4})(\d{4})/, '$1-$2-$3');
+      }
+      if (cleaned.indexOf('-') !== -1) return cleaned;
+      return digits;
+    }
+
+    function parseContactInfo(raw) {
+      if (!raw) return { name: '', phone: '' };
+      var str = String(raw).trim();
+      if (/^\d+(\.\d+)?[eE]\+\d+$/.test(str)) {
+        return { name: '', phone: cleanPhoneNumber(str) };
+      }
+      var phoneMatch = str.match(/(?:0\d{1,2}|10)[-\s]?\d{3,4}[-\s]?\d{4}/);
+      var phone = '';
+      var name = str;
+      if (phoneMatch) {
+        phone = cleanPhoneNumber(phoneMatch[0]);
+        name = str.replace(phoneMatch[0], '').replace(/[\(\)\[\],\/]/g, ' ').trim();
+      } else {
+        var onlyDigits = str.replace(/[^0-9]/g, '');
+        if (onlyDigits.length >= 8 && onlyDigits.length <= 11) {
+          phone = cleanPhoneNumber(onlyDigits);
+          name = '';
+        }
+      }
+      return { name: name, phone: phone };
+    }
+
+    // ==========================================
+    // Smart Assignment Notification Engine
+    // ==========================================
+    var currentNotifyData = {
+      driver: '',
+      date: '',
+      items: [],
+      text: '',
+      phone: ''
+    };
+
+    function openAssignmentNotifyModal(driverName, updatedCount) {
+      if (!driverName || driverName === '미배정' || driverName === '방문수령' || driverName === '퀵') {
+        return;
+      }
+      var targetDate = getCurrentViewingDate();
+      var driverRecords = records.filter(function(r) {
+        var d = (r.담당기사 || '').trim();
+        return d === driverName;
+      });
+
+      if (driverRecords.length === 0) return;
+
+      var summaryLines = [];
+      summaryLines.push(`[현대렌탈 배송 알림]`);
+      summaryLines.push(`🚗 ${driverName} 기사님, ${targetDate} 배송 일정이 배정되었습니다.`);
+      summaryLines.push(`📋 총 ${driverRecords.length}건 (배송 ${driverRecords.filter(r=>r.구분!=='회수').length}건 / 회수 ${driverRecords.filter(r=>r.구분==='회수').length}건)`);
+      summaryLines.push(`-----------------------`);
+
+      driverRecords.forEach(function(r, idx) {
+        var contactObj = parseContactInfo(r.담당자_연락처);
+        var contactText = contactObj.name ? (contactObj.name + (contactObj.phone ? ' ' + contactObj.phone : '')) : (contactObj.phone || '-');
+        summaryLines.push(`${idx + 1}. [${r.구분 || '배송'}] ${r.고객사}`);
+        summaryLines.push(`   📍 ${r.주소}`);
+        if (r.방문시간) summaryLines.push(`   ⏰ 시간: ${r.방문시간}`);
+        if (contactText && contactText !== '-') summaryLines.push(`   👤 담당: ${contactText}`);
+        if (r.품목_수량) summaryLines.push(`   📦 품목: ${r.품목_수량}`);
+      });
+
+      summaryLines.push(`-----------------------`);
+      summaryLines.push(`📱 모바일 관제 확인: ${window.location.origin}/mobile.html`);
+
+      var fullMessage = summaryLines.join('\n');
+
+      currentNotifyData = {
+        driver: driverName,
+        date: targetDate,
+        items: driverRecords,
+        text: fullMessage,
+        phone: ''
+      };
+
+      var driverEl = document.getElementById('notifyModalDriverName');
+      var summaryEl = document.getElementById('notifyModalScheduleSummary');
+      var dateBadge = document.getElementById('notifyModalDateBadge');
+      var msgBox = document.getElementById('notifyModalMessageText');
+      var modal = document.getElementById('assignmentNotifyModal');
+
+      if (driverEl) driverEl.innerText = `🚗 ${driverName} 기사님`;
+      if (summaryEl) summaryEl.innerText = `총 ${driverRecords.length}건 (선택 ${updatedCount}건 갱신)의 배송 일정이 확정되었습니다.`;
+      if (dateBadge) dateBadge.innerText = targetDate;
+      if (msgBox) msgBox.value = fullMessage;
+
+      if (modal) modal.classList.remove('hidden');
+    }
+
+    function closeAssignmentNotifyModal() {
+      var modal = document.getElementById('assignmentNotifyModal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    function copyNotifyMessage() {
+      var text = currentNotifyData.text;
+      if (!text) return;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(function() {
+          showToast('📋 기사 배정 알림 메시지가 복사되었습니다!');
+        }).catch(function() {
+          prompt('메시지를 복사하세요:', text);
+        });
+      } else {
+        prompt('메시지를 복사하세요:', text);
+      }
+    }
+
+    function sendNotifyViaKakao() {
+      var text = currentNotifyData.text;
+      if (!text) return;
+      if (navigator.share) {
+        navigator.share({
+          title: `[배송스케줄] ${currentNotifyData.driver} 기사님 배정`,
+          text: text
+        }).catch(function() {});
+      } else {
+        copyNotifyMessage();
+        window.open('https://story.kakao.com/share?url=' + encodeURIComponent(window.location.origin + '/mobile.html') + '&text=' + encodeURIComponent(text), '_blank');
+      }
+    }
+
+    function sendNotifyViaSms() {
+      var text = currentNotifyData.text;
+      if (!text) return;
+      var smsUrl = 'sms:?body=' + encodeURIComponent(text);
+      window.location.href = smsUrl;
+      showToast('📱 SMS 문자 앱으로 연결되었습니다.');
+    }
+
+    function openCurrentDriverNotifyModal() {
+      var currentDriver = getCurrentViewingDriver();
+      if (!currentDriver || currentDriver === 'all') {
+        var driversWithSchedule = getAllAvailableDrivers().filter(function(d) {
+          return records.some(function(r) { return (r.담당기사 || '').trim() === d; });
+        });
+        if (driversWithSchedule.length > 0) {
+          openAssignmentNotifyModal(driversWithSchedule[0], records.filter(function(r){return (r.담당기사 || '').trim() === driversWithSchedule[0];}).length);
+        } else {
+          showToast('⚠️ 배정된 기사 또는 일정이 없습니다.');
+        }
+        return;
+      }
+      var count = records.filter(function(r) { return (r.담당기사 || '').trim() === currentDriver; }).length;
+      openAssignmentNotifyModal(currentDriver, count);
+    }
+
+    // ==========================================
     // Delivery Time Tracking & Record Engine
     // ==========================================
     function parseTimeMinutes(timeStr) {
@@ -2813,9 +3088,11 @@
         var isRecov = (r.구분 && r.구분.indexOf('회수') !== -1);
         var coord = coords[subIdx];
 
-        // 전화번호 파싱
-        var phoneMatch = (r.담당자_연락처 || '').match(/0\d{1,2}-?\d{3,4}-?\d{4}/);
-        var phoneNum = phoneMatch ? phoneMatch[0] : '';
+        // 전화번호 및 현장 담당자 파싱
+        var contactObj = parseContactInfo(r.담당자_연락처);
+        var phoneNum = contactObj.phone;
+        var contactName = contactObj.name;
+        var contactDisplay = contactName ? (contactName + (phoneNum ? ' (' + phoneNum + ')' : '')) : (phoneNum || '');
 
         // Kakao Map Overlay
         if (kakaoMap && window.kakao && kakao.maps.CustomOverlay) {
@@ -2880,7 +3157,19 @@
               </div>
             </div>
 
-            <p class="text-[10px] text-slate-500 truncate pl-6 cursor-pointer hover:text-indigo-600 hover:underline" onclick="event.stopPropagation(); openEditStopModal(${realIdx});">${r.주소}</p>
+            <p class="text-[10px] text-slate-500 truncate pl-6 cursor-pointer hover:text-indigo-600 hover:underline" onclick="event.stopPropagation(); openEditStopModal(${realIdx});" title="${r.주소}">${r.주소}</p>
+
+            ${contactDisplay ? `
+              <div class="flex items-center gap-1.5 pl-6 text-[10px] text-slate-700 font-semibold cursor-pointer hover:text-indigo-600" onclick="event.stopPropagation(); openEditStopModal(${realIdx});" title="담당자/연락처 수정">
+                <i class="fa-solid fa-user text-indigo-500 text-[9px]"></i>
+                <span class="truncate">${contactDisplay}</span>
+              </div>
+            ` : `
+              <div class="flex items-center gap-1 pl-6 text-[10px] text-slate-400 cursor-pointer hover:text-indigo-600" onclick="event.stopPropagation(); openEditStopModal(${realIdx});" title="담당자/연락처 입력">
+                <i class="fa-regular fa-user text-[9px]"></i>
+                <span class="underline">담당자/연락처 등록</span>
+              </div>
+            `}
 
             ${r.비고_전문 ? `
               <div class="mx-2 ml-6 p-1.5 bg-amber-50/90 border border-amber-200/80 rounded-lg text-[10px] text-amber-900 font-medium leading-tight flex items-start gap-1" title="${(r.비고_전문).replace(/"/g, '&quot;')}">
@@ -2892,11 +3181,13 @@
             <!-- Mobile Quick Buttons (통화 & 티맵 출발 & 배송지 도착 & 소요시간) -->
             <div class="flex items-center flex-wrap gap-1.5 pl-6 pt-1">
               ${phoneNum ? `
-                <a href="tel:${phoneNum}" onclick="event.stopPropagation();" class="px-2 py-1 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-lg text-[10px] flex items-center gap-1 shadow-xs transition">
-                  <i class="fa-solid fa-phone"></i> 통화
+                <a href="tel:${phoneNum}" onclick="event.stopPropagation();" class="px-2 py-1 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-lg text-[10px] flex items-center gap-1 shadow-xs transition" title="${contactDisplay}">
+                  <i class="fa-solid fa-phone"></i> ${contactName ? contactName : '통화'}
                 </a>
               ` : `
-                <span class="text-[10px] text-slate-300">연락처없음</span>
+                <button onclick="event.stopPropagation(); openEditStopModal(${realIdx});" class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-lg text-[10px] flex items-center gap-1 transition" title="연락처 등록">
+                  <i class="fa-solid fa-phone-slash"></i> 연락처입력
+                </button>
               `}
               <button onclick="event.stopPropagation(); openTmapNav('${r.고객사}', '${r.주소}', ${realIdx});" class="px-2.5 py-1 ${times.depart ? 'bg-indigo-600' : 'bg-rose-500 hover:bg-rose-600'} text-white font-bold rounded-lg text-[10px] flex items-center gap-1 shadow-xs transition" title="티맵 안내 및 출발 시각 자동 기록">
                 <i class="fa-solid fa-location-arrow"></i> ${times.depart ? '출발 ' + times.depart : '티맵 안내'}
@@ -3369,11 +3660,12 @@
               var rowDate = getRowValue(r, dateIndices);
               var recordDate = forceDate ? targetDate : (rowDate || targetDate);
 
-              var contact1 = getRowValue(r, contactIndices);
-              var recipient = getRowValue(r, recipientIndices);
+              var contact1 = cleanPhoneNumber(getRowValue(r, contactIndices));
+              var recipient = (getRowValue(r, recipientIndices) || '').trim();
               var contactDisplay = contact1;
               if (recipient && contact1) contactDisplay = recipient + ' ' + contact1;
               else if (recipient) contactDisplay = recipient;
+              else if (contact1) contactDisplay = contact1;
 
               passed.push({
                 ID: Date.now() + Math.floor(Math.random() * 100000),
@@ -3574,8 +3866,10 @@
         var tr = document.createElement('tr');
         tr.className = 'hover:bg-slate-50 transition';
 
-        var phoneMatch = (r.담당자_연락처 || '').match(/0\d{1,2}-?\d{3,4}-?\d{4}/);
-        var phoneNum = phoneMatch ? phoneMatch[0] : '';
+        var contactObj = parseContactInfo(r.담당자_연락처);
+        var phoneNum = contactObj.phone;
+        var contactName = contactObj.name;
+        var contactDisplay = contactName ? (contactName + (phoneNum ? ' ' + phoneNum : '')) : (phoneNum || '');
         var times = getStopTimes(r);
 
         // 구분 인라인 셀렉트 (배송, 회수, 설치, 수령, A/S)
@@ -3636,14 +3930,19 @@
           <td class="py-2.5 px-3 text-slate-800 font-semibold max-w-xs truncate" title="${r.품목_수량}">${r.품목_수량 || '-'}</td>
           <td class="py-2 px-2">${memoInputHtml}</td>
           <td class="py-2.5 px-3">${driverSelectHtml}</td>
-          <td class="py-2.5 px-2.5 text-center">
-            ${phoneNum ? `
-              <a href="tel:${phoneNum}" class="px-2.5 py-1 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg font-bold text-[10px] inline-flex items-center gap-1 shadow-xs transition" title="${phoneNum}">
-                <i class="fa-solid fa-phone"></i> ${phoneNum}
-              </a>
-            ` : `
-              <span class="text-slate-300 text-[10px]">-</span>
-            `}
+          <td class="py-2 px-2 text-center">
+            <div class="flex flex-col items-center justify-center gap-0.5">
+              ${contactName ? `<span class="text-[11px] font-bold text-slate-800 leading-tight">${contactName}</span>` : ''}
+              ${phoneNum ? `
+                <a href="tel:${phoneNum}" class="px-2 py-0.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 rounded font-semibold text-[10px] inline-flex items-center gap-1 transition" title="${contactDisplay}">
+                  <i class="fa-solid fa-phone text-[9px] text-emerald-600"></i> ${phoneNum}
+                </a>
+              ` : `
+                <button onclick="openEditStopModal(${realIdx})" class="text-[10px] text-slate-400 hover:text-indigo-600 underline" title="클릭하여 연락처 입력">
+                  ${contactName ? '번호 등록' : '-'}
+                </button>
+              `}
+            </div>
           </td>
           <td class="py-2.5 px-2.5 text-center">
             <div class="flex flex-col items-center gap-1">
@@ -3758,8 +4057,10 @@
 
       filtered.forEach(function(r) {
         var realIdx = records.indexOf(r);
-        var phoneMatch = (r.담당자_연락처 || '').match(/0\d{1,2}-?\d{3,4}-?\d{4}/);
-        var phoneNum = phoneMatch ? phoneMatch[0] : '';
+        var contactObj = parseContactInfo(r.담당자_연락처);
+        var phoneNum = contactObj.phone;
+        var contactName = contactObj.name;
+        var contactDisplay = contactName ? (contactName + (phoneNum ? ' (' + phoneNum + ')' : '')) : (phoneNum || '');
         var times = getStopTimes(r);
         var durMin = calculateDurationMinutes(times.depart, times.arrive);
         var isArrived = !!times.arrive || r.의뢰상태 === '도착완료';
@@ -3810,6 +4111,17 @@
               <i class="fa-solid fa-location-dot text-rose-500 mt-0.5 shrink-0"></i>
               <span class="break-all">${r.주소 || '주소 없음'}</span>
             </p>
+            ${contactDisplay ? `
+              <p class="text-xs text-slate-700 font-semibold pt-1 flex items-center gap-1.5 cursor-pointer hover:text-indigo-600" onclick="openEditStopModal(${realIdx})" title="담당자/연락처 수정">
+                <i class="fa-solid fa-user text-indigo-500 text-[11px] shrink-0"></i>
+                <span>${contactDisplay}</span>
+              </p>
+            ` : `
+              <p class="text-xs text-slate-400 pt-1 flex items-center gap-1 cursor-pointer hover:text-indigo-600" onclick="openEditStopModal(${realIdx})" title="담당자 및 연락처 등록">
+                <i class="fa-solid fa-user-plus text-slate-400 text-[11px] shrink-0"></i>
+                <span class="underline">담당자 및 연락처 등록</span>
+              </p>
+            `}
             ${r.품목_수량 ? `
               <p class="text-[11px] text-slate-700 font-bold pt-1 pl-4 flex items-center gap-1">
                 <i class="fa-solid fa-box-open text-slate-400"></i> ${r.품목_수량}
@@ -3844,8 +4156,8 @@
 
             <div class="flex items-center gap-1">
               ${phoneNum ? `
-                <a href="tel:${phoneNum}" class="px-2 py-1 bg-emerald-500 text-white font-bold rounded-lg text-[10px] flex items-center gap-1" title="전화걸기">
-                  <i class="fa-solid fa-phone"></i>
+                <a href="tel:${phoneNum}" class="px-2 py-1 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-lg text-[10px] flex items-center gap-1 shadow-xs" title="${contactDisplay}">
+                  <i class="fa-solid fa-phone"></i> ${contactName || '통화'}
                 </a>
               ` : ''}
               <button onclick="openTmapNav('${r.고객사}', '${r.주소}', ${realIdx})" class="px-2 py-1 bg-rose-500 text-white font-bold rounded-lg text-[10px] flex items-center gap-1" title="티맵 안내 및 출발시각 기록">
@@ -3975,6 +4287,9 @@
       renderRouteMap();
       renderTable();
       showToast('🚗 선택된 ' + updatedCount + '건이 [' + newDriver + '] 기사님으로 일괄 배정되었습니다!');
+
+      // 배정 완료 알림 모달 팝업
+      openAssignmentNotifyModal(newDriver, updatedCount);
     }
 
     function onInlineCategoryChange(realIdx, newCat) {
@@ -4068,6 +4383,13 @@
       document.getElementById('editDriver').value = r.담당기사 || '';
       document.getElementById('editItem').value = r.품목_수량 || '';
       document.getElementById('editMemo').value = r.비고_전문 || '';
+
+      var contactObj = parseContactInfo(r.담당자_연락처);
+      var recipientInput = document.getElementById('editRecipient');
+      var phoneInput = document.getElementById('editPhone');
+      if (recipientInput) recipientInput.value = contactObj.name || '';
+      if (phoneInput) phoneInput.value = contactObj.phone || '';
+
       document.getElementById('editStopModal').classList.remove('hidden');
     }
 
@@ -4089,6 +4411,12 @@
       var memo = document.getElementById('editMemo').value.trim();
       var driver = document.getElementById('editDriver').value.trim();
 
+      var recipientInput = document.getElementById('editRecipient');
+      var phoneInput = document.getElementById('editPhone');
+      var recipient = recipientInput ? recipientInput.value.trim() : '';
+      var phone = phoneInput ? cleanPhoneNumber(phoneInput.value.trim()) : '';
+      var combinedContact = recipient ? (recipient + (phone ? ' ' + phone : '')) : phone;
+
       if (!cust && !addr) {
         alert('고객사명 또는 주소를 입력해주세요.');
         return;
@@ -4105,6 +4433,7 @@
       r.품목_수량 = item;
       r.비고_전문 = memo;
       r.담당기사 = driver;
+      r.담당자_연락처 = combinedContact;
 
       closeEditStopModal();
       updateDriverFilterOptions();
@@ -4121,7 +4450,8 @@
           delivery_method: method,
           items: item,
           memo_full: memo,
-          driver_name: driver
+          driver_name: driver,
+          contact: combinedContact
         }).eq('id', r.ID).then(function(res) {
           if (res.error) console.error('DB Update error:', res.error);
           else showToast('💾 Supabase DB에 성공적으로 저장되었습니다!');
@@ -4138,6 +4468,10 @@
       document.getElementById('addTime').value = '';
       document.getElementById('addAddr').value = '';
       document.getElementById('addDetailAddr').value = '';
+      var addRecip = document.getElementById('addRecipient');
+      if (addRecip) addRecip.value = '';
+      var addPh = document.getElementById('addPhone');
+      if (addPh) addPh.value = '';
       document.getElementById('addItem').value = '';
       document.getElementById('addMemo').value = '';
       document.getElementById('addStopModal').classList.remove('hidden');
@@ -4156,6 +4490,12 @@
       var method = document.getElementById('addMethod').value;
       var item = document.getElementById('addItem').value.trim();
       var memo = document.getElementById('addMemo').value.trim();
+
+      var addRecip = document.getElementById('addRecipient');
+      var addPh = document.getElementById('addPhone');
+      var recipient = addRecip ? addRecip.value.trim() : '';
+      var phone = addPh ? cleanPhoneNumber(addPh.value.trim()) : '';
+      var combinedContact = recipient ? (recipient + (phone ? ' ' + phone : '')) : phone;
 
       if (!cust || !addr) {
         alert('고객사명과 기본 주소는 필수 입력 사항입니다.');
@@ -4183,6 +4523,7 @@
         기본주소: addr,
         상세주소: detail,
         방문시간: time,
+        담당자_연락처: combinedContact,
         품목_수량: item || '-',
         의뢰상태: '출고대기',
         배송방법: method,
@@ -4206,6 +4547,7 @@
           customer_name: newRecord.고객사,
           address: newRecord.주소,
           visit_time: newRecord.방문시간,
+          contact: newRecord.담당자_연락처,
           items: newRecord.품목_수량,
           status: newRecord.의뢰상태,
           delivery_method: newRecord.배송방법,
