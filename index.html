@@ -278,6 +278,7 @@
               <th class="py-2.5 px-3.5">배송지 주소</th>
               <th class="py-2.5 px-2.5">방문시간</th>
               <th class="py-2.5 px-3">품목 및 수량</th>
+              <th class="py-2.5 px-3 min-w-[200px]">비고 (영업요청 / 관리자 지시)</th>
               <th class="py-2.5 px-3">담당기사 배정</th>
               <th class="py-2.5 px-2.5 text-center">모바일 통화</th>
               <th class="py-2.5 px-2.5 text-center">내비 연동</th>
@@ -483,6 +484,13 @@
           <label class="block text-[11px] font-bold text-slate-600 mb-1">품목 및 수량</label>
           <input type="text" id="editItem" placeholder="예: 노트북 5대" class="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-indigo-500">
         </div>
+
+        <div>
+          <label class="block text-[11px] font-bold text-slate-600 mb-1 flex items-center gap-1">
+            <i class="fa-solid fa-comment-dots text-amber-500"></i> 비고 (영업사원 요청 및 추가 지시사항)
+          </label>
+          <textarea id="editMemo" rows="2" placeholder="기사 전달 요청사항, 영업 메모, 추가 지시사항..." class="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-indigo-500 text-slate-700"></textarea>
+        </div>
       </div>
 
       <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
@@ -553,6 +561,13 @@
             <label class="block text-[11px] font-bold text-slate-600 mb-1">품목 및 수량</label>
             <input type="text" id="addItem" placeholder="예: 태블릿 10대" class="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-indigo-500">
           </div>
+        </div>
+
+        <div>
+          <label class="block text-[11px] font-bold text-slate-600 mb-1 flex items-center gap-1">
+            <i class="fa-solid fa-comment-dots text-amber-500"></i> 비고 (영업사원 요청 및 추가 지시사항)
+          </label>
+          <textarea id="addMemo" rows="2" placeholder="기사 전달 요청사항, 영업 메모, 추가 지시사항..." class="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-indigo-500 text-slate-700"></textarea>
         </div>
       </div>
 
@@ -1319,6 +1334,13 @@
 
             <p class="text-[10px] text-slate-500 truncate pl-6 cursor-pointer hover:text-indigo-600 hover:underline" onclick="event.stopPropagation(); openEditStopModal(${realIdx});">${r.주소}</p>
 
+            ${r.비고_전문 ? `
+              <div class="mx-2 ml-6 p-1.5 bg-amber-50/90 border border-amber-200/80 rounded-lg text-[10px] text-amber-900 font-medium leading-tight flex items-start gap-1" title="${(r.비고_전문).replace(/"/g, '&quot;')}">
+                <i class="fa-solid fa-comment-dots text-amber-600 mt-0.5 shrink-0"></i>
+                <span class="line-clamp-2">${r.비고_전문}</span>
+              </div>
+            ` : ''}
+
             <!-- Mobile Quick Buttons (통화 & 티맵) -->
             <div class="flex items-center gap-1.5 pl-6 pt-1">
               ${phoneNum ? `
@@ -1763,7 +1785,7 @@
           if (driverFilter !== '' && d !== driverFilter) return false;
         }
         if (kw) {
-          var matchStr = (r.고객사 + ' ' + r.주소 + ' ' + r.품목_수량 + ' ' + r.담당기사 + ' ' + r.계약번호 + ' ' + (r.배송방법 || '')).toLowerCase();
+          var matchStr = (r.고객사 + ' ' + r.주소 + ' ' + r.품목_수량 + ' ' + r.담당기사 + ' ' + r.계약번호 + ' ' + (r.배송방법 || '') + ' ' + (r.비고_전문 || '')).toLowerCase();
           if (matchStr.indexOf(kw) === -1) return false;
         }
         return true;
@@ -1776,7 +1798,7 @@
         var dateLabel = document.getElementById('calendarDateDisplay') ? document.getElementById('calendarDateDisplay').innerText : '';
         tbody.innerHTML = `
           <tr>
-            <td colspan="11" class="py-12 text-center text-slate-400 font-medium">
+            <td colspan="12" class="py-12 text-center text-slate-400 font-medium">
               <div class="flex flex-col items-center justify-center space-y-2">
                 <i class="fa-regular fa-calendar-xmark text-3xl text-slate-300"></i>
                 <p class="font-bold text-slate-600 text-xs">[${dateLabel}] 배송 일정이 없습니다.</p>
@@ -1817,6 +1839,20 @@
           </select>
         `;
 
+        // 비고/지시사항 인라인 입력
+        var memoEscaped = (r.비고_전문 || '').replace(/"/g, '&quot;');
+        var memoInputHtml = `
+          <div class="relative flex items-center min-w-[200px]">
+            <input type="text" 
+                   value="${memoEscaped}" 
+                   placeholder="영업요청/지시사항 입력..." 
+                   onchange="onInlineMemoChange(${realIdx}, this.value)"
+                   class="w-full px-2.5 py-1 text-xs bg-slate-50/70 hover:bg-white focus:bg-white border border-slate-200 focus:border-indigo-500 rounded-lg text-slate-700 placeholder:text-slate-300 transition focus:outline-none focus:ring-1 focus:ring-indigo-500 font-medium"
+                   title="${memoEscaped}">
+            ${r.비고_전문 ? `<i class="fa-solid fa-comment-dots text-[11px] text-amber-500 absolute right-2 pointer-events-none" title="비고/지시 있음"></i>` : ''}
+          </div>
+        `;
+
         // 기사 셀렉트 옵션 생성 (지정된 8명 기사 목록)
         var driverSelectHtml = `
           <select onchange="onInlineDriverChange(${realIdx}, this.value)" class="py-1 px-2 bg-amber-50/80 hover:bg-amber-100 border border-amber-200 rounded-lg text-xs font-bold text-amber-900 focus:outline-none cursor-pointer">
@@ -1835,6 +1871,7 @@
           <td class="py-2.5 px-3.5 text-slate-600 max-w-xs truncate" title="${r.주소}">${r.주소}</td>
           <td class="py-2.5 px-2.5 text-slate-600 font-bold">${r.방문시간 || '-'}</td>
           <td class="py-2.5 px-3 text-slate-800 font-semibold max-w-xs truncate" title="${r.품목_수량}">${r.품목_수량 || '-'}</td>
+          <td class="py-2 px-2">${memoInputHtml}</td>
           <td class="py-2.5 px-3">${driverSelectHtml}</td>
           <td class="py-2.5 px-2.5 text-center">
             ${phoneNum ? `
@@ -1905,6 +1942,23 @@
       }
     }
 
+    function onInlineMemoChange(realIdx, newMemo) {
+      if (realIdx < 0 || realIdx >= records.length) return;
+      var r = records[realIdx];
+      r.비고_전문 = (newMemo || '').trim();
+      renderRouteMap();
+
+      showToast('📝 [' + r.고객사 + '] 비고/지시사항이 저장되었습니다!');
+
+      if (supabaseClient && r.ID) {
+        supabaseClient.from('delivery_schedules').update({ 
+          memo_full: r.비고_전문 
+        }).eq('id', r.ID).then(function(res) {
+          if (res.error) console.error('DB Memo update error:', res.error);
+        });
+      }
+    }
+
     function onInlineDriverChange(realIdx, newDriver) {
       if (realIdx < 0 || realIdx >= records.length) return;
       var r = records[realIdx];
@@ -1938,6 +1992,7 @@
       document.getElementById('editDetailAddr').value = r.상세주소 || '';
       document.getElementById('editDriver').value = r.담당기사 || '';
       document.getElementById('editItem').value = r.품목_수량 || '';
+      document.getElementById('editMemo').value = r.비고_전문 || '';
       document.getElementById('editStopModal').classList.remove('hidden');
     }
 
@@ -1956,6 +2011,7 @@
       var type = document.getElementById('editType').value;
       var method = document.getElementById('editMethod').value;
       var item = document.getElementById('editItem').value.trim();
+      var memo = document.getElementById('editMemo').value.trim();
       var driver = document.getElementById('editDriver').value.trim();
 
       if (!cust && !addr) {
@@ -1972,6 +2028,7 @@
       r.구분 = type;
       r.배송방법 = method;
       r.품목_수량 = item;
+      r.비고_전문 = memo;
       r.담당기사 = driver;
 
       closeEditStopModal();
@@ -1988,6 +2045,7 @@
           category: type,
           delivery_method: method,
           items: item,
+          memo_full: memo,
           driver_name: driver
         }).eq('id', r.ID).then(function(res) {
           if (res.error) console.error('DB Update error:', res.error);
@@ -2006,6 +2064,7 @@
       document.getElementById('addAddr').value = '';
       document.getElementById('addDetailAddr').value = '';
       document.getElementById('addItem').value = '';
+      document.getElementById('addMemo').value = '';
       document.getElementById('addStopModal').classList.remove('hidden');
     }
 
@@ -2021,6 +2080,7 @@
       var type = document.getElementById('addType').value;
       var method = document.getElementById('addMethod').value;
       var item = document.getElementById('addItem').value.trim();
+      var memo = document.getElementById('addMemo').value.trim();
 
       if (!cust || !addr) {
         alert('고객사명과 기본 주소는 필수 입력 사항입니다.');
@@ -2051,7 +2111,7 @@
         품목_수량: item || '-',
         의뢰상태: '출고대기',
         배송방법: method,
-        비고_전문: item
+        비고_전문: memo
       };
 
       records.push(newRecord);
@@ -2073,7 +2133,8 @@
           visit_time: newRecord.방문시간,
           items: newRecord.품목_수량,
           status: newRecord.의뢰상태,
-          delivery_method: newRecord.배송방법
+          delivery_method: newRecord.배송방법,
+          memo_full: newRecord.비고_전문
         }]).then(function(res) {
           if (res.error) console.error('DB Insert error:', res.error);
         });
