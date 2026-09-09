@@ -702,18 +702,15 @@
           return row.source_sheet !== 'SYSTEM_CONFIG_USERS' && row.delivery_date !== '2099-12-31';
         });
 
-        if (currentUser.role === 'driver') {
-          driverRecords = allRows.filter(function(r) {
-            return (r.driver_name || '').trim() === currentUser.id;
-          });
-        } else {
-          driverRecords = allRows;
-        }
+        // 관리자/기사 구분 없이 모바일웹에서는 본인(currentUser.id)에게 배정된 건들만 표출!
+        driverRecords = allRows.filter(function(r) {
+          return (r.driver_name || '').trim() === currentUser.id;
+        });
 
         renderCards();
 
         if (showWelcome) {
-          showToast('👋 ' + currentUser.id + ' 기사님, 오늘의 배송 (' + driverRecords.length + '건) 목록입니다.');
+          showToast('👋 ' + currentUser.id + '님, 오늘의 배정 배송 (' + driverRecords.length + '건) 목록입니다.');
         }
       } catch (err) {
         console.error('Data load error:', err);
@@ -726,6 +723,15 @@
     // ==========================================
     // Render Cards & Progress
     // ==========================================
+    function getMobileCategoryBadgeStyle(cat) {
+      if (cat === '회수') return 'bg-purple-100 text-purple-800';
+      if (cat === '교환출고' || (cat && cat.indexOf('교환') !== -1)) return 'bg-indigo-100 text-indigo-800 font-black border border-indigo-200';
+      if (cat === '설치') return 'bg-emerald-100 text-emerald-800';
+      if (cat === '수령') return 'bg-amber-100 text-amber-800';
+      if (cat === 'A/S' || cat === 'AS') return 'bg-rose-100 text-rose-800';
+      return 'bg-blue-100 text-blue-800';
+    }
+
     function renderCards() {
       var container = document.getElementById('cardsContainer');
       container.innerHTML = '';
@@ -810,7 +816,7 @@
               <div>
                 <h3 class="font-black text-slate-900 text-base leading-tight">${r.customer_name || '고객사 미정'}</h3>
                 <div class="flex items-center gap-1.5 pt-0.5">
-                  <span class="px-2 py-0.5 rounded text-[10px] font-black ${r.category === '회수' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'}">
+                  <span class="px-2 py-0.5 rounded text-[10px] font-black ${getMobileCategoryBadgeStyle(r.category)}">
                     ${r.category || '배송'}
                   </span>
                   <span class="text-[11px] font-bold text-slate-500 flex items-center gap-1">

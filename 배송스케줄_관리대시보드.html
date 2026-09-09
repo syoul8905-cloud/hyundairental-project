@@ -371,6 +371,7 @@
           <option value="all">전체 구분</option>
           <option value="배송">배송</option>
           <option value="회수">회수</option>
+          <option value="교환출고">교환출고</option>
           <option value="설치">설치</option>
           <option value="수령">수령</option>
           <option value="A/S">A/S</option>
@@ -1580,7 +1581,7 @@
     }
 
     const DRIVER_LIST = ['김승지', '조경찬', '박종환', '최두성', '이성호', '장종순', '방문수령', '퀵'];
-    const CATEGORY_LIST = ['배송', '회수', '설치', '수령', 'A/S'];
+    const CATEGORY_LIST = ['배송', '회수', '교환출고', '설치', '수령', 'A/S'];
 
     // 시스템 내 모든 등록 유저 및 기사 목록 취합 헬퍼
     function getAllAvailableDrivers() {
@@ -3260,7 +3261,8 @@
           var custIndices = findColIndices(['고객명', '고객사', '고객사명', '거래처']);
           var addrIndices = findColIndices(['기본주소', '주소', '배송지']);
           var detailAddrIndices = findColIndices(['상세주소', '상세']);
-          var statusIndices = findColIndices(['의뢰상태', '상태', '배송상태']);
+          var reqStatusIndices = findColIndices(['의뢰상태']);
+          var statusIndices = findColIndices(['배송상태', '상태']);
           var catIndices = findColIndices(['구분']);
           var timeIndices = findColIndices(['배송시간', '방문시간', '희망시간']);
           var itemIndices = findColIndices(['제품명', '품목_수량', '품목', '상품명', '회수제품정보']);
@@ -3297,10 +3299,16 @@
           var pickupCount = 0;
 
           dataRows.forEach(function(r) {
-            // 행 전체에서 배송방법 검사 (한글 '직배송', '방문수령' 및 영문 'direct', 'pickup')
+            // 1. 의뢰상태 검사: '의뢰대기' 상태인 건은 등록 대상에서 원천 제외
+            var reqStatus = getRowValue(r, reqStatusIndices);
             var rowText = r.map(function(c) { return String(c || '').trim(); }).join(' ');
-            
-            // 제외 대상 체크: 택배(delivery), 전산(install)인 경우
+
+            if (reqStatus.indexOf('의뢰대기') !== -1 || rowText.indexOf('의뢰대기') !== -1) {
+              skippedCount++;
+              return;
+            }
+
+            // 2. 제외 대상 체크: 택배(delivery), 전산(install)인 경우
             var isDeliveryExpress = (rowText.indexOf('택배') !== -1 || rowText.indexOf('delivery') !== -1);
             var isInstallComputer = (rowText.indexOf('전산') !== -1 || rowText.indexOf('install') !== -1);
             
@@ -3325,13 +3333,26 @@
             var cust = getRowValue(r, custIndices);
             var addr = getRowValue(r, addrIndices);
             var detailAddr = getRowValue(r, detailAddrIndices);
-            var status = getRowValue(r, statusIndices) || '진행중';
+            var status = getRowValue(r, statusIndices) || reqStatus || '진행중';
+
+            // 3. 구분 매핑: '출고/회수'는 '교환출고'로 등록
             var rawCat = getRowValue(r, catIndices);
             var cat = '배송';
-            if (rawCat.indexOf('회수') !== -1) cat = '회수';
-            else if (rawCat.indexOf('설치') !== -1) cat = '설치';
-            else if (rawCat.indexOf('수령') !== -1) cat = '수령';
-            else if (rawCat.indexOf('A/S') !== -1) cat = 'A/S';
+            if (rawCat.indexOf('출고/회수') !== -1 || rawCat.indexOf('교환') !== -1) {
+              cat = '교환출고';
+            } else if (rawCat.indexOf('회수') !== -1) {
+              cat = '회수';
+            } else if (rawCat.indexOf('설치') !== -1) {
+              cat = '설치';
+            } else if (rawCat.indexOf('수령') !== -1) {
+              cat = '수령';
+            } else if (rawCat.indexOf('A/S') !== -1 || rawCat.indexOf('AS') !== -1) {
+              cat = 'A/S';
+            } else if (rawCat.indexOf('출고') !== -1) {
+              cat = '출고';
+            } else {
+              cat = '배송';
+            }
 
             var fullAddr = detailAddr ? (addr + ' ' + detailAddr).trim() : addr;
             if (!cust && fullAddr) {
@@ -3502,9 +3523,10 @@
     function getCategoryBadgeStyle(cat) {
       if (cat === '배송') return 'bg-blue-50 text-blue-700 border-blue-200';
       if (cat === '회수') return 'bg-purple-50 text-purple-700 border-purple-200';
+      if (cat === '교환출고' || (cat && cat.indexOf('교환') !== -1)) return 'bg-indigo-50 text-indigo-700 border-indigo-300 font-black';
       if (cat === '설치') return 'bg-emerald-50 text-emerald-700 border-emerald-200';
       if (cat === '수령') return 'bg-amber-50 text-amber-700 border-amber-200';
-      if (cat === 'A/S') return 'bg-rose-50 text-rose-700 border-rose-200';
+      if (cat === 'A/S' || cat === 'AS') return 'bg-rose-50 text-rose-700 border-rose-200';
       return 'bg-slate-50 text-slate-700 border-slate-200';
     }
 
