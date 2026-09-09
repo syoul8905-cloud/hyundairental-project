@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=500cdd195811a28981f211d6641c3aca&libraries=services,clusterer"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700;800;900&display=swap');
     body { font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif; }
@@ -619,9 +620,17 @@
         return;
       }
 
-      if (window.kakao && window.kakao.maps && window.kakao.maps.Map) {
-        setupKakaoMapInstance();
-        return;
+      if (window.kakao && window.kakao.maps) {
+        if (window.kakao.maps.Map) {
+          setupKakaoMapInstance();
+          return;
+        } else if (window.kakao.maps.load) {
+          window.kakao.maps.load(function() {
+            setupKakaoMapInstance();
+            renderRouteMap();
+          });
+          return;
+        }
       }
 
       var oldScript = document.getElementById('kakaoMapScript');
