@@ -98,12 +98,6 @@
         <span>카카오맵 설정</span>
       </button>
 
-      <!-- Auto Sync Toggle -->
-      <button id="autoSyncToggleBtn" onclick="toggleAutoSync()" title="실시간 자동 동기화 켜기/끄기" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition flex items-center gap-1.5 border border-slate-200 text-xs">
-        <i id="autoSyncIcon" class="fa-solid fa-pause text-amber-600"></i>
-        <span id="autoSyncText">자동동기화 멈춤</span>
-      </button>
-
       <!-- Manual Sync Button -->
       <button onclick="triggerSync(false)" class="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl transition flex items-center gap-1.5 shadow-sm">
         <i id="syncIcon" class="fa-solid fa-rotate"></i>
@@ -167,15 +161,6 @@
           <i class="fa-solid fa-car"></i> 총 0개소
         </span>
       </div>
-
-      <div class="flex items-center gap-2">
-        <button onclick="event.stopPropagation(); openAddStopModal()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl transition flex items-center gap-1.5 shadow-sm">
-          <i class="fa-solid fa-plus"></i> 배송지 직접 추가
-        </button>
-        <button onclick="openKakaoDirectRoute()" class="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl transition flex items-center gap-1.5 shadow-sm">
-          <i class="fa-solid fa-arrow-up-right-from-square"></i> 카카오맵 전체 길찾기
-        </button>
-      </div>
     </div>
 
     <!-- Map & Timeline Grid -->
@@ -226,18 +211,26 @@
         <span class="text-slate-400 font-bold">조회: <b id="tableCount" class="text-indigo-600">0</b>건</span>
       </div>
 
-      <!-- Search & Filters -->
+      <!-- Search & Filters & Add Stop Button -->
       <div class="flex flex-wrap items-center gap-2">
-        <div class="relative w-64">
+        <div class="relative w-56">
           <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400"></i>
           <input type="text" id="tableSearchInput" oninput="renderTable()" placeholder="고객사, 주소, 품목 검색..." class="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-indigo-500">
         </div>
 
         <select id="tableTypeFilter" onchange="renderTable()" class="py-1.5 px-3 bg-slate-50 border border-slate-200 rounded-lg font-medium">
-          <option value="all">전체 구분 (배송/회수)</option>
+          <option value="all">전체 구분</option>
           <option value="배송">배송</option>
           <option value="회수">회수</option>
+          <option value="설치">설치</option>
+          <option value="수령">수령</option>
+          <option value="A/S">A/S</option>
         </select>
+
+        <button onclick="openAddStopModal()" class="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl transition flex items-center gap-1.5 shadow-sm text-xs">
+          <i class="fa-solid fa-plus"></i>
+          <span>배송지 직접 추가</span>
+        </button>
       </div>
     </div>
 
@@ -398,6 +391,9 @@
             <select id="editType" class="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-indigo-500 font-semibold">
               <option value="배송">배송</option>
               <option value="회수">회수</option>
+              <option value="설치">설치</option>
+              <option value="수령">수령</option>
+              <option value="A/S">A/S</option>
             </select>
           </div>
           <div>
@@ -467,6 +463,9 @@
             <select id="addType" class="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-indigo-500 font-semibold">
               <option value="배송" selected>배송</option>
               <option value="회수">회수</option>
+              <option value="설치">설치</option>
+              <option value="수령">수령</option>
+              <option value="A/S">A/S</option>
             </select>
           </div>
           <div>
@@ -536,11 +535,12 @@
     const SUPABASE_ANON_KEY = "sb_publishable_pLF_neZMUjj3G7PsiH_tuw_rfRuu8eP";
     const supabaseClient = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 
+    const DRIVER_LIST = ['김승지', '조경찬', '박종환', '최두성', '이성호', '장종순', '방문수령', '퀵'];
+    const CATEGORY_LIST = ['배송', '회수', '설치', '수령', 'A/S'];
+
     var records = [];
     var originalRecords = [];
     var draggedStopIndex = null;
-    var isAutoSyncEnabled = true;
-    var autoSyncTimer = null;
     var parsedCsvPendingData = null;
 
     // Kakao Maps Instance & Geocoder
@@ -819,13 +819,13 @@
         }
       });
 
-      var drivers = Object.keys(driverCounts).filter(function(k) { return k !== '__unassigned__'; }).sort();
       select.innerHTML = '<option value="all">전체 기사 보기 (' + records.length + '건)</option>';
 
-      drivers.forEach(function(d) {
+      DRIVER_LIST.forEach(function(d) {
+        var count = driverCounts[d] || 0;
         var opt = document.createElement('option');
         opt.value = d;
-        opt.innerText = '🚗 ' + d + ' (' + driverCounts[d] + '건)';
+        opt.innerText = '🚗 ' + d + ' (' + count + '건)';
         if (d === curr) opt.selected = true;
         select.appendChild(opt);
       });
@@ -833,7 +833,7 @@
       if (hasUnassigned) {
         var unOpt = document.createElement('option');
         unOpt.value = '';
-        unOpt.innerText = '⚠️ 기사 미지정 (' + driverCounts['__unassigned__'] + '건)';
+        unOpt.innerText = '⚠️ 기사 미지정 (' + (driverCounts['__unassigned__'] || 0) + '건)';
         if (curr === '') unOpt.selected = true;
         select.appendChild(unOpt);
       }
@@ -842,7 +842,7 @@
       var editSelect = document.getElementById('editDriverQuickSelect');
       if (editSelect) {
         editSelect.innerHTML = '<option value="">기존 기사 선택...</option>';
-        drivers.forEach(function(d) {
+        DRIVER_LIST.forEach(function(d) {
           var opt2 = document.createElement('option');
           opt2.value = d;
           opt2.innerText = d;
@@ -1024,11 +1024,8 @@
               ` : `
                 <span class="text-[10px] text-slate-300">연락처없음</span>
               `}
-              <button onclick="event.stopPropagation(); openTmapNav('${r.고객사}', '${r.주소}');" class="px-2 py-1 bg-rose-500 hover:bg-rose-600 text-white font-bold rounded-lg text-[10px] flex items-center gap-1 shadow-xs transition">
+              <button onclick="event.stopPropagation(); openTmapNav('${r.고객사}', '${r.주소}');" class="px-2.5 py-1 bg-rose-500 hover:bg-rose-600 text-white font-bold rounded-lg text-[10px] flex items-center gap-1 shadow-xs transition">
                 <i class="fa-solid fa-location-arrow"></i> 티맵 안내
-              </button>
-              <button onclick="event.stopPropagation(); openKakaoNav('${r.고객사}', '${r.주소}');" class="px-2 py-1 bg-amber-400 hover:bg-amber-500 text-slate-900 font-bold rounded-lg text-[10px] flex items-center gap-1 shadow-xs transition">
-                카카오맵
               </button>
             </div>
           </div>
@@ -1116,34 +1113,9 @@
     function openTmapNav(custName, addr) {
       var coord = getCoordForAddress(addr);
       var tmapAppUrl = 'tmap://route?goalname=' + encodeURIComponent(custName) + '&goalx=' + coord.lng + '&goaly=' + coord.lat;
-      var fallbackUrl = 'https://map.kakao.com/link/to/' + encodeURIComponent(custName) + ',' + coord.lat + ',' + coord.lng;
-
-      var isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-      if (isMobile) {
-        var clickedAt = +new Date();
-        window.location.href = tmapAppUrl;
-        setTimeout(function() {
-          if (+new Date() - clickedAt < 2000) {
-            window.open(fallbackUrl, '_blank');
-          }
-        }, 1200);
-      } else {
-        window.open(fallbackUrl, '_blank');
-      }
+      window.location.href = tmapAppUrl;
     }
 
-    function openKakaoNav(custName, addr) {
-      var coord = getCoordForAddress(addr);
-      var url = 'https://map.kakao.com/link/to/' + encodeURIComponent(custName) + ',' + coord.lat + ',' + coord.lng;
-      window.open(url, '_blank');
-    }
-
-    function openKakaoDirectRoute() {
-      var activeRecords = getFilteredRecords();
-      if (activeRecords.length === 0) { alert('배송 목록이 없습니다.'); return; }
-      var first = activeRecords[0];
-      openKakaoNav(first.고객사, first.주소);
-    }
 
     // ==========================================
     // CSV Ingest & Auto-filtering Engine
@@ -1344,12 +1316,42 @@
         return;
       }
 
-      // 기사 목록 추출 (인라인 셀렉트용)
-      var driverSet = new Set();
-      records.forEach(function(r) { if (r.담당기사) driverSet.add(r.담당기사.trim()); });
-      driverSet.add('조경찬');
-      driverSet.add('이성호');
-      var driverList = Array.from(driverSet).sort();
+    function getCategoryBadgeStyle(cat) {
+      if (cat === '배송') return 'bg-blue-50 text-blue-700 border-blue-200';
+      if (cat === '회수') return 'bg-purple-50 text-purple-700 border-purple-200';
+      if (cat === '설치') return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+      if (cat === '수령') return 'bg-amber-50 text-amber-700 border-amber-200';
+      if (cat === 'A/S') return 'bg-rose-50 text-rose-700 border-rose-200';
+      return 'bg-slate-50 text-slate-700 border-slate-200';
+    }
+
+    function renderTable() {
+      var tbody = document.getElementById('tableBody');
+      var kw = (document.getElementById('tableSearchInput').value || '').toLowerCase().trim();
+      var typeFilter = document.getElementById('tableTypeFilter').value;
+      var driverFilter = document.getElementById('driverFilterSelect') ? document.getElementById('driverFilterSelect').value : 'all';
+
+      var filtered = records.filter(function(r) {
+        if (typeFilter !== 'all' && (r.구분 || '').indexOf(typeFilter) === -1) return false;
+        if (driverFilter !== 'all') {
+          var d = (r.담당기사 || '').trim();
+          if (driverFilter === '' && d !== '') return false;
+          if (driverFilter !== '' && d !== driverFilter) return false;
+        }
+        if (kw) {
+          var matchStr = (r.고객사 + ' ' + r.주소 + ' ' + r.품목_수량 + ' ' + r.담당기사 + ' ' + r.계약번호).toLowerCase();
+          if (matchStr.indexOf(kw) === -1) return false;
+        }
+        return true;
+      });
+
+      document.getElementById('tableCount').innerText = filtered.length;
+      tbody.innerHTML = '';
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="10" class="py-8 text-center text-slate-400 font-medium">조회된 배송 내역이 없습니다.</td></tr>';
+        return;
+      }
 
       filtered.forEach(function(r) {
         var realIdx = records.indexOf(r);
@@ -1359,11 +1361,20 @@
         var phoneMatch = (r.담당자_연락처 || '').match(/0\d{1,2}-?\d{3,4}-?\d{4}/);
         var phoneNum = phoneMatch ? phoneMatch[0] : '';
 
-        // 기사 셀렉트 옵션 생성
+        // 구분 인라인 셀렉트 옵션 (배송, 회수, 설치, 수령, A/S)
+        var categorySelectHtml = `
+          <select onchange="onInlineCategoryChange(${realIdx}, this.value)" class="py-1 px-2 rounded-lg text-xs font-bold border focus:outline-none cursor-pointer ${getCategoryBadgeStyle(r.구분)}">
+            ${CATEGORY_LIST.map(function(c) {
+              return `<option value="${c}" ${(r.구분 || '배송') === c ? 'selected' : ''}>${c}</option>`;
+            }).join('')}
+          </select>
+        `;
+
+        // 기사 셀렉트 옵션 생성 (지정된 8명 기사 목록)
         var driverSelectHtml = `
           <select onchange="onInlineDriverChange(${realIdx}, this.value)" class="py-1 px-2 bg-amber-50/80 hover:bg-amber-100 border border-amber-200 rounded-lg text-xs font-bold text-amber-900 focus:outline-none cursor-pointer">
             <option value="" ${!r.담당기사 ? 'selected' : ''}>⚠️ 기사 미배정</option>
-            ${driverList.map(function(d) {
+            ${DRIVER_LIST.map(function(d) {
               return `<option value="${d}" ${r.담당기사 === d ? 'selected' : ''}>🚗 ${d}</option>`;
             }).join('')}
           </select>
@@ -1371,9 +1382,7 @@
 
         tr.innerHTML = `
           <td class="py-2.5 px-3 font-mono text-slate-500">${r.계약번호 || '-'}</td>
-          <td class="py-2.5 px-2">
-            <span class="px-2 py-0.5 rounded font-bold text-[10px] ${(r.구분 || '').indexOf('회수') !== -1 ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}">${r.구분 || '배송'}</span>
-          </td>
+          <td class="py-2.5 px-2">${categorySelectHtml}</td>
           <td class="py-2.5 px-3 font-bold text-slate-900">${r.고객사}</td>
           <td class="py-2.5 px-3.5 text-slate-600 max-w-xs truncate" title="${r.주소}">${r.주소}</td>
           <td class="py-2.5 px-2.5 text-slate-600 font-bold">${r.방문시간 || '-'}</td>
@@ -1406,6 +1415,23 @@
         `;
         tbody.appendChild(tr);
       });
+    }
+
+    function onInlineCategoryChange(realIdx, newCat) {
+      if (realIdx < 0 || realIdx >= records.length) return;
+      var r = records[realIdx];
+      r.구분 = newCat;
+      updateKPIs();
+      renderRouteMap();
+      renderTable();
+
+      showToast('🏷️ [' + r.고객사 + '] 구분이 "' + newCat + '"(으)로 변경되었습니다!');
+
+      if (supabaseClient && r.ID) {
+        supabaseClient.from('delivery_schedules').update({ category: newCat }).eq('id', r.ID).then(function(res) {
+          if (res.error) console.error('DB Update error:', res.error);
+        });
+      }
     }
 
     function onInlineDriverChange(realIdx, newDriver) {
@@ -1681,32 +1707,6 @@
       }
     }
 
-    function toggleAutoSync() {
-      isAutoSyncEnabled = !isAutoSyncEnabled;
-      var icon = document.getElementById('autoSyncIcon');
-      var text = document.getElementById('autoSyncText');
-      var pulse = document.getElementById('syncPulse');
-
-      if (isAutoSyncEnabled) {
-        icon.className = 'fa-solid fa-pause text-amber-600';
-        text.innerText = '자동동기화 멈춤';
-        if (pulse) pulse.className = 'w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse';
-        showToast('▶️ 30초 주기 실시간 자동 동기화가 재개되었습니다.');
-      } else {
-        icon.className = 'fa-solid fa-play text-emerald-600';
-        text.innerText = '자동동기화 시작';
-        if (pulse) pulse.className = 'w-1.5 h-1.5 rounded-full bg-slate-400';
-        showToast('⏸️ 실시간 자동 동기화가 일시 중지되었습니다.');
-      }
-    }
-
-    function initAutoSync() {
-      if (autoSyncTimer) clearInterval(autoSyncTimer);
-      autoSyncTimer = setInterval(function() {
-        if (isAutoSyncEnabled) triggerSync(true);
-      }, 30000);
-    }
-
     function showToast(msg) {
       var toast = document.getElementById('toast');
       document.getElementById('toastMsg').innerText = msg;
@@ -1723,7 +1723,6 @@
       renderOriginOptions();
       initKakaoMapEngine(false);
       await triggerSync(false);
-      initAutoSync();
     }
 
     if (document.readyState === 'loading') {
