@@ -1,0 +1,471 @@
+﻿<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>현대렌탈 배송 스케줄 시간 관리 대시보드</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome CDN -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <!-- Supabase JS CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;600;700;800;900&display=swap');
+    body { font-family: 'Pretendard', sans-serif; }
+    .custom-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+    .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 antialiased p-3 sm:p-5 select-none text-xs">
+
+  <!-- ========================================== -->
+  <!-- Header: Title & Controls                   -->
+  <!-- ========================================== -->
+  <header class="bg-white rounded-2xl px-4 py-3 shadow-xs border border-slate-200 flex flex-wrap items-center justify-between gap-3 mb-4">
+    <!-- Title & Brand -->
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-xl bg-violet-600 flex items-center justify-center text-white text-base shadow-md shadow-violet-600/20">
+        <i class="fa-solid fa-clock-rotate-left"></i>
+      </div>
+      <div>
+        <div class="flex items-center gap-2">
+          <h1 class="text-base font-black text-slate-900">배송 스케줄 시간 관리</h1>
+          <span class="bg-violet-100 text-violet-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-violet-200">
+            ⏱️ 실시간 운행 & 소요시간 관제
+          </span>
+        </div>
+        <p class="text-[11px] text-slate-400">티맵 출발 시각 및 배송지 도착 시각 실시간 트래킹</p>
+      </div>
+    </div>
+
+    <!-- Date, Driver & Actions -->
+    <div class="flex flex-wrap items-center gap-2">
+      <!-- Calendar Picker -->
+      <div class="flex items-center gap-1.5 bg-slate-50 hover:bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200 shadow-xs cursor-pointer relative"
+           onclick="openCalendarPicker(event)">
+        <i class="fa-regular fa-calendar-days text-violet-600"></i>
+        <span id="calendarDateDisplay" class="font-black text-slate-900 text-xs">2026-09-11</span>
+        <i class="fa-solid fa-calendar text-[10px] text-violet-500"></i>
+        <input type="date" id="calendarDateInput" onchange="onCalendarDateChanged(this.value)" 
+               class="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10">
+      </div>
+
+      <!-- Quick Date Stepper -->
+      <div class="flex items-center bg-slate-50 rounded-xl border border-slate-200 p-0.5 shadow-xs">
+        <button onclick="shiftDate(-1)" title="이전 날짜" class="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-white text-slate-600 hover:text-violet-600 text-xs">
+          <i class="fa-solid fa-chevron-left"></i>
+        </button>
+        <button onclick="goToToday()" title="오늘" class="px-2 h-6 flex items-center justify-center rounded-lg hover:bg-white text-slate-700 hover:text-violet-600 font-bold text-xs">
+          오늘
+        </button>
+        <button onclick="shiftDate(1)" title="다음 날짜" class="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-white text-slate-600 hover:text-violet-600 text-xs">
+          <i class="fa-solid fa-chevron-right"></i>
+        </button>
+      </div>
+
+      <!-- Driver Filter -->
+      <div class="flex items-center gap-1.5 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200">
+        <i class="fa-solid fa-id-badge text-amber-600"></i>
+        <select id="driverFilterSelect" onchange="renderTimeTable()" class="bg-transparent font-bold text-slate-800 text-xs focus:outline-none cursor-pointer max-w-[140px] truncate">
+          <option value="all">전체 기사 보기</option>
+        </select>
+      </div>
+
+      <!-- CSV Export Button -->
+      <button onclick="exportTimeReportCsv()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl transition flex items-center gap-1.5 shadow-xs text-xs">
+        <i class="fa-solid fa-file-excel"></i>
+        <span>엑셀 다운로드</span>
+      </button>
+
+      <!-- Refresh Button -->
+      <button onclick="loadTimeData(false)" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl transition flex items-center gap-1.5 shadow-xs text-xs">
+        <i id="syncIcon" class="fa-solid fa-rotate"></i>
+        <span>새로고침</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- ========================================== -->
+  <!-- KPI Summary Cards                          -->
+  <!-- ========================================== -->
+  <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+    <div class="bg-white rounded-2xl p-3.5 border border-slate-200 shadow-xs flex items-center justify-between">
+      <div>
+        <p class="text-[11px] font-bold text-slate-400">총 배송 건수</p>
+        <h3 id="kpiTotalStops" class="text-xl font-black text-slate-900 mt-0.5">0건</h3>
+      </div>
+      <div class="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600 text-base">
+        <i class="fa-solid fa-boxes-stacked"></i>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-2xl p-3.5 border border-slate-200 shadow-xs flex items-center justify-between">
+      <div>
+        <p class="text-[11px] font-bold text-slate-400">운행 / 이동 중</p>
+        <h3 id="kpiDeparted" class="text-xl font-black text-blue-600 mt-0.5">0건</h3>
+      </div>
+      <div class="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600 text-base">
+        <i class="fa-solid fa-truck-fast"></i>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-2xl p-3.5 border border-slate-200 shadow-xs flex items-center justify-between">
+      <div>
+        <p class="text-[11px] font-bold text-slate-400">배송지 도착 완료</p>
+        <h3 id="kpiArrived" class="text-xl font-black text-emerald-600 mt-0.5">0건</h3>
+      </div>
+      <div class="w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600 text-base">
+        <i class="fa-solid fa-flag-checkered"></i>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-2xl p-3.5 border border-slate-200 shadow-xs flex items-center justify-between">
+      <div>
+        <p class="text-[11px] font-bold text-slate-400">평균 운행 소요시간</p>
+        <h3 id="kpiAvgDuration" class="text-xl font-black text-violet-600 mt-0.5">-</h3>
+      </div>
+      <div class="w-9 h-9 rounded-xl bg-violet-50 flex items-center justify-center text-violet-600 text-base">
+        <i class="fa-solid fa-stopwatch"></i>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- Main Time Tracking Table                   -->
+  <!-- ========================================== -->
+  <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200 space-y-3">
+    <div class="flex items-center justify-between border-b border-slate-100 pb-2.5">
+      <div class="flex items-center gap-2">
+        <h2 class="font-black text-sm text-slate-900 flex items-center gap-1.5">
+          <i class="fa-solid fa-table-list text-violet-600"></i> 배송지별 운행 시간 기록부
+        </h2>
+        <span class="text-slate-400 font-bold">조회: <b id="tableCount" class="text-violet-600">0</b>건</span>
+      </div>
+      <div class="text-[11px] text-slate-400">
+        * 티맵 안내 클릭 시 <b>출발 시각</b>이, 배송지 도착 클릭 시 <b>도착 시각</b>이 자동 동기화됩니다.
+      </div>
+    </div>
+
+    <div class="overflow-hidden rounded-xl border border-slate-200">
+      <div class="overflow-x-auto custom-scroll max-h-[580px]">
+        <table class="w-full text-left whitespace-nowrap text-xs">
+          <thead class="bg-slate-50 text-slate-600 font-bold border-b border-slate-200 sticky top-0 z-10">
+            <tr>
+              <th class="py-2.5 px-3 text-center">순번</th>
+              <th class="py-2.5 px-3">담당기사</th>
+              <th class="py-2.5 px-3">고객사명</th>
+              <th class="py-2.5 px-3">배송지 주소</th>
+              <th class="py-2.5 px-2.5 text-center">희망시간 (ERP)</th>
+              <th class="py-2.5 px-3 text-center bg-blue-50/60 text-blue-900 border-x border-blue-100">
+                <i class="fa-solid fa-play text-blue-600 mr-1"></i> 출발 시각 (티맵)
+              </th>
+              <th class="py-2.5 px-3 text-center bg-emerald-50/60 text-emerald-900 border-r border-emerald-100">
+                <i class="fa-solid fa-flag-checkered text-emerald-600 mr-1"></i> 도착 시각
+              </th>
+              <th class="py-2.5 px-3 text-center bg-violet-50/60 text-violet-900 border-r border-violet-100">
+                <i class="fa-solid fa-stopwatch text-violet-600 mr-1"></i> 운행 소요시간
+              </th>
+              <th class="py-2.5 px-3 text-center">진행 상태</th>
+            </tr>
+          </thead>
+          <tbody id="timeTableBody" class="divide-y divide-slate-100"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="fixed bottom-4 right-4 bg-slate-900 text-white px-4 py-2.5 rounded-xl shadow-lg border border-slate-800 flex items-center gap-2 transform translate-y-12 opacity-0 pointer-events-none transition-all duration-300 z-50">
+    <i class="fa-solid fa-circle-check text-emerald-400"></i>
+    <span id="toastMsg" class="font-medium text-xs">알림</span>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- Script                                     -->
+  <!-- ========================================== -->
+  <script>
+    const SUPABASE_URL = "https://gideypynmhpjucgszyce.supabase.co";
+    const SUPABASE_ANON_KEY = "sb_publishable_pLF_neZMUjj3G7PsiH_tuw_rfRuu8eP";
+    const supabaseClient = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+
+    var records = [];
+    var currentDate = new Date().toISOString().split('T')[0];
+
+    function parseTimeMinutes(timeStr) {
+      if (!timeStr) return 0;
+      var parts = timeStr.split(':');
+      if (parts.length < 2) return 0;
+      return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+    }
+
+    function calculateDurationMinutes(departTime, arriveTime) {
+      if (!departTime || !arriveTime) return null;
+      var d = parseTimeMinutes(departTime);
+      var a = parseTimeMinutes(arriveTime);
+      var diff = a - d;
+      if (diff < 0) diff += 1440;
+      return diff;
+    }
+
+    function getStopTimes(record) {
+      var depart = '';
+      var arrive = '';
+      if (record && record.memo_special) {
+        try {
+          var parsed = JSON.parse(record.memo_special);
+          if (parsed && typeof parsed === 'object') {
+            depart = parsed.depart || '';
+            arrive = parsed.arrive || '';
+          }
+        } catch(e) {
+          var dMatch = record.memo_special.match(/출발[:\s]*(\d{1,2}:\d{2})/);
+          if (dMatch) depart = dMatch[1];
+          var aMatch = record.memo_special.match(/도착[:\s]*(\d{1,2}:\d{2})/);
+          if (aMatch) arrive = aMatch[1];
+        }
+      }
+      return { depart: depart, arrive: arrive };
+    }
+
+    async function loadTimeData(isSilent) {
+      var syncIcon = document.getElementById('syncIcon');
+      if (!isSilent && syncIcon) syncIcon.classList.add('fa-spin');
+
+      try {
+        var res = await supabaseClient.from('delivery_schedules')
+          .select('*')
+          .eq('delivery_date', currentDate)
+          .order('id', { ascending: true });
+
+        if (res.error) throw res.error;
+
+        var rawData = res.data || [];
+        records = rawData.filter(function(row) {
+          return row.source_sheet !== 'SYSTEM_CONFIG_USERS' &&
+                 row.customer_name !== 'SYSTEM_CONFIG_USERS' &&
+                 row.customer_name !== '시스템_계정_설정' &&
+                 row.delivery_date !== '2099-12-31' &&
+                 row.delivery_date !== '1970-01-01';
+        });
+
+        updateDriverFilter();
+        renderTimeTable();
+
+        if (syncIcon) syncIcon.classList.remove('fa-spin');
+        if (!isSilent) showToast('⚡ ' + records.length + '건 시간 기록 동기화 완료!');
+      } catch (err) {
+        console.error(err);
+        if (syncIcon) syncIcon.classList.remove('fa-spin');
+        if (!isSilent) showToast('❌ 동기화 실패: ' + err.message);
+      }
+    }
+
+    function updateDriverFilter() {
+      var select = document.getElementById('driverFilterSelect');
+      if (!select) return;
+      var curr = select.value || 'all';
+
+      var driverSet = new Set();
+      records.forEach(function(r) {
+        if (r.driver_name) driverSet.add(r.driver_name);
+      });
+
+      select.innerHTML = '<option value="all">전체 기사 보기 (' + records.length + '건)</option>';
+      Array.from(driverSet).sort().forEach(function(d) {
+        var count = records.filter(function(r) { return r.driver_name === d; }).length;
+        var opt = document.createElement('option');
+        opt.value = d;
+        opt.innerText = '🚗 ' + d + ' (' + count + '건)';
+        if (d === curr) opt.selected = true;
+        select.appendChild(opt);
+      });
+
+      if (curr === 'all') select.value = 'all';
+    }
+
+    function renderTimeTable() {
+      var tbody = document.getElementById('timeTableBody');
+      var driverFilter = document.getElementById('driverFilterSelect') ? document.getElementById('driverFilterSelect').value : 'all';
+
+      var filtered = records.filter(function(r) {
+        if (driverFilter !== 'all' && (r.driver_name || '').trim() !== driverFilter) return false;
+        return true;
+      });
+
+      document.getElementById('tableCount').innerText = filtered.length;
+      document.getElementById('kpiTotalStops').innerText = filtered.length + '건';
+
+      var departedCount = 0;
+      var arrivedCount = 0;
+      var totalDuration = 0;
+      var durationSampleCount = 0;
+
+      tbody.innerHTML = '';
+      if (filtered.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="9" class="py-12 text-center text-slate-400 font-medium">
+              선택된 날짜 [${currentDate}]의 배송 시간 데이터가 없습니다.
+            </td>
+          </tr>
+        `;
+        document.getElementById('kpiDeparted').innerText = '0건';
+        document.getElementById('kpiArrived').innerText = '0건';
+        document.getElementById('kpiAvgDuration').innerText = '-';
+        return;
+      }
+
+      filtered.forEach(function(r, idx) {
+        var times = getStopTimes(r);
+        var dur = calculateDurationMinutes(times.depart, times.arrive);
+
+        if (times.arrive) {
+          arrivedCount++;
+          if (dur !== null && dur > 0) {
+            totalDuration += dur;
+            durationSampleCount++;
+          }
+        } else if (times.depart) {
+          departedCount++;
+        }
+
+        var tr = document.createElement('tr');
+        tr.className = 'hover:bg-slate-50 transition';
+
+        var statusBadge = `<span class="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-bold text-[10px]">출발대기</span>`;
+        if (times.arrive) {
+          statusBadge = `<span class="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold text-[10px] flex items-center gap-1 w-max mx-auto"><i class="fa-solid fa-circle-check"></i> 도착완료</span>`;
+        } else if (times.depart) {
+          statusBadge = `<span class="bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full font-bold text-[10px] flex items-center gap-1 w-max mx-auto animate-pulse"><i class="fa-solid fa-truck-fast"></i> 운행중</span>`;
+        }
+
+        tr.innerHTML = `
+          <td class="py-2.5 px-3 text-center font-bold text-slate-400">${idx + 1}</td>
+          <td class="py-2.5 px-3 font-bold text-slate-800">
+            ${r.driver_name ? `<span class="bg-amber-50 text-amber-800 border border-amber-200 px-2 py-0.5 rounded-lg text-xs font-black">🚗 ${r.driver_name}</span>` : '<span class="text-slate-300">미배정</span>'}
+          </td>
+          <td class="py-2.5 px-3 font-black text-slate-900">${r.customer_name || '-'}</td>
+          <td class="py-2.5 px-3 text-slate-600 truncate max-w-xs" title="${r.address || ''}">${r.address || '-'}</td>
+          <td class="py-2.5 px-2.5 text-center font-bold text-slate-500">${r.visit_time || '무관'}</td>
+          
+          <td class="py-2.5 px-3 text-center bg-blue-50/30 border-x border-blue-50">
+            ${times.depart ? `<b class="text-blue-700 text-xs font-black">${times.depart}</b>` : '<span class="text-slate-300">-</span>'}
+          </td>
+          
+          <td class="py-2.5 px-3 text-center bg-emerald-50/30 border-r border-emerald-50">
+            ${times.arrive ? `<b class="text-emerald-700 text-xs font-black">${times.arrive}</b>` : '<span class="text-slate-300">-</span>'}
+          </td>
+          
+          <td class="py-2.5 px-3 text-center bg-violet-50/30 border-r border-violet-50 font-bold">
+            ${dur !== null ? `<span class="text-violet-900 font-black text-xs">${dur}분</span>` : '<span class="text-slate-300">-</span>'}
+          </td>
+          
+          <td class="py-2.5 px-3 text-center">${statusBadge}</td>
+        `;
+
+        tbody.appendChild(tr);
+      });
+
+      document.getElementById('kpiDeparted').innerText = departedCount + '건';
+      document.getElementById('kpiArrived').innerText = arrivedCount + '건';
+      if (durationSampleCount > 0) {
+        var avg = Math.round(totalDuration / durationSampleCount);
+        document.getElementById('kpiAvgDuration').innerText = avg + '분';
+      } else {
+        document.getElementById('kpiAvgDuration').innerText = '-';
+      }
+    }
+
+    function exportTimeReportCsv() {
+      if (records.length === 0) {
+        alert('내보낼 데이터가 없습니다.');
+        return;
+      }
+      var csvRows = [
+        ["순번", "배송일자", "담당기사", "고객사명", "배송지 주소", "희망배송시간", "출발시각", "도착시각", "소요시간(분)", "상태"]
+      ];
+
+      records.forEach(function(r, i) {
+        var times = getStopTimes(r);
+        var dur = calculateDurationMinutes(times.depart, times.arrive);
+        var st = times.arrive ? '도착완료' : (times.depart ? '운행중' : '대기');
+        csvRows.push([
+          i + 1,
+          r.delivery_date,
+          r.driver_name || '미배정',
+          `"${(r.customer_name || '').replace(/"/g, '""')}"`,
+          `"${(r.address || '').replace(/"/g, '""')}"`,
+          r.visit_time || '',
+          times.depart || '',
+          times.arrive || '',
+          dur !== null ? dur : '',
+          st
+        ]);
+      });
+
+      var csvContent = "\uFEFF" + csvRows.map(function(e) { return e.join(","); }).join("\r\n");
+      var blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      var url = URL.createObjectURL(blob);
+      var link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", "현대렌탈_배송시간기록부_" + currentDate + ".csv");
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      showToast('📥 엑셀(CSV) 파일이 다운로드되었습니다.');
+    }
+
+    function setDate(dStr) {
+      currentDate = dStr;
+      var dateInput = document.getElementById('calendarDateInput');
+      var dateDisplay = document.getElementById('calendarDateDisplay');
+      if (dateInput) dateInput.value = dStr;
+      if (dateDisplay) dateDisplay.innerText = dStr;
+      loadTimeData(false);
+    }
+
+    function openCalendarPicker(e) {
+      var input = document.getElementById('calendarDateInput');
+      if (input && input.showPicker) {
+        input.showPicker();
+      }
+    }
+
+    function onCalendarDateChanged(val) {
+      if (val) setDate(val);
+    }
+
+    function shiftDate(offset) {
+      var d = new Date(currentDate);
+      if (isNaN(d.getTime())) d = new Date();
+      d.setDate(d.getDate() + offset);
+      var nextStr = d.toISOString().split('T')[0];
+      setDate(nextStr);
+    }
+
+    function goToToday() {
+      setDate(new Date().toISOString().split('T')[0]);
+    }
+
+    function showToast(msg) {
+      var toast = document.getElementById('toast');
+      document.getElementById('toastMsg').innerText = msg;
+      toast.classList.remove('translate-y-12', 'opacity-0', 'pointer-events-none');
+      setTimeout(function() {
+        toast.classList.add('translate-y-12', 'opacity-0', 'pointer-events-none');
+      }, 2600);
+    }
+
+    // Initialize
+    window.addEventListener('DOMContentLoaded', function() {
+      var params = new URLSearchParams(window.location.search);
+      var paramDate = params.get('date');
+      if (paramDate) {
+        currentDate = paramDate;
+      }
+      setDate(currentDate);
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,572 @@
+﻿<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>현대렌탈 기사용 모바일 배송관제</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome CDN -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <!-- Supabase JS CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;600;700;800;900&display=swap');
+    body { font-family: 'Pretendard', sans-serif; -webkit-tap-highlight-color: transparent; }
+    /* 터치 인체공학 최소 높이 46px 보장 */
+    .btn-touch { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 antialiased pb-20 select-none text-sm">
+
+  <!-- ========================================== -->
+  <!-- 0. Mobile Login Overlay                    -->
+  <!-- ========================================== -->
+  <div id="loginOverlay" class="fixed inset-0 bg-slate-900/80 backdrop-blur-md flex items-center justify-center p-4 z-[9999]">
+    <div class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+      <div class="text-center space-y-1">
+        <div class="w-14 h-14 bg-indigo-600 rounded-2xl mx-auto flex items-center justify-center text-white text-2xl shadow-lg shadow-indigo-600/30">
+          <i class="fa-solid fa-truck-fast"></i>
+        </div>
+        <h2 class="text-lg font-black text-slate-900 pt-2">현대렌탈 기사용 배송관제</h2>
+        <p class="text-xs text-slate-500">배송사원 로그인 후 배송 업무를 시작하세요</p>
+      </div>
+
+      <form onsubmit="handleMobileLogin(event)" class="space-y-3 pt-2">
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">이름 (아이디)</label>
+          <div class="relative">
+            <i class="fa-solid fa-user absolute left-3.5 top-3.5 text-slate-400"></i>
+            <input type="text" id="loginUsername" placeholder="예: 김승지, 조경찬" required
+                   class="w-full pl-10 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:outline-none focus:border-indigo-600">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">비밀번호</label>
+          <div class="relative">
+            <i class="fa-solid fa-lock absolute left-3.5 top-3.5 text-slate-400"></i>
+            <input type="password" id="loginPassword" placeholder="비밀번호 입력 (초기: 1234)" required
+                   class="w-full pl-10 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:outline-none focus:border-indigo-600">
+          </div>
+        </div>
+
+        <div class="flex items-center justify-between text-xs text-slate-600 pt-1">
+          <label class="flex items-center gap-1.5 cursor-pointer">
+            <input type="checkbox" id="loginAutoLogin" class="w-4 h-4 rounded text-indigo-600">
+            <span class="font-semibold">자동 로그인</span>
+          </label>
+          <label class="flex items-center gap-1.5 cursor-pointer">
+            <input type="checkbox" id="loginRememberId" checked class="w-4 h-4 rounded text-indigo-600">
+            <span class="font-semibold">이름 저장</span>
+          </label>
+        </div>
+
+        <button type="submit" class="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-xl text-sm shadow-md shadow-indigo-600/30 transition btn-touch mt-2">
+          로그인하고 배송 시작하기
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- 1. Mobile Header                           -->
+  <!-- ========================================== -->
+  <header class="bg-white px-4 py-3 border-b border-slate-200 sticky top-0 z-30 shadow-xs">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white text-sm">
+          <i class="fa-solid fa-truck-fast"></i>
+        </div>
+        <div>
+          <h1 class="text-sm font-black text-slate-900 leading-tight">배송관제 (모바일)</h1>
+          <div class="flex items-center gap-1 text-[11px] font-bold text-indigo-600">
+            <i class="fa-solid fa-circle-user"></i>
+            <span id="headerDriverName">로그인 필요</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-1.5">
+        <button onclick="loadMobileData(false)" class="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center text-xs">
+          <i id="syncIcon" class="fa-solid fa-rotate"></i>
+        </button>
+        <button onclick="handleMobileLogout()" class="px-2.5 py-1 bg-slate-100 hover:bg-rose-50 hover:text-rose-600 text-slate-600 rounded-lg text-xs font-bold transition">
+          로그아웃
+        </button>
+      </div>
+    </div>
+
+    <!-- Date Stepper -->
+    <div class="flex items-center justify-between mt-2.5 pt-2 border-t border-slate-100">
+      <button onclick="shiftDate(-1)" class="px-2 py-1 rounded bg-slate-50 border border-slate-200 text-xs font-bold text-slate-600">
+        <i class="fa-solid fa-chevron-left"></i> 어제
+      </button>
+
+      <div class="flex items-center gap-1 cursor-pointer relative" onclick="openCalendarPicker()">
+        <i class="fa-regular fa-calendar-days text-indigo-600 text-sm"></i>
+        <span id="dateDisplay" class="font-black text-slate-900 text-sm">2026-09-11</span>
+        <i class="fa-solid fa-chevron-down text-[10px] text-slate-400"></i>
+        <input type="date" id="dateInput" onchange="setDate(this.value)" class="absolute inset-0 opacity-0 cursor-pointer w-full h-full">
+      </div>
+
+      <button onclick="shiftDate(1)" class="px-2 py-1 rounded bg-slate-50 border border-slate-200 text-xs font-bold text-slate-600">
+        내일 <i class="fa-solid fa-chevron-right"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- ========================================== -->
+  <!-- 2. Daily Progress Summary                  -->
+  <!-- ========================================== -->
+  <div class="p-3">
+    <div class="bg-white rounded-2xl p-3.5 border border-slate-200 shadow-xs space-y-2">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-bold text-slate-500">배송 진행 현황</span>
+        <span class="text-xs font-black text-indigo-600" id="progressText">0 / 0건 완료</span>
+      </div>
+      <div class="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
+        <div id="progressBar" class="h-full bg-gradient-to-r from-indigo-500 to-emerald-500 transition-all duration-300 w-0"></div>
+      </div>
+      <div class="flex items-center justify-between text-[11px] text-slate-400 pt-0.5">
+        <span id="remainCount">남은 배송: 0건</span>
+        <span class="text-indigo-600 font-bold">* 위/아래 버튼으로 방문 순서 변경 가능</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- 3. Delivery Card List                      -->
+  <!-- ========================================== -->
+  <main class="px-3 space-y-3" id="cardsContainer">
+    <div class="py-12 text-center text-slate-400 font-medium">배송 일정을 불러오는 중입니다...</div>
+  </main>
+
+  <!-- ========================================== -->
+  <!-- 4. Fixed Bottom Bar                        -->
+  <!-- ========================================== -->
+  <nav class="fixed bottom-0 inset-x-0 bg-white border-t border-slate-200 px-4 py-2 z-40 flex items-center justify-between shadow-lg">
+    <a href="index.html" class="flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-indigo-600">
+      <i class="fa-solid fa-desktop"></i>
+      <span>PC 관제 모드</span>
+    </a>
+    <a href="schedule_time_tracker.html" target="_blank" class="flex items-center gap-1.5 text-xs font-bold text-violet-600">
+      <i class="fa-solid fa-clock"></i>
+      <span>시간 기록부</span>
+    </a>
+    <button onclick="goToToday()" class="px-3 py-1 bg-indigo-50 text-indigo-700 font-black rounded-lg text-xs border border-indigo-200">
+      오늘 날짜로
+    </button>
+  </nav>
+
+  <!-- Toast -->
+  <div id="toast" class="fixed top-16 inset-x-4 bg-slate-900 text-white px-4 py-2.5 rounded-2xl shadow-xl border border-slate-800 flex items-center gap-2 transform -translate-y-12 opacity-0 pointer-events-none transition-all duration-300 z-50 text-xs">
+    <i class="fa-solid fa-circle-check text-emerald-400"></i>
+    <span id="toastMsg" class="font-bold">알림 메시지</span>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- 5. Mobile Engine Script                    -->
+  <!-- ========================================== -->
+  <script>
+    const SUPABASE_URL = "https://gideypynmhpjucgszyce.supabase.co";
+    const SUPABASE_ANON_KEY = "sb_publishable_pLF_neZMUjj3G7PsiH_tuw_rfRuu8eP";
+    const supabaseClient = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+
+    var currentUser = null;
+    var currentDate = new Date().toISOString().split('T')[0];
+    var driverRecords = [];
+
+    const DEFAULT_AUTH_USERS = [
+      { id: '최두성', pw: '1234', role: 'admin' },
+      { id: '이성호', pw: '1234', role: 'admin' },
+      { id: '장종순', pw: '1234', role: 'admin' },
+      { id: '박종환', pw: '1234', role: 'admin' },
+      { id: '김승지', pw: '1234', role: 'driver' },
+      { id: '조경찬', pw: '1234', role: 'driver' }
+    ];
+
+    function getAuthUsers() {
+      try {
+        var raw = localStorage.getItem('DELIVERY_AUTH_USERS');
+        if (raw) return JSON.parse(raw);
+      } catch(e) {}
+      return DEFAULT_AUTH_USERS;
+    }
+
+    function parseTimeMinutes(timeStr) {
+      if (!timeStr) return 0;
+      var parts = timeStr.split(':');
+      if (parts.length < 2) return 0;
+      return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+    }
+
+    function calculateDurationMinutes(departTime, arriveTime) {
+      if (!departTime || !arriveTime) return null;
+      var d = parseTimeMinutes(departTime);
+      var a = parseTimeMinutes(arriveTime);
+      var diff = a - d;
+      if (diff < 0) diff += 1440;
+      return diff;
+    }
+
+    function getStopTimes(record) {
+      var depart = '';
+      var arrive = '';
+      if (record && record.memo_special) {
+        try {
+          var parsed = JSON.parse(record.memo_special);
+          if (parsed && typeof parsed === 'object') {
+            depart = parsed.depart || '';
+            arrive = parsed.arrive || '';
+          }
+        } catch(e) {
+          var dMatch = record.memo_special.match(/출발[:\s]*(\d{1,2}:\d{2})/);
+          if (dMatch) depart = dMatch[1];
+          var aMatch = record.memo_special.match(/도착[:\s]*(\d{1,2}:\d{2})/);
+          if (aMatch) arrive = aMatch[1];
+        }
+      }
+      return { depart: depart, arrive: arrive };
+    }
+
+    // Auth
+    function handleMobileLogin(e) {
+      e.preventDefault();
+      var id = document.getElementById('loginUsername').value.trim();
+      var pw = document.getElementById('loginPassword').value.trim();
+      var users = getAuthUsers();
+      var user = users.find(function(u) { return u.id === id && u.pw === pw; });
+
+      if (!user) {
+        alert('이름 또는 비밀번호가 일치하지 않습니다.');
+        return;
+      }
+
+      currentUser = user;
+      document.getElementById('loginOverlay').classList.add('hidden');
+      document.getElementById('headerDriverName').innerText = user.id + ' 기사님';
+
+      if (document.getElementById('loginRememberId').checked) {
+        localStorage.setItem('DELIVERY_SAVED_ID', id);
+      }
+      if (document.getElementById('loginAutoLogin').checked) {
+        localStorage.setItem('DELIVERY_AUTO_LOGIN', 'true');
+        localStorage.setItem('DELIVERY_SAVED_PW', pw);
+      }
+
+      loadMobileData(false);
+      showToast('👋 ' + user.id + ' 기사님 환영합니다!');
+    }
+
+    function handleMobileLogout() {
+      if (!confirm('로그아웃 하시겠습니까?')) return;
+      currentUser = null;
+      localStorage.removeItem('DELIVERY_AUTO_LOGIN');
+      document.getElementById('loginOverlay').classList.remove('hidden');
+      document.getElementById('headerDriverName').innerText = '로그인 필요';
+      showToast('🚪 로그아웃되었습니다.');
+    }
+
+    // Data Engine
+    async function loadMobileData(isSilent) {
+      if (!currentUser) return;
+      var syncIcon = document.getElementById('syncIcon');
+      if (!isSilent && syncIcon) syncIcon.classList.add('fa-spin');
+
+      try {
+        var res = await supabaseClient.from('delivery_schedules')
+          .select('*')
+          .eq('delivery_date', currentDate)
+          .order('id', { ascending: true });
+
+        if (res.error) throw res.error;
+
+        var rawData = res.data || [];
+        var all = rawData.filter(function(row) {
+          return row.source_sheet !== 'SYSTEM_CONFIG_USERS' &&
+                 row.customer_name !== 'SYSTEM_CONFIG_USERS' &&
+                 row.customer_name !== '시스템_계정_설정' &&
+                 row.delivery_date !== '2099-12-31' &&
+                 row.delivery_date !== '1970-01-01';
+        });
+
+        // 기사 본인 건만 필터링 (관리자는 전체 조회 가능)
+        if (currentUser.role === 'driver') {
+          driverRecords = all.filter(function(r) {
+            return (r.driver_name || '').trim() === currentUser.id;
+          });
+        } else {
+          driverRecords = all;
+        }
+
+        renderCards();
+
+        if (syncIcon) syncIcon.classList.remove('fa-spin');
+        if (!isSilent) showToast('⚡ ' + driverRecords.length + '건 배송 스케줄 동기화 완료!');
+      } catch (err) {
+        console.error(err);
+        if (syncIcon) syncIcon.classList.remove('fa-spin');
+        if (!isSilent) showToast('❌ 동기화 실패: ' + err.message);
+      }
+    }
+
+    function renderCards() {
+      var container = document.getElementById('cardsContainer');
+      container.innerHTML = '';
+
+      var total = driverRecords.length;
+      var arrivedCount = 0;
+
+      driverRecords.forEach(function(r) {
+        var t = getStopTimes(r);
+        if (t.arrive) arrivedCount++;
+      });
+
+      document.getElementById('progressText').innerText = arrivedCount + ' / ' + total + '건 완료';
+      document.getElementById('remainCount').innerText = '남은 배송: ' + (total - arrivedCount) + '건';
+      var pct = total > 0 ? Math.round((arrivedCount / total) * 100) : 0;
+      document.getElementById('progressBar').style.width = pct + '%';
+
+      if (total === 0) {
+        container.innerHTML = `
+          <div class="bg-white rounded-2xl p-8 text-center text-slate-400 space-y-2 border border-slate-200">
+            <i class="fa-solid fa-calendar-check text-4xl text-slate-300"></i>
+            <p class="font-bold text-slate-700 text-sm">[${currentDate}] 배정된 배송 일정이 없습니다.</p>
+            <p class="text-xs text-slate-400">관리자가 스케줄을 배정하면 자동으로 표시됩니다.</p>
+          </div>
+        `;
+        return;
+      }
+
+      driverRecords.forEach(function(r, idx) {
+        var stopNum = idx + 1;
+        var isFirst = (idx === 0);
+        var isLast = (idx === total - 1);
+        var times = getStopTimes(r);
+        var dur = calculateDurationMinutes(times.depart, times.arrive);
+        var isArrived = !!times.arrive;
+        var isDeparted = !isArrived && !!times.depart;
+
+        var phoneMatch = (r.contact || '').match(/0\d{1,2}-?\d{3,4}-?\d{4}/);
+        var phoneNum = phoneMatch ? phoneMatch[0] : '';
+
+        var card = document.createElement('div');
+        card.className = `bg-white rounded-2xl p-4 border transition shadow-xs space-y-3 ${isArrived ? 'border-emerald-300 bg-emerald-50/20' : 'border-slate-200'}`;
+
+        card.innerHTML = `
+          <!-- Card Header -->
+          <div class="flex items-start justify-between gap-2">
+            <div class="flex items-center gap-2">
+              <span class="w-7 h-7 rounded-xl ${isArrived ? 'bg-emerald-600' : 'bg-indigo-600'} text-white font-black flex items-center justify-center text-xs shadow-xs">
+                ${stopNum}
+              </span>
+              <div>
+                <h3 class="font-black text-slate-900 text-base leading-tight">${r.customer_name || '-'}</h3>
+                <span class="text-xs font-bold text-slate-400">${r.category || '배송'} · 방문시간: <b class="text-slate-700">${r.visit_time || '무관'}</b></span>
+              </div>
+            </div>
+
+            <!-- Stop Reorder (Up/Down) -->
+            <div class="flex items-center gap-1 shrink-0">
+              <button onclick="moveStopOrder(${idx}, -1)" class="w-8 h-8 rounded-lg bg-slate-100 hover:bg-indigo-100 hover:text-indigo-600 text-slate-600 flex items-center justify-center font-bold text-xs ${isFirst ? 'opacity-30 pointer-events-none' : ''}">
+                ▲
+              </button>
+              <button onclick="moveStopOrder(${idx}, 1)" class="w-8 h-8 rounded-lg bg-slate-100 hover:bg-indigo-100 hover:text-indigo-600 text-slate-600 flex items-center justify-center font-bold text-xs ${isLast ? 'opacity-30 pointer-events-none' : ''}">
+                ▼
+              </button>
+            </div>
+          </div>
+
+          <!-- Address -->
+          <div class="space-y-1">
+            <p class="text-xs font-bold text-slate-700 flex items-start gap-1.5">
+              <i class="fa-solid fa-location-dot text-rose-500 mt-0.5 shrink-0"></i>
+              <span>${r.address || '-'}</span>
+            </p>
+            ${r.items ? `<p class="text-xs text-slate-500 pl-4">📦 품목: <b class="text-slate-800">${r.items}</b></p>` : ''}
+          </div>
+
+          <!-- Memo -->
+          ${r.memo_full ? `
+            <div class="p-2.5 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 font-semibold leading-relaxed flex items-start gap-1.5">
+              <i class="fa-solid fa-comment-dots text-amber-600 mt-0.5 shrink-0"></i>
+              <span>${r.memo_full}</span>
+            </div>
+          ` : ''}
+
+          <!-- Status Indicator -->
+          <div class="flex items-center justify-between text-xs pt-1 border-t border-slate-100">
+            <div>
+              ${times.depart ? `<span class="text-blue-700 font-black"><i class="fa-solid fa-play text-blue-500"></i> 출발 ${times.depart}</span>` : '<span class="text-slate-400">출발 전</span>'}
+              ${times.arrive ? `<span class="text-emerald-700 font-black ml-2"><i class="fa-solid fa-check text-emerald-500"></i> 도착 ${times.arrive} (${dur !== null ? dur + '분 소요' : ''})</span>` : ''}
+            </div>
+            <div>
+              ${isArrived ? '<span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold text-[11px]">도착완료</span>' : (isDeparted ? '<span class="px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 font-bold text-[11px] animate-pulse">운행중</span>' : '<span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-bold text-[11px]">대기</span>')}
+            </div>
+          </div>
+
+          <!-- Action Buttons (Large Touch Area: 44px) -->
+          <div class="grid grid-cols-3 gap-2 pt-1">
+            ${phoneNum ? `
+              <a href="tel:${phoneNum}" class="btn-touch bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1 shadow-xs transition">
+                <i class="fa-solid fa-phone"></i> 전화
+              </a>
+            ` : `
+              <button disabled class="btn-touch bg-slate-100 text-slate-300 font-bold rounded-xl text-xs flex items-center justify-center">
+                연락처없음
+              </button>
+            `}
+
+            <button onclick="startTmapAndRecord(${idx})" class="btn-touch ${isDeparted ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white'} font-bold rounded-xl text-xs flex items-center justify-center gap-1 shadow-xs transition">
+              <i class="fa-solid fa-location-arrow"></i> 티맵 출발
+            </button>
+
+            <button onclick="markArrivedAndRecord(${idx})" class="btn-touch ${isArrived ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-white'} font-bold rounded-xl text-xs flex items-center justify-center gap-1 shadow-xs transition">
+              <i class="fa-solid fa-flag-checkered"></i> 도착 완료
+            </button>
+          </div>
+        `;
+
+        container.appendChild(card);
+      });
+    }
+
+    // Tmap & Depart Time Record
+    async function startTmapAndRecord(idx) {
+      var r = driverRecords[idx];
+      if (!r) return;
+
+      var nowStr = new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false });
+      var times = getStopTimes(r);
+      if (!times.depart) {
+        times.depart = nowStr;
+        var jsonStr = JSON.stringify(times);
+        r.memo_special = jsonStr;
+        r.status = '운행중';
+
+        if (supabaseClient && r.id) {
+          supabaseClient.from('delivery_schedules').update({
+            memo_special: jsonStr,
+            status: '운행중'
+          }).eq('id', r.id).then(function(res) {
+            if (res.error) console.error(res.error);
+          });
+        }
+        renderCards();
+        showToast('🚀 [' + r.customer_name + '] 출발 시각(' + nowStr + ')이 기록되었습니다!');
+      }
+
+      // Tmap Scheme Launch
+      var clean = (r.address || '').replace(/\([^)]*\)/g, '').trim();
+      var tmapAppUrl = 'tmap://search?name=' + encodeURIComponent(clean || r.customer_name);
+      var tmapWebUrl = 'https://surl.tmap.co.kr/search?name=' + encodeURIComponent(clean || r.customer_name);
+
+      var isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+      if (isMobile) {
+        window.location.href = tmapAppUrl;
+        setTimeout(function() { window.open(tmapWebUrl, '_blank'); }, 1200);
+      } else {
+        window.open('https://map.kakao.com/link/search/' + encodeURIComponent(clean || r.customer_name), '_blank');
+      }
+    }
+
+    // Arrived Record
+    async function markArrivedAndRecord(idx) {
+      var r = driverRecords[idx];
+      if (!r) return;
+
+      var nowStr = new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false });
+      var times = getStopTimes(r);
+      if (!times.depart) times.depart = nowStr;
+      times.arrive = nowStr;
+
+      var dur = calculateDurationMinutes(times.depart, times.arrive);
+      var jsonStr = JSON.stringify(times);
+      r.memo_special = jsonStr;
+      r.status = '도착완료';
+
+      if (supabaseClient && r.id) {
+        supabaseClient.from('delivery_schedules').update({
+          memo_special: jsonStr,
+          status: '도착완료'
+        }).eq('id', r.id).then(function(res) {
+          if (res.error) console.error(res.error);
+        });
+      }
+
+      renderCards();
+      showToast('🏁 [' + r.customer_name + '] 배송지 도착 완료! (' + (dur !== null ? dur + '분 소요' : nowStr) + ')');
+    }
+
+    // Reorder
+    function moveStopOrder(idx, dir) {
+      var targetIdx = idx + dir;
+      if (targetIdx < 0 || targetIdx >= driverRecords.length) return;
+      var tmp = driverRecords[idx];
+      driverRecords[idx] = driverRecords[targetIdx];
+      driverRecords[targetIdx] = tmp;
+      renderCards();
+      showToast('🔄 방문 순서가 변경되었습니다.');
+    }
+
+    // Date Controllers
+    function setDate(dStr) {
+      currentDate = dStr;
+      var dateInput = document.getElementById('dateInput');
+      var dateDisplay = document.getElementById('dateDisplay');
+      if (dateInput) dateInput.value = dStr;
+      if (dateDisplay) dateDisplay.innerText = dStr;
+      loadMobileData(false);
+    }
+
+    function openCalendarPicker() {
+      var input = document.getElementById('dateInput');
+      if (input && input.showPicker) input.showPicker();
+    }
+
+    function shiftDate(offset) {
+      var d = new Date(currentDate);
+      if (isNaN(d.getTime())) d = new Date();
+      d.setDate(d.getDate() + offset);
+      setDate(d.toISOString().split('T')[0]);
+    }
+
+    function goToToday() {
+      setDate(new Date().toISOString().split('T')[0]);
+    }
+
+    function showToast(msg) {
+      var toast = document.getElementById('toast');
+      document.getElementById('toastMsg').innerText = msg;
+      toast.classList.remove('-translate-y-12', 'opacity-0', 'pointer-events-none');
+      setTimeout(function() {
+        toast.classList.add('-translate-y-12', 'opacity-0', 'pointer-events-none');
+      }, 2600);
+    }
+
+    // Auto login check
+    window.addEventListener('DOMContentLoaded', function() {
+      var savedId = localStorage.getItem('DELIVERY_SAVED_ID') || '';
+      var savedPw = localStorage.getItem('DELIVERY_SAVED_PW') || '';
+      var isAuto = localStorage.getItem('DELIVERY_AUTO_LOGIN') === 'true';
+
+      if (savedId) document.getElementById('loginUsername').value = savedId;
+      if (savedPw) document.getElementById('loginPassword').value = savedPw;
+
+      if (isAuto && savedId && savedPw) {
+        var users = getAuthUsers();
+        var user = users.find(function(u) { return u.id === savedId && u.pw === savedPw; });
+        if (user) {
+          currentUser = user;
+          document.getElementById('loginOverlay').classList.add('hidden');
+          document.getElementById('headerDriverName').innerText = user.id + ' 기사님';
+          loadMobileData(true);
+          return;
+        }
+      }
+      setDate(currentDate);
+    });
+  </script>
+</body>
+</html>
