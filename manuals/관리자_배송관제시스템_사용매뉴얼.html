@@ -224,20 +224,20 @@
     <!-- Section 5 -->
     <div class="space-y-4">
       <div class="border-l-4 border-indigo-600 pl-3">
-        <h2 class="text-base font-black text-slate-900">5. 카카오맵 동선 관제 및 배송 순서 최적화</h2>
-        <p class="text-slate-500 text-[11px]">고해상도 전자지도 경로 관제 및 드래그앤드롭 방문 순서 조정</p>
+        <h2 class="text-base font-black text-slate-900">5. 카카오맵 동선 관제 및 기사별 일일 출발지 관리</h2>
+        <p class="text-slate-500 text-[11px]">고해상도 전자지도 경로 관제, 기사별 개별 출발지 및 익일 가산센터 자동 복귀</p>
       </div>
 
       <div class="grid grid-cols-2 gap-3">
         <div class="bg-white border border-slate-200 rounded-xl p-3.5 shadow-xs space-y-2">
           <h3 class="font-bold text-slate-900 text-xs flex items-center gap-1.5">
-            <i class="fa-solid fa-map-pin text-indigo-600"></i> 카카오맵 경로 관제 기능
+            <i class="fa-solid fa-flag text-emerald-600"></i> 기사별 출발지 관리 및 익일 자동 복귀
           </h3>
           <ul class="text-slate-600 text-[10px] space-y-1.5">
-            <li>• <b>순번 마커 핀</b>: 1번부터 N번까지 배송 순서 번호가 지도 위에 직관적으로 표출됩니다.</li>
-            <li>• <b>마커 클릭 상세 정보</b>: 고객사명, 주소, 연락처, 품목 정보 인포윈도우 확인.</li>
-            <li>• <b>출발지 설정 (🏢 가산 센터 vs 🏠 기사 자택)</b>: 헤더 드롭다운에서 출발지를 선택하거나 직접 주소를 수정 저장 가능.</li>
-            <li>• <b>기사별 전용 동선 필터링</b>: 특정 기사 선택 시 해당 기사의 배송지만 지도에 깔끔하게 표출.</li>
+            <li>• <b>타임라인 최상단 [출발지 고정 카드]</b>: 좌측 목록 1번 배송지 바로 위에 에메랄드 카드가 상시 고정되며, <b>[🏢 가산 센터]</b> / <b>[🏠 등록 거점]</b> 2단 퀵 버튼으로 1클릭 전환됩니다.</li>
+            <li>• <b>익일 가산 센터 자동 복귀 (★핵심 규칙)</b>: 당일 스케줄에 기사별 출발지를 지정하더라도, <b>다음 날(새 일자)로 넘어가면 모든 기사의 출발지가 자동으로 기본값인 [가산 센터]로 초기화 복귀</b>됩니다.</li>
+            <li>• <b>가산 센터 정밀 좌표 고정</b>: 서울특별시 금천구 벚꽃로 278 (SJ테크노빌) 오차 0m 공인 정밀 WGS84 좌표 연동.</li>
+            <li>• <b>[기사별 출발지/거점 관리] 2-Tab 모달</b>: 당일 출발지 지정 탭과 전체 기사의 등록 거점(자택 주소)을 엑셀처럼 사전 세팅하는 마스터 관리 탭 제공.</li>
           </ul>
         </div>
 
@@ -249,7 +249,7 @@
             <li>• <b>마우스 드래그 앤 드롭</b>: 좌측 타임라인 카드를 마우스로 끌어서 순서를 즉시 맞바꿀 수 있습니다.</li>
             <li>• <b>▲ / ▼ 버튼</b>: 터치 또는 1클릭으로 한 단계씩 위/아래로 이동 가능.</li>
             <li>• <b>[시간순 복원] 버튼</b>: 순서가 꼬였을 때 원클릭으로 초기 배송시간 오름차순으로 즉시 복원.</li>
-            <li>• 순서 변경 시 지도 상의 마커 번호가 0.05초 만에 실시간 재정렬됩니다.</li>
+            <li>• <b>순번 마커 핀</b>: 출발지(🚩)부터 1번~N번까지 배송지 순번 핀과 OSRM 도로망 주행선이 실시간 재계산됩니다.</li>
           </ul>
         </div>
       </div>
