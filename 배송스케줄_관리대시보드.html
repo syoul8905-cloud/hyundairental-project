@@ -57,11 +57,36 @@
 
     <!-- Date, Driver, Origin, CSV Import, Kakao Settings Controls -->
     <div class="flex flex-wrap items-center gap-2">
-      <!-- Date Select -->
-      <div class="flex items-center gap-1.5 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200">
-        <span class="font-bold text-slate-500"><i class="fa-regular fa-calendar text-indigo-600"></i> 배송일자:</span>
-        <select id="sheetDateSelect" onchange="onDateChanged()" class="bg-transparent font-bold text-slate-800 focus:outline-none cursor-pointer">
-          <option value="">배송일자 로딩 중...</option>
+      <!-- Calendar Date Picker (클릭 시 달력 팝업) -->
+      <div class="flex items-center gap-1.5 bg-slate-50 hover:bg-slate-100/90 px-3 py-1.5 rounded-xl border border-slate-200 shadow-xs transition cursor-pointer relative group"
+           onclick="openCalendarPicker(event)" title="클릭하여 달력에서 배송일자 선택">
+        <span class="font-bold text-slate-500 flex items-center gap-1">
+          <i class="fa-regular fa-calendar-days text-indigo-600"></i> 배송일자:
+        </span>
+        <span id="calendarDateDisplay" class="font-black text-slate-900 text-xs px-1">2026-09-09</span>
+        <i class="fa-solid fa-calendar text-[11px] text-indigo-500 group-hover:scale-110 transition-transform"></i>
+        <!-- Hidden Native Datepicker -->
+        <input type="date" id="calendarDateInput" onchange="onCalendarDateChanged(this.value)" 
+               class="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10">
+      </div>
+
+      <!-- Quick Date Stepper (Prev, Today, Next) -->
+      <div class="flex items-center bg-slate-50 rounded-xl border border-slate-200 p-0.5 shadow-xs">
+        <button onclick="shiftDate(-1)" title="이전 날짜 이동" class="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-white text-slate-600 hover:text-indigo-600 transition font-bold text-xs">
+          <i class="fa-solid fa-chevron-left"></i>
+        </button>
+        <button onclick="goToToday()" title="오늘 날짜로 이동" class="px-2 h-6 flex items-center justify-center rounded-lg hover:bg-white text-slate-700 hover:text-indigo-600 transition font-bold text-[11px]">
+          오늘
+        </button>
+        <button onclick="shiftDate(1)" title="다음 날짜 이동" class="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-white text-slate-600 hover:text-indigo-600 transition font-bold text-xs">
+          <i class="fa-solid fa-chevron-right"></i>
+        </button>
+      </div>
+
+      <!-- DB Recorded Dates Quick Select (Dropdown) -->
+      <div class="flex items-center gap-1 bg-slate-50 px-2 py-1.5 rounded-xl border border-slate-200" title="기존 스케줄 등록일 목록">
+        <select id="sheetDateSelect" onchange="onDateSelectDropdownChanged(this.value)" class="bg-transparent font-bold text-slate-700 text-[11px] focus:outline-none cursor-pointer max-w-[130px] truncate">
+          <option value="">등록일 목록...</option>
         </select>
       </div>
 
@@ -218,13 +243,19 @@
           <input type="text" id="tableSearchInput" oninput="renderTable()" placeholder="고객사, 주소, 품목 검색..." class="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-indigo-500">
         </div>
 
-        <select id="tableTypeFilter" onchange="renderTable()" class="py-1.5 px-3 bg-slate-50 border border-slate-200 rounded-lg font-medium">
+        <select id="tableTypeFilter" onchange="renderTable()" class="py-1.5 px-3 bg-slate-50 border border-slate-200 rounded-lg font-medium text-xs">
           <option value="all">전체 구분</option>
           <option value="배송">배송</option>
           <option value="회수">회수</option>
           <option value="설치">설치</option>
           <option value="수령">수령</option>
           <option value="A/S">A/S</option>
+        </select>
+
+        <select id="tableMethodFilter" onchange="renderTable()" class="py-1.5 px-3 bg-slate-50 border border-slate-200 rounded-lg font-medium text-xs">
+          <option value="all">전체 배송방법</option>
+          <option value="직배송">🚚 직배송</option>
+          <option value="방문수령">🏢 방문수령</option>
         </select>
 
         <button onclick="openAddStopModal()" class="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl transition flex items-center gap-1.5 shadow-sm text-xs">
@@ -238,10 +269,11 @@
     <div class="overflow-hidden rounded-xl border border-slate-200">
       <div class="overflow-x-auto custom-scroll max-h-[440px]">
         <table class="w-full text-left whitespace-nowrap">
-          <thead class="bg-slate-50 text-slate-600 font-bold border-b border-slate-200 sticky top-0 z-10">
+          <thead class="bg-slate-50 text-slate-600 font-bold border-b border-slate-200 sticky top-0 z-10 text-xs">
             <tr>
               <th class="py-2.5 px-3">계약번호</th>
               <th class="py-2.5 px-2">구분</th>
+              <th class="py-2.5 px-2">배송방법</th>
               <th class="py-2.5 px-3">고객사명</th>
               <th class="py-2.5 px-3.5">배송지 주소</th>
               <th class="py-2.5 px-2.5">방문시간</th>
@@ -287,9 +319,25 @@
         </p>
         <ul class="list-disc list-inside space-y-0.5 text-slate-600 pl-1">
           <li><b>의뢰상태</b>: <span class="text-indigo-700 font-semibold">출고완료 / 회수의뢰완료 / 출고대기 / 출고접수</span> 만 선별</li>
-          <li><b>배송방법</b>: <span class="text-indigo-700 font-semibold">직배송</span> 필수 조건</li>
+          <li><b>배송방법</b>: <span class="text-indigo-700 font-semibold">직배송</span> 및 <span class="text-emerald-700 font-semibold">방문수령</span> 허용 (방문수령은 기사 '방문수령'으로 자동 매핑)</li>
           <li><b>정렬</b>: 방문시간(09:00 → 09:30 → ...) 오름차순으로 자동 정렬 등록</li>
         </ul>
+      </div>
+
+      <!-- Target Delivery Date Configuration -->
+      <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-2">
+        <div class="flex items-center justify-between">
+          <label class="font-bold text-slate-700 text-xs flex items-center gap-1.5">
+            <i class="fa-regular fa-calendar-days text-indigo-600"></i> 등록 대상 배송일자:
+          </label>
+          <div class="flex items-center gap-1">
+            <input type="date" id="csvTargetDateInput" class="px-2.5 py-1 bg-white border border-slate-300 rounded-lg text-xs font-bold text-slate-900 focus:outline-none focus:border-indigo-500 cursor-pointer">
+          </div>
+        </div>
+        <label class="flex items-center gap-1.5 text-[11px] text-slate-600 cursor-pointer select-none">
+          <input type="checkbox" id="csvForceDateCheck" checked class="rounded text-indigo-600 focus:ring-0">
+          <span>CSV 내부 날짜와 관계없이 위 선택 날짜로 일괄 적용</span>
+        </label>
       </div>
 
       <!-- Drop Zone -->
@@ -412,13 +460,22 @@
           <input type="text" id="editDetailAddr" placeholder="예: 12층 1201호" class="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-indigo-500">
         </div>
 
-        <div>
-          <label class="block text-[11px] font-bold text-slate-600 mb-1">담당 기사 배정</label>
-          <div class="flex items-center gap-2">
-            <input type="text" id="editDriver" placeholder="예: 조경찬 (또는 미지정)" class="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-indigo-500 font-bold text-amber-700">
-            <select id="editDriverQuickSelect" onchange="if(this.value){document.getElementById('editDriver').value=this.value;}" class="px-2 py-1.5 bg-slate-100 border border-slate-200 rounded-lg text-xs font-semibold text-slate-600 cursor-pointer">
-              <option value="">기존 기사 선택...</option>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-[11px] font-bold text-slate-600 mb-1">배송방법</label>
+            <select id="editMethod" class="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-indigo-500 font-semibold">
+              <option value="직배송">🚚 직배송</option>
+              <option value="방문수령">🏢 방문수령</option>
             </select>
+          </div>
+          <div>
+            <label class="block text-[11px] font-bold text-slate-600 mb-1">담당 기사 배정</label>
+            <div class="flex items-center gap-1.5">
+              <input type="text" id="editDriver" placeholder="예: 조경찬" class="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-indigo-500 font-bold text-amber-700">
+              <select id="editDriverQuickSelect" onchange="if(this.value){document.getElementById('editDriver').value=this.value;}" class="px-1.5 py-1.5 bg-slate-100 border border-slate-200 rounded-lg text-xs font-semibold text-slate-600 cursor-pointer">
+                <option value="">선택...</option>
+              </select>
+            </div>
           </div>
         </div>
 
@@ -429,7 +486,7 @@
       </div>
 
       <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
-        <button onclick="closeEditStopModal()" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-xl text-xs transition">
+        <button onclick="closeEditStopModal()" class="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-xl text-xs transition">
           취소
         </button>
         <button onclick="saveEditStopModal()" class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-xs transition flex items-center gap-1.5 shadow-sm">
@@ -484,9 +541,18 @@
           <input type="text" id="addDetailAddr" placeholder="예: 5층 회의실" class="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-indigo-500">
         </div>
 
-        <div>
-          <label class="block text-[11px] font-bold text-slate-600 mb-1">품목 및 수량</label>
-          <input type="text" id="addItem" placeholder="예: 태블릿 10대" class="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-indigo-500">
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-[11px] font-bold text-slate-600 mb-1">배송방법</label>
+            <select id="addMethod" class="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-indigo-500 font-semibold">
+              <option value="직배송" selected>🚚 직배송</option>
+              <option value="방문수령">🏢 방문수령</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-[11px] font-bold text-slate-600 mb-1">품목 및 수량</label>
+            <input type="text" id="addItem" placeholder="예: 태블릿 10대" class="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-indigo-500">
+          </div>
         </div>
       </div>
 
@@ -787,8 +853,96 @@
     }
 
     // ==========================================
-    // Date & Driver Engine
+    // Date & Calendar Engine
     // ==========================================
+    function openCalendarPicker(e) {
+      if (e) e.stopPropagation();
+      var inp = document.getElementById('calendarDateInput');
+      if (!inp) return;
+      try {
+        if (inp.showPicker) {
+          inp.showPicker();
+        } else {
+          inp.focus();
+        }
+      } catch(err) {
+        inp.focus();
+      }
+    }
+
+    function setHeaderCalendarDate(dateStr) {
+      var displayEl = document.getElementById('calendarDateDisplay');
+      var inputEl = document.getElementById('calendarDateInput');
+      if (displayEl) {
+        displayEl.innerText = (dateStr === 'all' || !dateStr) ? '전체 일정' : dateStr;
+      }
+      if (inputEl && dateStr && dateStr !== 'all') {
+        inputEl.value = dateStr;
+      }
+    }
+
+    function onCalendarDateChanged(dateVal) {
+      if (!dateVal) return;
+      setHeaderCalendarDate(dateVal);
+
+      // sheetDateSelect 동기화
+      var select = document.getElementById('sheetDateSelect');
+      if (select) {
+        var found = false;
+        for (var i = 0; i < select.options.length; i++) {
+          if (select.options[i].value === dateVal) {
+            select.selectedIndex = i;
+            found = true;
+            break;
+          }
+        }
+        if (!found) {
+          var opt = document.createElement('option');
+          opt.value = dateVal;
+          opt.innerText = '📅 ' + dateVal;
+          select.insertBefore(opt, select.firstChild);
+          select.value = dateVal;
+        }
+      }
+
+      triggerSync(false);
+    }
+
+    function shiftDate(days) {
+      var currStr = document.getElementById('calendarDateInput').value;
+      if (!currStr) {
+        var sel = document.getElementById('sheetDateSelect');
+        if (sel && sel.value && sel.value !== 'all') currStr = sel.value;
+      }
+      var baseDate = currStr ? new Date(currStr) : new Date();
+      if (isNaN(baseDate.getTime())) baseDate = new Date();
+      baseDate.setDate(baseDate.getDate() + days);
+      var y = baseDate.getFullYear();
+      var m = String(baseDate.getMonth() + 1).padStart(2, '0');
+      var d = String(baseDate.getDate()).padStart(2, '0');
+      var nextStr = y + '-' + m + '-' + d;
+      onCalendarDateChanged(nextStr);
+    }
+
+    function goToToday() {
+      var now = new Date();
+      var y = now.getFullYear();
+      var m = String(now.getMonth() + 1).padStart(2, '0');
+      var d = String(now.getDate()).padStart(2, '0');
+      var todayStr = y + '-' + m + '-' + d;
+      onCalendarDateChanged(todayStr);
+    }
+
+    function onDateSelectDropdownChanged(val) {
+      if (!val) return;
+      if (val === 'all') {
+        setHeaderCalendarDate('all');
+        triggerSync(false);
+        return;
+      }
+      onCalendarDateChanged(val);
+    }
+
     function initDateSelect(availableDates) {
       var select = document.getElementById('sheetDateSelect');
       if (!select) return;
@@ -808,11 +962,12 @@
       allOpt.innerText = '전체 일정 보기';
       select.appendChild(allOpt);
 
+      var chosenDate = dates[0];
       if (curr && (dates.indexOf(curr) !== -1 || curr === 'all')) {
-        select.value = curr;
-      } else if (dates.length > 0) {
-        select.value = dates[0];
+        chosenDate = curr;
       }
+      select.value = chosenDate;
+      setHeaderCalendarDate(chosenDate);
     }
 
     async function loadAvailableDates() {
@@ -915,11 +1070,19 @@
       document.getElementById('kpiTotal').innerText = active.length;
       var delCount = active.filter(function(r) { return (r.구분 || '').indexOf('회수') === -1; }).length;
       var recCount = active.filter(function(r) { return (r.구분 || '').indexOf('회수') !== -1; }).length;
+      var directCount = active.filter(function(r) { return (r.배송방법 || '직배송') === '직배송'; }).length;
+      var pickupCount = active.filter(function(r) { return (r.배송방법 || '') === '방문수령'; }).length;
+
       document.getElementById('kpiDelivery').innerText = delCount;
       document.getElementById('kpiRecovery').innerText = recCount;
 
       var driverVal = document.getElementById('driverFilterSelect').value;
-      document.getElementById('kpiDriver').innerText = (driverVal === 'all' || !driverVal) ? '전체' : driverVal;
+      var driverText = (driverVal === 'all' || !driverVal) ? '전체' : driverVal;
+      if (pickupCount > 0) {
+        document.getElementById('kpiDriver').innerText = driverText + ' (직배 ' + directCount + ' · 방문 ' + pickupCount + ')';
+      } else {
+        document.getElementById('kpiDriver').innerText = driverText;
+      }
     }
 
     // ==========================================
@@ -1267,6 +1430,20 @@
       document.getElementById('csvPreviewArea').classList.add('hidden');
       document.getElementById('csvConfirmBtn').disabled = true;
       parsedCsvPendingData = null;
+
+      // 현재 메인 화면에 선택된 배송일자로 csvTargetDateInput 기본값 설정
+      var currentHeaderDate = document.getElementById('calendarDateInput') ? document.getElementById('calendarDateInput').value : '';
+      if (!currentHeaderDate) {
+        var sel = document.getElementById('sheetDateSelect');
+        if (sel && sel.value && sel.value !== 'all') currentHeaderDate = sel.value;
+      }
+      if (!currentHeaderDate) {
+        currentHeaderDate = new Date().toISOString().split('T')[0];
+      }
+      var csvDateInp = document.getElementById('csvTargetDateInput');
+      if (csvDateInp) {
+        csvDateInp.value = currentHeaderDate;
+      }
     }
 
     function closeCsvModal() {
@@ -1307,6 +1484,10 @@
         return;
       }
 
+      var targetDate = (document.getElementById('csvTargetDateInput') && document.getElementById('csvTargetDateInput').value) 
+                        || new Date().toISOString().split('T')[0];
+      var forceDate = document.getElementById('csvForceDateCheck') ? document.getElementById('csvForceDateCheck').checked : true;
+
       Papa.parse(file, {
         header: true,
         skipEmptyLines: true,
@@ -1317,29 +1498,44 @@
             return;
           }
 
-          // 조건 검사: 의뢰상태 (출고완료, 회수의뢰완료, 출고대기, 출고접수) & 배송방법 (직배송)
+          // 조건 검사: 의뢰상태 (출고완료, 회수의뢰완료, 출고대기, 출고접수) & 배송방법 (직배송 또는 방문수령)
           var validStatuses = ['출고완료', '회수의뢰완료', '출고대기', '출고접수'];
           var passed = [];
           var skippedCount = 0;
+          var directCount = 0;
+          var pickupCount = 0;
 
           rawRows.forEach(function(row) {
             var status = (row['의뢰상태'] || row['상태'] || '').trim();
-            var method = (row['배송방법'] || row['배송방식'] || row['구분2'] || '').trim();
+            var methodRaw = (row['배송방법'] || row['배송방식'] || row['구분2'] || '').trim();
 
             var isStatusValid = validStatuses.some(function(s) { return status.indexOf(s) !== -1; });
-            var isMethodValid = (method.indexOf('직배송') !== -1);
+            var isDirect = (methodRaw.indexOf('직배송') !== -1);
+            var isPickup = (methodRaw.indexOf('방문수령') !== -1);
+            var isMethodValid = (isDirect || isPickup);
 
             // 주소나 고객사가 있는 경우만 취급
             var cust = (row['고객사'] || row['고객사명'] || row['거래처'] || '').trim();
             var addr = (row['주소'] || row['배송지'] || row['기본주소'] || '').trim();
 
             if (isStatusValid && isMethodValid && (cust || addr)) {
+              var finalMethod = isPickup ? '방문수령' : '직배송';
+              var finalDriver = (row['담당기사'] || row['기사'] || '').trim();
+              if (isPickup && !finalDriver) {
+                finalDriver = '방문수령'; // 방문수령 건 기본 기사 매핑
+              }
+
+              if (isPickup) pickupCount++;
+              else directCount++;
+
+              var recordDate = forceDate ? targetDate : (row['배송일자'] || row['일자'] || targetDate);
+
               passed.push({
-                ID: Date.now() + Math.floor(Math.random() * 10000),
-                배송일자: row['배송일자'] || row['일자'] || new Date().toISOString().split('T')[0],
+                ID: Date.now() + Math.floor(Math.random() * 100000),
+                배송일자: recordDate,
                 계약번호: row['계약번호'] || '',
                 구분: row['구분'] || (status.indexOf('회수') !== -1 ? '회수' : '배송'),
-                담당기사: row['담당기사'] || row['기사'] || '',
+                담당기사: finalDriver,
                 고객사: cust,
                 주소: addr,
                 기본주소: addr,
@@ -1348,7 +1544,7 @@
                 담당자_연락처: row['담당자_연락처'] || row['연락처'] || row['전화번호'] || '',
                 품목_수량: row['품목_수량'] || row['품목'] || '',
                 의뢰상태: status,
-                배송방법: method,
+                배송방법: finalMethod,
                 비고_전문: row['비고_전문'] || row['비고'] || ''
               });
             } else {
@@ -1370,10 +1566,10 @@
           var confirmBtn = document.getElementById('csvConfirmBtn');
 
           previewArea.classList.remove('hidden');
-          statsEl.innerText = '조건 통과: ' + passed.length + '건 (제외: ' + skippedCount + '건)';
+          statsEl.innerText = '조건 통과: ' + passed.length + '건 (직배송 ' + directCount + '건, 방문수령 ' + pickupCount + '건 / 제외: ' + skippedCount + '건)';
           descEl.innerHTML = `
-            총 <b>${rawRows.length}</b>건 중 직배송 및 해당 의뢰상태(출고완료/회수의뢰완료/출고대기/출고접수) <b>${passed.length}</b>건이 선별되어 
-            <b>방문시간 순서대로 자동 정렬</b>되었습니다. [배송 현황에 자동 등록]을 누르면 즉시 화면과 Supabase 클라우드 DB에 적재됩니다.
+            총 <b>${rawRows.length}</b>건 중 직배송/방문수령 및 해당 의뢰상태(출고완료/회수의뢰완료/출고대기/출고접수) <b>${passed.length}</b>건이 선별되어 
+            <b>방문시간 순서대로 자동 정렬</b>되었습니다. 배송일자 <b>[${targetDate}]</b> 기준으로 화면과 Supabase 클라우드 DB에 즉시 적재됩니다.
           `;
           confirmBtn.disabled = (passed.length === 0);
         },
@@ -1386,16 +1582,43 @@
     async function confirmCsvImport() {
       if (!parsedCsvPendingData || parsedCsvPendingData.length === 0) return;
 
+      var targetDate = (parsedCsvPendingData[0] && parsedCsvPendingData[0].배송일자)
+                        || (document.getElementById('csvTargetDateInput') && document.getElementById('csvTargetDateInput').value);
+
       records = parsedCsvPendingData;
       originalRecords = JSON.parse(JSON.stringify(records));
 
       closeCsvModal();
+
+      // 메인 헤더 배송일자 동기화
+      if (targetDate) {
+        setHeaderCalendarDate(targetDate);
+        var sel = document.getElementById('sheetDateSelect');
+        if (sel) {
+          var exists = false;
+          for (var i = 0; i < sel.options.length; i++) {
+            if (sel.options[i].value === targetDate) {
+              sel.selectedIndex = i;
+              exists = true;
+              break;
+            }
+          }
+          if (!exists) {
+            var opt = document.createElement('option');
+            opt.value = targetDate;
+            opt.innerText = '📅 ' + targetDate;
+            sel.insertBefore(opt, sel.firstChild);
+            sel.value = targetDate;
+          }
+        }
+      }
+
       updateDriverFilterOptions();
       updateKPIs();
       renderTable();
       renderRouteMap();
 
-      showToast('🎉 ' + records.length + '건의 스케줄이 시간순으로 자동 등록되었습니다!');
+      showToast('🎉 ' + records.length + '건의 스케줄이 [' + targetDate + '] 일자로 자동 등록되었습니다!');
 
       // Supabase 클라우드 일괄 저장
       if (supabaseClient) {
@@ -1418,8 +1641,12 @@
 
         try {
           var res = await supabaseClient.from('delivery_schedules').upsert(payload);
-          if (res.error) console.warn('Supabase upsert warning:', res.error);
-          else showToast('💾 Supabase DB에 ' + payload.length + '건 동기화 저장 완료!');
+          if (res.error) {
+            console.warn('Supabase upsert warning:', res.error);
+          } else {
+            showToast('💾 Supabase DB에 ' + payload.length + '건 클라우드 저장 완료!');
+            await loadAvailableDates();
+          }
         } catch(e) {
           console.error(e);
         }
@@ -1442,17 +1669,19 @@
       var tbody = document.getElementById('tableBody');
       var kw = (document.getElementById('tableSearchInput').value || '').toLowerCase().trim();
       var typeFilter = document.getElementById('tableTypeFilter').value;
+      var methodFilter = document.getElementById('tableMethodFilter') ? document.getElementById('tableMethodFilter').value : 'all';
       var driverFilter = document.getElementById('driverFilterSelect') ? document.getElementById('driverFilterSelect').value : 'all';
 
       var filtered = records.filter(function(r) {
         if (typeFilter !== 'all' && (r.구분 || '').indexOf(typeFilter) === -1) return false;
+        if (methodFilter !== 'all' && (r.배송방법 || '직배송') !== methodFilter) return false;
         if (driverFilter !== 'all') {
           var d = (r.담당기사 || '').trim();
           if (driverFilter === '' && d !== '') return false;
           if (driverFilter !== '' && d !== driverFilter) return false;
         }
         if (kw) {
-          var matchStr = (r.고객사 + ' ' + r.주소 + ' ' + r.품목_수량 + ' ' + r.담당기사 + ' ' + r.계약번호).toLowerCase();
+          var matchStr = (r.고객사 + ' ' + r.주소 + ' ' + r.품목_수량 + ' ' + r.담당기사 + ' ' + r.계약번호 + ' ' + (r.배송방법 || '')).toLowerCase();
           if (matchStr.indexOf(kw) === -1) return false;
         }
         return true;
@@ -1462,7 +1691,18 @@
       tbody.innerHTML = '';
 
       if (filtered.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="10" class="py-8 text-center text-slate-400 font-medium">조회된 배송 내역이 없습니다.</td></tr>';
+        var dateLabel = document.getElementById('calendarDateDisplay') ? document.getElementById('calendarDateDisplay').innerText : '';
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="11" class="py-12 text-center text-slate-400 font-medium">
+              <div class="flex flex-col items-center justify-center space-y-2">
+                <i class="fa-regular fa-calendar-xmark text-3xl text-slate-300"></i>
+                <p class="font-bold text-slate-600 text-xs">[${dateLabel}] 배송 일정이 없습니다.</p>
+                <p class="text-[11px] text-slate-400">상단의 [CSV 스케줄 등록] 버튼을 눌러 새 스케줄을 바로 업로드하세요.</p>
+              </div>
+            </td>
+          </tr>
+        `;
         return;
       }
 
@@ -1474,12 +1714,24 @@
         var phoneMatch = (r.담당자_연락처 || '').match(/0\d{1,2}-?\d{3,4}-?\d{4}/);
         var phoneNum = phoneMatch ? phoneMatch[0] : '';
 
-        // 구분 인라인 셀렉트 옵션 (배송, 회수, 설치, 수령, A/S)
+        // 구분 인라인 셀렉트 (배송, 회수, 설치, 수령, A/S)
         var categorySelectHtml = `
           <select onchange="onInlineCategoryChange(${realIdx}, this.value)" class="py-1 px-2 rounded-lg text-xs font-bold border focus:outline-none cursor-pointer ${getCategoryBadgeStyle(r.구분)}">
             ${CATEGORY_LIST.map(function(c) {
               return `<option value="${c}" ${(r.구분 || '배송') === c ? 'selected' : ''}>${c}</option>`;
             }).join('')}
+          </select>
+        `;
+
+        // 배송방법 인라인 셀렉트 (직배송, 방문수령)
+        var currentMethod = r.배송방법 || '직배송';
+        var methodStyle = currentMethod === '방문수령' 
+          ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
+          : 'bg-blue-50 text-blue-700 border-blue-200';
+        var methodSelectHtml = `
+          <select onchange="onInlineMethodChange(${realIdx}, this.value)" class="py-1 px-2 rounded-lg text-xs font-bold border focus:outline-none cursor-pointer ${methodStyle}">
+            <option value="직배송" ${currentMethod === '직배송' ? 'selected' : ''}>🚚 직배송</option>
+            <option value="방문수령" ${currentMethod === '방문수령' ? 'selected' : ''}>🏢 방문수령</option>
           </select>
         `;
 
@@ -1496,6 +1748,7 @@
         tr.innerHTML = `
           <td class="py-2.5 px-3 font-mono text-slate-500">${r.계약번호 || '-'}</td>
           <td class="py-2.5 px-2">${categorySelectHtml}</td>
+          <td class="py-2.5 px-2">${methodSelectHtml}</td>
           <td class="py-2.5 px-3 font-bold text-slate-900">${r.고객사}</td>
           <td class="py-2.5 px-3.5 text-slate-600 max-w-xs truncate" title="${r.주소}">${r.주소}</td>
           <td class="py-2.5 px-2.5 text-slate-600 font-bold">${r.방문시간 || '-'}</td>
@@ -1547,6 +1800,29 @@
       }
     }
 
+    function onInlineMethodChange(realIdx, newMethod) {
+      if (realIdx < 0 || realIdx >= records.length) return;
+      var r = records[realIdx];
+      r.배송방법 = newMethod;
+      if (newMethod === '방문수령' && (!r.담당기사 || r.담당기사 === '미배정')) {
+        r.담당기사 = '방문수령';
+      }
+      updateKPIs();
+      renderRouteMap();
+      renderTable();
+
+      showToast('📦 [' + r.고객사 + '] 배송방법이 "' + newMethod + '"(으)로 변경되었습니다!');
+
+      if (supabaseClient && r.ID) {
+        supabaseClient.from('delivery_schedules').update({ 
+          delivery_method: newMethod,
+          driver_name: r.담당기사 
+        }).eq('id', r.ID).then(function(res) {
+          if (res.error) console.error('DB Update error:', res.error);
+        });
+      }
+    }
+
     function onInlineDriverChange(realIdx, newDriver) {
       if (realIdx < 0 || realIdx >= records.length) return;
       var r = records[realIdx];
@@ -1574,6 +1850,7 @@
       document.getElementById('editStopIndex').value = idx;
       document.getElementById('editCustName').value = r.고객사 || '';
       document.getElementById('editType').value = (r.구분 && r.구분.indexOf('회수') !== -1) ? '회수' : '배송';
+      document.getElementById('editMethod').value = r.배송방법 || '직배송';
       document.getElementById('editTime').value = r.방문시간 || '';
       document.getElementById('editAddr').value = r.기본주소 || r.주소 || '';
       document.getElementById('editDetailAddr').value = r.상세주소 || '';
@@ -1595,6 +1872,7 @@
       var detail = document.getElementById('editDetailAddr').value.trim();
       var time = document.getElementById('editTime').value.trim();
       var type = document.getElementById('editType').value;
+      var method = document.getElementById('editMethod').value;
       var item = document.getElementById('editItem').value.trim();
       var driver = document.getElementById('editDriver').value.trim();
 
@@ -1610,6 +1888,7 @@
       r.주소 = detail ? (addr + ' ' + detail) : addr;
       r.방문시간 = time;
       r.구분 = type;
+      r.배송방법 = method;
       r.품목_수량 = item;
       r.담당기사 = driver;
 
@@ -1625,6 +1904,7 @@
           address: r.주소,
           visit_time: time,
           category: type,
+          delivery_method: method,
           items: item,
           driver_name: driver
         }).eq('id', r.ID).then(function(res) {
@@ -1639,6 +1919,7 @@
     function openAddStopModal() {
       document.getElementById('addCustName').value = '';
       document.getElementById('addType').value = '배송';
+      document.getElementById('addMethod').value = '직배송';
       document.getElementById('addTime').value = '';
       document.getElementById('addAddr').value = '';
       document.getElementById('addDetailAddr').value = '';
@@ -1656,6 +1937,7 @@
       var detail = document.getElementById('addDetailAddr').value.trim();
       var time = document.getElementById('addTime').value.trim();
       var type = document.getElementById('addType').value;
+      var method = document.getElementById('addMethod').value;
       var item = document.getElementById('addItem').value.trim();
 
       if (!cust || !addr) {
@@ -1666,10 +1948,16 @@
       var fullAddr = detail ? (addr + ' ' + detail) : addr;
       var currentFilterDriver = document.getElementById('driverFilterSelect') ? document.getElementById('driverFilterSelect').value : '';
       var assignedDriver = (currentFilterDriver && currentFilterDriver !== 'all') ? currentFilterDriver : '';
+      if (method === '방문수령' && !assignedDriver) {
+        assignedDriver = '방문수령';
+      }
+
+      var chosenDate = (document.getElementById('calendarDateInput') && document.getElementById('calendarDateInput').value)
+                        || (document.getElementById('sheetDateSelect') ? document.getElementById('sheetDateSelect').value : new Date().toISOString().split('T')[0]);
 
       var newRecord = {
         ID: Date.now(),
-        배송일자: document.getElementById('sheetDateSelect') ? document.getElementById('sheetDateSelect').value : new Date().toISOString().split('T')[0],
+        배송일자: chosenDate,
         계약번호: '신규등록',
         구분: type,
         담당기사: assignedDriver,
@@ -1680,7 +1968,7 @@
         방문시간: time,
         품목_수량: item || '-',
         의뢰상태: '출고대기',
-        배송방법: '직배송',
+        배송방법: method,
         비고_전문: item
       };
 
@@ -1746,7 +2034,10 @@
       }
 
       try {
-        var selectedDate = document.getElementById('sheetDateSelect') ? document.getElementById('sheetDateSelect').value : '';
+        var dateInp = document.getElementById('calendarDateInput');
+        var selectInp = document.getElementById('sheetDateSelect');
+        var selectedDate = (selectInp && selectInp.value) ? selectInp.value : (dateInp ? dateInp.value : '');
+
         var query = supabaseClient.from('delivery_schedules').select('*').order('id', { ascending: true });
 
         if (selectedDate && selectedDate !== 'all') {
@@ -1759,44 +2050,35 @@
         if (res.error) throw res.error;
 
         var data = res.data || [];
-        if (data.length === 0 && selectedDate && selectedDate !== 'all') {
-          var fallbackRes = await supabaseClient.from('delivery_schedules').select('*').order('id', { ascending: true });
-          if (!fallbackRes.error && fallbackRes.data && fallbackRes.data.length > 0) {
-            data = fallbackRes.data;
-          }
-        }
+        records = data.map(function(row) {
+          return {
+            ID: row.id,
+            배송일자: row.delivery_date || '',
+            계약번호: row.contract_no || '',
+            구분: row.category || '배송',
+            담당기사: row.driver_name || '',
+            고객사: row.customer_name || '',
+            주소: row.address || '',
+            기본주소: row.address || '',
+            상세주소: '',
+            방문시간: row.visit_time || '',
+            담당자_연락처: row.contact || '',
+            품목_수량: row.items || '',
+            단프라보관: row.danpra_storage || '',
+            통화여부: row.call_status || '',
+            의뢰상태: row.status || '진행중',
+            배송방법: row.delivery_method || '직배송',
+            추후일정_특이사항: row.memo_special || '',
+            비고_전문: row.memo_full || '',
+            원본시트: row.source_sheet || ''
+          };
+        });
 
-        if (data.length > 0) {
-          records = data.map(function(row) {
-            return {
-              ID: row.id,
-              배송일자: row.delivery_date || '',
-              계약번호: row.contract_no || '',
-              구분: row.category || '배송',
-              담당기사: row.driver_name || '',
-              고객사: row.customer_name || '',
-              주소: row.address || '',
-              기본주소: row.address || '',
-              상세주소: '',
-              방문시간: row.visit_time || '',
-              담당자_연락처: row.contact || '',
-              품목_수량: row.items || '',
-              단프라보관: row.danpra_storage || '',
-              통화여부: row.call_status || '',
-              의뢰상태: row.status || '진행중',
-              배송방법: row.delivery_method || '직배송',
-              추후일정_특이사항: row.memo_special || '',
-              비고_전문: row.memo_full || '',
-              원본시트: row.source_sheet || ''
-            };
-          });
-
-          // 시간순 정렬
-          records.sort(function(a, b) {
-            return parseVisitMinutes(a.방문시간) - parseVisitMinutes(b.방문시간);
-          });
-          originalRecords = JSON.parse(JSON.stringify(records));
-        }
+        // 시간순 정렬
+        records.sort(function(a, b) {
+          return parseVisitMinutes(a.방문시간) - parseVisitMinutes(b.방문시간);
+        });
+        originalRecords = JSON.parse(JSON.stringify(records));
 
         // 고유 배송일자 목록 추출 (전체 조회 시에만 재동기화)
         if (!selectedDate || selectedDate === 'all') {
