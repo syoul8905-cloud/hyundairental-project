@@ -354,7 +354,11 @@
 
     // Preset Coordinates
     const PRESET_COORDINATES = {
-      "서울 금천구 가산디지털2로 144": { lat: 37.4809, lng: 126.8826 },
+      "가산 센터": { lat: 37.476483, lng: 126.883705 },
+      "서울특별시 금천구 벚꽃로 278": { lat: 37.476483, lng: 126.883705 },
+      "금천구 벚꽃로 278": { lat: 37.476483, lng: 126.883705 },
+      "벚꽃로 278": { lat: 37.476483, lng: 126.883705 },
+      "SJ테크노빌": { lat: 37.476483, lng: 126.883705 },
       "서울 구로구 디지털로26길 38": { lat: 37.4852, lng: 126.8974 },
       "서울 영등포구 여의대로 108": { lat: 37.5255, lng: 126.9262 },
       "서울 종로구 종로 1": { lat: 37.5704, lng: 126.9768 },
@@ -375,11 +379,29 @@
       GEO_CACHE = JSON.parse(localStorage.getItem('KAKAO_GEO_CACHE_V2') || '{}');
     } catch(e) {}
     for (var k in PRESET_COORDINATES) {
-      if (!GEO_CACHE[k]) GEO_CACHE[k] = PRESET_COORDINATES[k];
+      GEO_CACHE[k] = PRESET_COORDINATES[k];
+    }
+
+    function getDriverOrigin(driverName) {
+      try {
+        var s = localStorage.getItem('DELIVERY_DRIVER_ORIGINS_V4');
+        if (s) {
+          var parsed = JSON.parse(s);
+          var key = driverName ? driverName.trim() : '__all__';
+          if (parsed[key] && parsed[key].addr && parsed[key].lat) return parsed[key];
+          if (parsed['__all__'] && parsed['__all__'].addr && parsed['__all__'].lat) return parsed['__all__'];
+        }
+      } catch (e) {}
+      return {
+        name: '가산 센터',
+        addr: '서울특별시 금천구 벚꽃로 278',
+        lat: 37.476483,
+        lng: 126.883705
+      };
     }
 
     function getCoordForAddress(addr) {
-      if (!addr) return { lat: 37.4809, lng: 126.8826 };
+      if (!addr) return { lat: 37.476483, lng: 126.883705 };
       var clean = addr.replace(/\r?\n/g, ' ').replace(/\s+/g, ' ').trim();
       if (GEO_CACHE[clean]) return GEO_CACHE[clean];
       for (var key in GEO_CACHE) {
@@ -845,8 +867,9 @@
       }
 
       if (!mobileKakaoMap) {
+        var originCoord = getDriverOrigin(currentDriverName);
         var options = {
-          center: new kakao.maps.LatLng(37.4809, 126.8826),
+          center: new kakao.maps.LatLng(originCoord.lat, originCoord.lng),
           level: 7
         };
         mobileKakaoMap = new kakao.maps.Map(container, options);
@@ -871,13 +894,13 @@
       clearMobileMapOverlays();
 
       var bounds = new kakao.maps.LatLngBounds();
-      var originCoord = { lat: 37.4809, lng: 126.8826 };
+      var originCoord = getDriverOrigin(currentDriverName);
       bounds.extend(new kakao.maps.LatLng(originCoord.lat, originCoord.lng));
 
-      // 본사 출발 마커
+      // 출발지 마커
       var originContent = document.createElement('div');
-      originContent.className = 'kakao-pin w-8 h-8 bg-slate-900 border-2 border-white text-xs';
-      originContent.innerHTML = '<i class="fa-solid fa-warehouse"></i>';
+      originContent.className = 'kakao-pin px-2 py-0.5 bg-emerald-600 border-2 border-white text-[10px] font-bold rounded-lg flex items-center gap-1 shadow-md';
+      originContent.innerHTML = '<i class="fa-solid fa-flag"></i> ' + (originCoord.name || '출발지');
       var originOverlay = new kakao.maps.CustomOverlay({
         position: new kakao.maps.LatLng(originCoord.lat, originCoord.lng),
         content: originContent,
@@ -937,7 +960,8 @@
     function fitMobileMapBounds() {
       if (!mobileKakaoMap) return;
       var bounds = new kakao.maps.LatLngBounds();
-      bounds.extend(new kakao.maps.LatLng(37.4809, 126.8826));
+      var originCoord = getDriverOrigin(currentDriverName);
+      bounds.extend(new kakao.maps.LatLng(originCoord.lat, originCoord.lng));
       driverRecords.forEach(function(r) {
         var coord = getCoordForAddress(r.address);
         bounds.extend(new kakao.maps.LatLng(coord.lat, coord.lng));
@@ -958,7 +982,7 @@
 
       try {
         if (!cachedMobileRoadData) {
-          var originCoord = { lat: 37.4809, lng: 126.8826 };
+          var originCoord = getDriverOrigin(currentDriverName);
           var points = [originCoord].concat(driverRecords.map(function(r) { return getCoordForAddress(r.address); }));
           var coordsParam = points.map(function(p) { return p.lng + ',' + p.lat; }).join(';');
           var url = 'https://router.project-osrm.org/route/v1/driving/' + coordsParam + '?overview=full&geometries=geojson';

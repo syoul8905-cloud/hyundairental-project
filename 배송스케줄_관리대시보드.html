@@ -102,18 +102,7 @@
           </select>
         </div>
 
-        <!-- Origin Select -->
-        <div class="flex items-center gap-1 bg-slate-50 px-2 py-1 rounded-lg border border-slate-200 text-xs whitespace-nowrap">
-          <i class="fa-solid fa-flag text-emerald-600"></i>
-          <select id="originSelect" onchange="onOriginSelectChange()" class="bg-transparent font-bold text-slate-800 text-xs focus:outline-none cursor-pointer max-w-[130px] truncate">
-            <option value="gasan" selected>🏢 가산 센터</option>
-            <option value="home">🏠 기사 자택</option>
-            <option value="__manage__">⚙️ 주소 수정...</option>
-          </select>
-          <button onclick="openOriginModal()" title="출발지 주소 관리" class="px-1.5 py-0.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold rounded text-[10px] border border-indigo-200 transition">
-            <i class="fa-solid fa-pen-to-square"></i>
-          </button>
-        </div>
+
 
         <!-- CSV Upload Button -->
         <button id="csvUploadBtn" onclick="openCsvModal()" class="px-2.5 py-1 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-bold rounded-lg transition flex items-center gap-1 shadow-sm text-xs whitespace-nowrap">
@@ -739,26 +728,46 @@
     </div>
   </div>
 
-  <!-- Origin Address Edit Modal -->
+  <!-- Driver Origin Edit Modal -->
   <div id="originModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50" onclick="if(event.target===this)closeOriginModal()">
-    <div class="bg-white rounded-2xl max-w-md w-full p-5 shadow-2xl border border-slate-200 space-y-4">
+    <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4">
       <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-        <h3 class="font-black text-sm text-slate-900 flex items-center gap-2">
-          <i class="fa-solid fa-flag text-emerald-600"></i> 출발지 주소 관리
+        <h3 id="originModalTitle" class="font-black text-sm text-slate-900 flex items-center gap-2">
+          <i class="fa-solid fa-flag text-emerald-600"></i> 출발지 설정
         </h3>
-        <button onclick="closeOriginModal()" class="text-slate-400 hover:text-slate-600 text-base">
+        <button onclick="closeOriginModal()" class="w-7 h-7 rounded-full bg-slate-100 text-slate-400 hover:text-slate-600 flex items-center justify-center text-xs">
           <i class="fa-solid fa-xmark"></i>
         </button>
       </div>
 
-      <div class="space-y-3" id="originModalInputs"></div>
+      <!-- Quick Preset Buttons -->
+      <div class="flex items-center gap-2">
+        <button type="button" onclick="setOriginModalToGasan()" class="flex-1 py-2 px-3 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-xs">
+          <i class="fa-solid fa-building"></i>
+          <span>🏢 가산 센터 (벚꽃로 278)로 설정</span>
+        </button>
+      </div>
+
+      <div class="space-y-3">
+        <div>
+          <label class="block text-[11px] font-black text-slate-600 mb-1">출발지 명칭</label>
+          <input type="text" id="modal_origin_name" value="가산 센터" placeholder="예: 가산 센터, 조경찬 자택 등"
+                 class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:border-indigo-500">
+        </div>
+        <div>
+          <label class="block text-[11px] font-black text-slate-600 mb-1">출발지 도로명 주소</label>
+          <input type="text" id="modal_origin_addr" value="서울특별시 금천구 벚꽃로 278" placeholder="예: 서울특별시 금천구 벚꽃로 278"
+                 class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:border-indigo-500 font-mono">
+          <p class="text-[10px] text-slate-400 mt-1">* 가산 센터 정밀 주소: 서울특별시 금천구 벚꽃로 278 (SJ테크노빌)</p>
+        </div>
+      </div>
 
       <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
-        <button onclick="closeOriginModal()" class="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-xl text-xs transition">
+        <button type="button" onclick="closeOriginModal()" class="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-xl text-xs transition">
           취소
         </button>
-        <button onclick="saveOriginModal()" class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-xs transition flex items-center gap-1.5 shadow-sm">
-          <i class="fa-solid fa-check"></i> 저장 후 반영
+        <button type="button" onclick="saveOriginModal()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs transition flex items-center gap-1.5 shadow-sm">
+          <i class="fa-solid fa-check"></i> 저장 후 지도에 즉시 반영
         </button>
       </div>
     </div>
@@ -1553,9 +1562,11 @@
 
     // 사전 정밀 검증 GPS 좌표 프리셋 (오차 0m 검증 좌표)
     var PRESET_COORDINATES = {
-      "가산 센터": { lat: 37.4809, lng: 126.8826 },
-      "서울특별시 금천구 가산디지털1로 168": { lat: 37.4809, lng: 126.8826 },
-      "금천구 가산디지털1로": { lat: 37.4809, lng: 126.8826 },
+      "가산 센터": { lat: 37.476483, lng: 126.883705 },
+      "서울특별시 금천구 벚꽃로 278": { lat: 37.476483, lng: 126.883705 },
+      "금천구 벚꽃로 278": { lat: 37.476483, lng: 126.883705 },
+      "벚꽃로 278": { lat: 37.476483, lng: 126.883705 },
+      "SJ테크노빌": { lat: 37.476483, lng: 126.883705 },
       "여의도 본사": { lat: 37.5255, lng: 126.9213 },
       "인천 남동구 인주대로 600": { lat: 37.4475, lng: 126.7086 },
       "서울 강남구 테헤란로 432": { lat: 37.50588064, lng: 127.05481058 },
@@ -1594,7 +1605,7 @@
       GEO_CACHE = JSON.parse(localStorage.getItem('KAKAO_GEO_CACHE_V2') || '{}');
     } catch(e) {}
     for (var k in PRESET_COORDINATES) {
-      if (!GEO_CACHE[k]) GEO_CACHE[k] = PRESET_COORDINATES[k];
+      GEO_CACHE[k] = PRESET_COORDINATES[k];
     }
 
     // ==========================================
@@ -1678,9 +1689,8 @@
     function setupKakaoMapInstance() {
       var container = document.getElementById('routeMapCanvas');
       container.innerHTML = '';
-      var origins = getOrigins();
-      var selectedId = document.getElementById('originSelect') ? document.getElementById('originSelect').value : 'gasan';
-      var originCoord = origins.find(function(o) { return o.id === selectedId; }) || origins[0];
+      var currentDriver = getCurrentViewingDriver();
+      var originCoord = getDriverOrigin(currentDriver);
 
       var options = {
         center: new kakao.maps.LatLng(originCoord.lat, originCoord.lng),
@@ -1694,98 +1704,118 @@
     }
 
     // ==========================================
-    // Origin Management Engine
+    // Driver-Specific Origin Management Engine
     // ==========================================
-    var DEFAULT_ORIGINS = [
-      { id: 'gasan', name: '🏢 가산 센터', addr: '서울특별시 금천구 가산디지털1로 168', lat: 37.4809, lng: 126.8826 },
-      { id: 'home', name: '🏠 기사 자택', addr: '인천 남동구 인주대로 600', lat: 37.4475, lng: 126.7086 }
-    ];
+    var DEFAULT_GASAN_ORIGIN = {
+      name: '가산 센터',
+      addr: '서울특별시 금천구 벚꽃로 278',
+      lat: 37.476483,
+      lng: 126.883705
+    };
 
-    function getOrigins() {
+    function getAllDriverOrigins() {
       try {
-        var s = localStorage.getItem('DELIVERY_ORIGINS_V3');
+        var s = localStorage.getItem('DELIVERY_DRIVER_ORIGINS_V4');
         if (s) {
-          var p = JSON.parse(s);
-          if (Array.isArray(p) && p.length > 0) return p;
+          var parsed = JSON.parse(s);
+          if (parsed && typeof parsed === 'object') return parsed;
         }
-      } catch(e) {}
-      return DEFAULT_ORIGINS;
+      } catch (e) {}
+      return { '__all__': Object.assign({}, DEFAULT_GASAN_ORIGIN) };
     }
 
-    function saveOrigins(list) {
+    function saveAllDriverOrigins(dict) {
       try {
-        localStorage.setItem('DELIVERY_ORIGINS_V3', JSON.stringify(list));
-      } catch(e) {}
+        localStorage.setItem('DELIVERY_DRIVER_ORIGINS_V4', JSON.stringify(dict));
+      } catch (e) {}
     }
 
-    function renderOriginOptions() {
-      var origins = getOrigins();
-      var select = document.getElementById('originSelect');
-      var curr = select.value || origins[0].id;
-      select.innerHTML = '';
-      origins.forEach(function(o) {
-        var opt = document.createElement('option');
-        opt.value = o.id;
-        opt.innerText = o.name + ' (' + o.addr + ')';
-        if (o.id === curr) opt.selected = true;
-        select.appendChild(opt);
-      });
-      var editOpt = document.createElement('option');
-      editOpt.value = '__manage__';
-      editOpt.innerText = '⚙️ 출발지 주소 직접 수정/추가...';
-      select.appendChild(editOpt);
-    }
-
-    function onOriginSelectChange() {
-      var select = document.getElementById('originSelect');
-      if (select.value === '__manage__') {
-        openOriginModal();
-        var origins = getOrigins();
-        select.value = origins[0].id;
-        return;
+    // 현재 상단 필터에서 보고 있는 기사명 추출
+    function getCurrentViewingDriver() {
+      var select = document.getElementById('driverFilterSelect');
+      var val = select ? select.value : 'all';
+      if (!val || val === 'all' || val === '__unassigned__') {
+        var mob = document.getElementById('driverFilterSelectMobile');
+        val = mob ? mob.value : 'all';
       }
-      cachedRoadRouteData = null;
-      renderRouteMap();
+      return (!val || val === 'all' || val === '__unassigned__') ? '' : val;
     }
 
-    function openOriginModal() {
+    // 특정 기사의 출발지 가져오기 (미설정 시 가산 센터 반환)
+    function getDriverOrigin(driverName) {
+      var all = getAllDriverOrigins();
+      var key = driverName ? driverName.trim() : '__all__';
+      if (all[key] && all[key].addr && all[key].lat) {
+        return all[key];
+      }
+      if (all['__all__'] && all['__all__'].addr && all['__all__'].lat) {
+        return all['__all__'];
+      }
+      return Object.assign({}, DEFAULT_GASAN_ORIGIN);
+    }
+
+    // 특정 기사의 출발지 저장
+    function saveDriverOrigin(driverName, originData) {
+      var all = getAllDriverOrigins();
+      var key = driverName ? driverName.trim() : '__all__';
+      all[key] = originData;
+      saveAllDriverOrigins(all);
+    }
+
+    var targetEditingDriver = '';
+
+    // 출발지 변경 모달 열기
+    function openDriverOriginModal(driverName) {
+      targetEditingDriver = (typeof driverName === 'string' ? driverName : getCurrentViewingDriver()) || '';
+      var origin = getDriverOrigin(targetEditingDriver);
+
       var modal = document.getElementById('originModal');
-      var container = document.getElementById('originModalInputs');
-      var origins = getOrigins();
-      container.innerHTML = '';
-      origins.forEach(function(o, idx) {
-        container.innerHTML += `
-          <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-1.5">
-            <span class="font-bold text-slate-800 text-xs">${o.name}</span>
-            <input type="text" id="modal_origin_addr_${idx}" value="${o.addr}" 
-                   placeholder="도로명 주소 입력..." 
-                   class="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-indigo-500 font-mono">
-          </div>
-        `;
-      });
+      var titleEl = document.getElementById('originModalTitle');
+      var targetLabel = targetEditingDriver ? ('[' + targetEditingDriver + ' 기사] 전용 출발지') : '[공통(전체 기사)] 출발지';
+      if (titleEl) {
+        titleEl.innerHTML = '<i class="fa-solid fa-flag text-emerald-600"></i> ' + targetLabel + ' 설정';
+      }
+
+      var nameInp = document.getElementById('modal_origin_name');
+      var addrInp = document.getElementById('modal_origin_addr');
+      if (nameInp) nameInp.value = origin.name || (targetEditingDriver ? targetEditingDriver + ' 출발지' : '가산 센터');
+      if (addrInp) addrInp.value = origin.addr || '서울특별시 금천구 벚꽃로 278';
+
       modal.classList.remove('hidden');
     }
 
-    function closeOriginModal() {
-      document.getElementById('originModal').classList.add('hidden');
+    function setOriginModalToGasan() {
+      var nameInp = document.getElementById('modal_origin_name');
+      var addrInp = document.getElementById('modal_origin_addr');
+      if (nameInp) nameInp.value = '가산 센터';
+      if (addrInp) addrInp.value = '서울특별시 금천구 벚꽃로 278';
     }
 
-    function saveOriginModal() {
-      var origins = getOrigins();
-      origins.forEach(function(o, idx) {
-        var inp = document.getElementById('modal_origin_addr_' + idx);
-        if (inp && inp.value.trim()) {
-          o.addr = inp.value.trim();
-          var coord = getCoordForAddress(o.addr);
-          o.lat = coord.lat;
-          o.lng = coord.lng;
-        }
-      });
-      saveOrigins(origins);
-      renderOriginOptions();
+    function closeOriginModal() {
+      var modal = document.getElementById('originModal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    async function saveOriginModal() {
+      var nameInp = document.getElementById('modal_origin_name');
+      var addrInp = document.getElementById('modal_origin_addr');
+      var name = (nameInp ? nameInp.value : '').trim() || '가산 센터';
+      var addr = (addrInp ? addrInp.value : '').trim() || '서울특별시 금천구 벚꽃로 278';
+
+      var coord = await resolveAddressCoord(addr);
+
+      var originData = {
+        name: name,
+        addr: addr,
+        lat: coord.lat,
+        lng: coord.lng
+      };
+
+      saveDriverOrigin(targetEditingDriver, originData);
+      cachedRoadRouteData = null;
       closeOriginModal();
-      renderRouteMap();
-      showToast('✅ 출발지 주소가 성공적으로 저장되었습니다!');
+      await renderRouteMap();
+      showToast('✅ ' + (targetEditingDriver ? '[' + targetEditingDriver + ' 기사]' : '[공통]') + ' 출발지가 "' + name + '"(으)로 저장되었습니다!');
     }
 
     // ==========================================
@@ -2291,7 +2321,6 @@
     async function renderRouteMap() {
       var activeRecords = getFilteredRecords();
       var timelineBox = document.getElementById('routeTimeline');
-      timelineBox.innerHTML = '';
       document.getElementById('timelineCount').innerText = activeRecords.length;
 
       // Clear existing Kakao overlays & lines
@@ -2300,9 +2329,42 @@
       kakaoPolylines.forEach(function(p) { p.setMap(null); });
       kakaoPolylines = [];
 
-      var origins = getOrigins();
-      var selectedId = document.getElementById('originSelect') ? document.getElementById('originSelect').value : 'gasan';
-      var originCoord = origins.find(function(o) { return o.id === selectedId; }) || origins[0];
+      var currentDriver = getCurrentViewingDriver();
+      var originCoord = getDriverOrigin(currentDriver);
+
+      // 1. 타임라인 맨 윗단에 고정된 출발지 카드 렌더링
+      var driverLabel = currentDriver ? (currentDriver + ' 기사') : '공통 (전체 기사)';
+      var originCardHtml = `
+        <div class="p-2.5 rounded-xl bg-gradient-to-r from-emerald-50 via-teal-50 to-slate-50 border-2 border-emerald-300 shadow-xs mb-2 space-y-1.5" id="timelineOriginCard">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-1.5 font-black text-emerald-950">
+              <span class="w-5 h-5 rounded-lg bg-emerald-600 text-white flex items-center justify-center text-[10px] shadow-xs">
+                <i class="fa-solid fa-flag"></i>
+              </span>
+              <span class="text-xs">출발지:</span>
+              <span class="text-xs font-black text-emerald-700 underline underline-offset-2">${originCoord.name || '가산 센터'}</span>
+              <span class="text-[9px] bg-emerald-100 text-emerald-800 px-1.5 py-0.2 rounded-full font-bold border border-emerald-200">
+                ${driverLabel}
+              </span>
+            </div>
+            <button type="button" onclick="openDriverOriginModal('${currentDriver}')" class="px-2 py-0.5 bg-white hover:bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-md text-[10px] font-bold transition flex items-center gap-1 shadow-xs">
+              <i class="fa-solid fa-pen-to-square"></i>
+              <span>출발지 변경</span>
+            </button>
+          </div>
+          <div class="flex items-center justify-between text-[11px] text-slate-600 bg-white/90 px-2.5 py-1.5 rounded-lg border border-emerald-200/60">
+            <div class="flex items-center gap-1.5 truncate">
+              <i class="fa-solid fa-location-dot text-emerald-600 text-xs shrink-0"></i>
+              <span class="truncate font-semibold text-slate-800 text-[11px]" title="${originCoord.addr}">${originCoord.addr}</span>
+            </div>
+            <button type="button" onclick="zoomToStop(${originCoord.lat}, ${originCoord.lng})" class="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 shrink-0 ml-1">
+              지도 ↗
+            </button>
+          </div>
+        </div>
+      `;
+
+      timelineBox.innerHTML = originCardHtml;
 
       var linePath = [];
 
@@ -2312,8 +2374,8 @@
         linePath.push(originPos);
 
         var originContent = `
-          <div class="kakao-pin bg-emerald-600 text-[11px] px-2.5 py-1 rounded-xl shadow-lg border-2 border-white flex items-center gap-1">
-            <i class="fa-solid fa-flag"></i> ${originCoord.name}
+          <div class="kakao-pin bg-emerald-600 text-[11px] px-2.5 py-1 rounded-xl shadow-lg border-2 border-white flex items-center gap-1 font-bold">
+            <i class="fa-solid fa-flag"></i> ${originCoord.name || '출발지'}
           </div>
         `;
         var originOverlay = new kakao.maps.CustomOverlay({
@@ -2326,7 +2388,7 @@
       }
 
       if (activeRecords.length === 0) {
-        timelineBox.innerHTML = '<div class="text-center py-8 text-slate-400 font-medium">선택된 조건의 배송 스케줄이 없습니다.</div>';
+        timelineBox.innerHTML += '<div class="text-center py-8 text-slate-400 font-medium">선택된 조건의 배송 스케줄이 없습니다.</div>';
         document.getElementById('routeSummaryBadge').innerText = '총 0개소';
         return;
       }
@@ -3861,7 +3923,6 @@
     // ==========================================
     async function bootstrapDashboard() {
       initLoginState();
-      renderOriginOptions();
       initKakaoMapEngine(false);
       await loadAvailableDates();
       await triggerSync(false);
