@@ -318,9 +318,9 @@
           <i class="fa-solid fa-filter"></i> 자동 필터링 및 시간순 정렬 기준:
         </p>
         <ul class="list-disc list-inside space-y-0.5 text-slate-600 pl-1">
-          <li><b>의뢰상태</b>: <span class="text-indigo-700 font-semibold">출고완료 / 회수의뢰완료 / 출고대기 / 출고접수</span> 만 선별</li>
-          <li><b>배송방법</b>: <span class="text-indigo-700 font-semibold">직배송</span> 및 <span class="text-emerald-700 font-semibold">방문수령</span> 허용 (방문수령은 기사 '방문수령'으로 자동 매핑)</li>
-          <li><b>정렬</b>: 방문시간(09:00 → 09:30 → ...) 오름차순으로 자동 정렬 등록</li>
+          <li><b>배송방법</b>: <span class="text-indigo-700 font-semibold">직배송(direct)</span> 및 <span class="text-emerald-700 font-semibold">방문수령(pickup)</span> 선별 (택배/전산 등 제외)</li>
+          <li><b>기사 매핑</b>: 방문수령 건은 기사 미지정 시 <b>'방문수령'</b>으로 자동 매핑</li>
+          <li><b>정렬</b>: 방문시간(9시이전 → 09:00 → 11~12 → ...) 오름차순 자동 정렬</li>
         </ul>
       </div>
 
@@ -1466,6 +1466,12 @@
 
     function parseVisitMinutes(timeStr) {
       if (!timeStr) return 9999;
+      timeStr = String(timeStr).trim();
+      if (timeStr.indexOf('9시이전') !== -1 || timeStr.indexOf('오전') !== -1) return 540;
+      var rangeMatch = timeStr.match(/^(\d{1,2})\s*~/);
+      if (rangeMatch) {
+        return parseInt(rangeMatch[1], 10) * 60;
+      }
       var match = timeStr.match(/(\d{1,2})[:시](\d{0,2})/);
       if (match) {
         var h = parseInt(match[1], 10);
@@ -1473,7 +1479,6 @@
         if (timeStr.indexOf('오후') !== -1 && h < 12) h += 12;
         return h * 60 + m;
       }
-      if (timeStr.indexOf('오전') !== -1) return 540;
       if (timeStr.indexOf('오후') !== -1) return 840;
       return 9999;
     }
@@ -1489,63 +1494,138 @@
       var forceDate = document.getElementById('csvForceDateCheck') ? document.getElementById('csvForceDateCheck').checked : true;
 
       Papa.parse(file, {
-        header: true,
+        header: false, // 헤더 중복 및 공백 문제를 방지하기 위해 배열 모드로 직접 파싱
         skipEmptyLines: true,
         complete: function(results) {
-          var rawRows = results.data || [];
-          if (rawRows.length === 0) {
+          var rows = results.data || [];
+          if (rows.length === 0) {
             alert('CSV 파일에 데이터가 없습니다.');
             return;
           }
 
-          // 조건 검사: 의뢰상태 (출고완료, 회수의뢰완료, 출고대기, 출고접수) & 배송방법 (직배송 또는 방문수령)
-          var validStatuses = ['출고완료', '회수의뢰완료', '출고대기', '출고접수'];
+          // 0번째 행을 헤더로 식별
+          var header = rows[0].map(function(h) { return String(h || '').trim(); });
+          var dataRows = rows.slice(1);
+
+          // 헤더 인덱스 매핑 헬퍼
+          function findColIndices(patterns) {
+            var indices = [];
+            header.forEach(function(h, idx) {
+              for (var i = 0; i < patterns.length; i++) {
+                if (h === patterns[i] || h.indexOf(patterns[i]) !== -1) {
+                  indices.push(idx);
+                  break;
+                }
+              }
+            });
+            return indices;
+          }
+
+          var custIndices = findColIndices(['고객명', '고객사', '고객사명', '거래처']);
+          var addrIndices = findColIndices(['기본주소', '주소', '배송지']);
+          var detailAddrIndices = findColIndices(['상세주소', '상세']);
+          var statusIndices = findColIndices(['의뢰상태', '상태', '배송상태']);
+          var catIndices = findColIndices(['구분']);
+          var timeIndices = findColIndices(['배송시간', '방문시간', '희망시간']);
+          var itemIndices = findColIndices(['제품명', '품목_수량', '품목', '상품명', '회수제품정보']);
+          var contactIndices = findColIndices(['핸드폰', '전화번호', '담당자_연락처', '연락처']);
+          var recipientIndices = findColIndices(['받는사람', '담당자']);
+          var contractIndices = findColIndices(['계약번호', '주문번호']);
+          var memoIndices = findColIndices(['출고/회수의뢰 비고', '비고', '특이사항', '비고_전문']);
+          var driverIndices = findColIndices(['배송담당', '담당기사', '기사']);
+          var dateIndices = findColIndices(['배송예정일자', '배송일자', '일자']);
+
+          function getRowValue(r, indices) {
+            for (var i = 0; i < indices.length; i++) {
+              var idx = indices[i];
+              if (r[idx] && String(r[idx]).trim() !== '') {
+                return String(r[idx]).trim();
+              }
+            }
+            return '';
+          }
+
           var passed = [];
           var skippedCount = 0;
           var directCount = 0;
           var pickupCount = 0;
 
-          rawRows.forEach(function(row) {
-            var status = (row['의뢰상태'] || row['상태'] || '').trim();
-            var methodRaw = (row['배송방법'] || row['배송방식'] || row['구분2'] || '').trim();
+          dataRows.forEach(function(r) {
+            // 행 전체에서 배송방법 검사 (한글 '직배송', '방문수령' 및 영문 'direct', 'pickup')
+            var rowText = r.map(function(c) { return String(c || '').trim(); }).join(' ');
+            
+            // 제외 대상 체크: 택배(delivery), 전산(install)인 경우
+            var isDeliveryExpress = (rowText.indexOf('택배') !== -1 || rowText.indexOf('delivery') !== -1);
+            var isInstallComputer = (rowText.indexOf('전산') !== -1 || rowText.indexOf('install') !== -1);
+            
+            var isPickup = (rowText.indexOf('방문수령') !== -1 || rowText.indexOf('pickup') !== -1);
+            var isDirect = (rowText.indexOf('직배송') !== -1 || rowText.indexOf('direct') !== -1);
 
-            var isStatusValid = validStatuses.some(function(s) { return status.indexOf(s) !== -1; });
-            var isDirect = (methodRaw.indexOf('직배송') !== -1);
-            var isPickup = (methodRaw.indexOf('방문수령') !== -1);
-            var isMethodValid = (isDirect || isPickup);
+            // 직배송 또는 방문수령 판별 (택배나 전산 단독 건은 제외)
+            var isMethodValid = false;
+            var finalMethod = '직배송';
 
-            // 주소나 고객사가 있는 경우만 취급
-            var cust = (row['고객사'] || row['고객사명'] || row['거래처'] || '').trim();
-            var addr = (row['주소'] || row['배송지'] || row['기본주소'] || '').trim();
+            if (isPickup) {
+              isMethodValid = true;
+              finalMethod = '방문수령';
+            } else if (isDirect && !isDeliveryExpress && !isInstallComputer) {
+              isMethodValid = true;
+              finalMethod = '직배송';
+            } else if (isDirect) {
+              isMethodValid = true;
+              finalMethod = '직배송';
+            }
 
-            if (isStatusValid && isMethodValid && (cust || addr)) {
-              var finalMethod = isPickup ? '방문수령' : '직배송';
-              var finalDriver = (row['담당기사'] || row['기사'] || '').trim();
-              if (isPickup && !finalDriver) {
-                finalDriver = '방문수령'; // 방문수령 건 기본 기사 매핑
+            var cust = getRowValue(r, custIndices);
+            var addr = getRowValue(r, addrIndices);
+            var detailAddr = getRowValue(r, detailAddrIndices);
+            var status = getRowValue(r, statusIndices) || '진행중';
+            var rawCat = getRowValue(r, catIndices);
+            var cat = '배송';
+            if (rawCat.indexOf('회수') !== -1) cat = '회수';
+            else if (rawCat.indexOf('설치') !== -1) cat = '설치';
+            else if (rawCat.indexOf('수령') !== -1) cat = '수령';
+            else if (rawCat.indexOf('A/S') !== -1) cat = 'A/S';
+
+            var fullAddr = detailAddr ? (addr + ' ' + detailAddr).trim() : addr;
+            if (!cust && fullAddr) {
+              cust = '(고객명 미기재)';
+            }
+
+            if (isMethodValid && (cust || fullAddr)) {
+              var driver = getRowValue(r, driverIndices);
+              if (finalMethod === '방문수령' && !driver) {
+                driver = '방문수령';
               }
 
-              if (isPickup) pickupCount++;
+              if (finalMethod === '방문수령') pickupCount++;
               else directCount++;
 
-              var recordDate = forceDate ? targetDate : (row['배송일자'] || row['일자'] || targetDate);
+              var rowDate = getRowValue(r, dateIndices);
+              var recordDate = forceDate ? targetDate : (rowDate || targetDate);
+
+              var contact1 = getRowValue(r, contactIndices);
+              var recipient = getRowValue(r, recipientIndices);
+              var contactDisplay = contact1;
+              if (recipient && contact1) contactDisplay = recipient + ' ' + contact1;
+              else if (recipient) contactDisplay = recipient;
 
               passed.push({
                 ID: Date.now() + Math.floor(Math.random() * 100000),
                 배송일자: recordDate,
-                계약번호: row['계약번호'] || '',
-                구분: row['구분'] || (status.indexOf('회수') !== -1 ? '회수' : '배송'),
-                담당기사: finalDriver,
+                계약번호: getRowValue(r, contractIndices),
+                구분: cat,
+                담당기사: driver,
                 고객사: cust,
-                주소: addr,
+                주소: fullAddr,
                 기본주소: addr,
-                상세주소: row['상세주소'] || '',
-                방문시간: row['방문시간'] || row['희망시간'] || '',
-                담당자_연락처: row['담당자_연락처'] || row['연락처'] || row['전화번호'] || '',
-                품목_수량: row['품목_수량'] || row['품목'] || '',
+                상세주소: detailAddr,
+                방문시간: getRowValue(r, timeIndices),
+                담당자_연락처: contactDisplay,
+                품목_수량: getRowValue(r, itemIndices),
                 의뢰상태: status,
                 배송방법: finalMethod,
-                비고_전문: row['비고_전문'] || row['비고'] || ''
+                비고_전문: getRowValue(r, memoIndices)
               });
             } else {
               skippedCount++;
@@ -1568,8 +1648,8 @@
           previewArea.classList.remove('hidden');
           statsEl.innerText = '조건 통과: ' + passed.length + '건 (직배송 ' + directCount + '건, 방문수령 ' + pickupCount + '건 / 제외: ' + skippedCount + '건)';
           descEl.innerHTML = `
-            총 <b>${rawRows.length}</b>건 중 직배송/방문수령 및 해당 의뢰상태(출고완료/회수의뢰완료/출고대기/출고접수) <b>${passed.length}</b>건이 선별되어 
-            <b>방문시간 순서대로 자동 정렬</b>되었습니다. 배송일자 <b>[${targetDate}]</b> 기준으로 화면과 Supabase 클라우드 DB에 즉시 적재됩니다.
+            총 <b>${dataRows.length}</b>건 중 직배송/방문수령 <b>${passed.length}</b>건(택배/전산 등 제외)이 완벽히 선별되어 
+            <b>방문시간 순서대로 자동 정렬</b>되었습니다. 배송일자 <b>[${targetDate}]</b> 기준으로 [배송 현황에 자동 등록]을 누르면 즉시 적재됩니다.
           `;
           confirmBtn.disabled = (passed.length === 0);
         },
@@ -1578,6 +1658,8 @@
         }
       });
     }
+
+
 
     async function confirmCsvImport() {
       if (!parsedCsvPendingData || parsedCsvPendingData.length === 0) return;
