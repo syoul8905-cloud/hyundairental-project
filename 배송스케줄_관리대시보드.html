@@ -38,7 +38,7 @@
   <!-- ========================================== -->
   <!-- 1. GNB Header (단독 웹 시스템)             -->
   <!-- ========================================== -->
-  <header class="bg-white rounded-xl px-3 py-2 sm:px-3.5 sm:py-2.5 shadow-xs border border-slate-200 flex items-center justify-between gap-2 mb-2.5 overflow-x-auto">
+  <header class="bg-white rounded-xl px-3 py-2 sm:px-3.5 sm:py-2.5 shadow-xs border border-slate-200 flex items-center justify-between gap-2 mb-2.5 relative z-30">
     <!-- Title & Brand -->
     <div class="flex items-center gap-2.5 shrink-0">
       <div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white text-sm shadow-sm shadow-indigo-600/20">
@@ -129,7 +129,7 @@
       </button>
 
       <!-- User Menu / Settings (우측 관리자/사용자 메뉴 & 바로가기 설치) -->
-      <div class="relative" id="userMenuContainer">
+      <div class="relative z-50" id="userMenuContainer">
         <button onclick="toggleUserMenu()" id="userMenuBtn" class="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-900 font-bold rounded-lg transition flex items-center gap-1.5 border border-indigo-200 shadow-xs text-xs whitespace-nowrap">
           <i class="fa-solid fa-circle-user text-indigo-600 text-sm"></i>
           <span id="userMenuDisplayName">로그인 필요</span>
@@ -138,7 +138,7 @@
         </button>
 
         <!-- Dropdown Menu -->
-        <div id="userMenuDropdown" class="hidden absolute right-0 mt-2 w-52 bg-white rounded-2xl shadow-2xl border border-slate-200 py-1.5 z-50 text-xs divide-y divide-slate-100">
+        <div id="userMenuDropdown" class="hidden absolute right-0 mt-2 w-52 bg-white rounded-2xl shadow-2xl border border-slate-200 py-1.5 z-[9999] text-xs divide-y divide-slate-100">
           <div class="px-3.5 py-2.5 bg-slate-50 text-[11px] text-slate-500 font-medium rounded-t-2xl">
             접속자: <b id="userMenuDropdownName" class="text-slate-900 text-xs font-black">-</b>
           </div>
