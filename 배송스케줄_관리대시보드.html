@@ -769,6 +769,7 @@
     // ==========================================
     function initDateSelect(availableDates) {
       var select = document.getElementById('sheetDateSelect');
+      if (!select) return;
       var curr = select.value;
       select.innerHTML = '';
 
@@ -777,7 +778,6 @@
         var opt = document.createElement('option');
         opt.value = d;
         opt.innerText = '📅 ' + d;
-        if (d === curr) opt.selected = true;
         select.appendChild(opt);
       });
 
@@ -785,6 +785,31 @@
       allOpt.value = 'all';
       allOpt.innerText = '전체 일정 보기';
       select.appendChild(allOpt);
+
+      if (curr && (dates.indexOf(curr) !== -1 || curr === 'all')) {
+        select.value = curr;
+      } else if (dates.length > 0) {
+        select.value = dates[0];
+      }
+    }
+
+    async function loadAvailableDates() {
+      if (!supabaseClient) return [];
+      try {
+        var res = await supabaseClient.from('delivery_schedules').select('delivery_date').order('delivery_date', { ascending: false });
+        if (res.data && res.data.length > 0) {
+          var dateSet = new Set();
+          res.data.forEach(function(row) {
+            if (row.delivery_date) dateSet.add(row.delivery_date);
+          });
+          var sortedDates = Array.from(dateSet).sort().reverse();
+          initDateSelect(sortedDates);
+          return sortedDates;
+        }
+      } catch (e) {
+        console.error('Failed to load available dates:', e);
+      }
+      return [];
     }
 
     function onDateChanged() {
@@ -1685,10 +1710,14 @@
           originalRecords = JSON.parse(JSON.stringify(records));
         }
 
-        // 고유 배송일자 목록 추출
-        var dateSet = new Set();
-        records.forEach(function(r) { if (r.배송일자) dateSet.add(r.배송일자); });
-        initDateSelect(Array.from(dateSet));
+        // 고유 배송일자 목록 추출 (전체 조회 시에만 재동기화)
+        if (!selectedDate || selectedDate === 'all') {
+          var dateSet = new Set();
+          records.forEach(function(r) { if (r.배송일자) dateSet.add(r.배송일자); });
+          if (dateSet.size > 0) {
+            initDateSelect(Array.from(dateSet).sort().reverse());
+          }
+        }
 
         updateDriverFilterOptions();
         updateKPIs();
@@ -1722,6 +1751,7 @@
     async function bootstrapDashboard() {
       renderOriginOptions();
       initKakaoMapEngine(false);
+      await loadAvailableDates();
       await triggerSync(false);
     }
 
