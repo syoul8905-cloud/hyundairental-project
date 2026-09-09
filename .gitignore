@@ -1,5 +1,6 @@
-﻿b64.txt
+b64.txt
 test_syntax.html
 .agents/
 .gemini/
 *.tmp
+*.bak
