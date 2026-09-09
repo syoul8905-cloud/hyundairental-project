@@ -116,6 +116,12 @@
           <span>배정 알림</span>
         </button>
 
+        <!-- Contract History Lookup Button -->
+        <button onclick="openContractHistoryModal('')" title="계약번호별 과거 배송/회수 및 현장 메모 이력 조회" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg transition flex items-center gap-1 border border-slate-200 text-xs whitespace-nowrap shadow-xs">
+          <i class="fa-solid fa-file-contract text-indigo-600"></i>
+          <span>이력 조회</span>
+        </button>
+
         <!-- Kakao Map Settings Button -->
         <button onclick="openKakaoKeyModal()" title="카카오맵 API 키 설정" class="px-2 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold rounded-lg transition flex items-center gap-1 border border-amber-200 text-xs whitespace-nowrap">
           <i class="fa-solid fa-map-location-dot text-amber-600"></i>
@@ -224,16 +230,22 @@
           </select>
         </div>
 
+        <!-- Mobile History Button -->
+        <button onclick="openContractHistoryModal('')" class="h-8 px-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 flex items-center justify-center gap-0.5 text-xs shrink-0 shadow-xs transition" title="계약번호 이력 조회">
+          <i class="fa-solid fa-file-contract text-xs text-indigo-600"></i>
+          <span class="font-bold text-[10px]">이력</span>
+        </button>
+
         <!-- Mobile Notify Button -->
-        <button onclick="openCurrentDriverNotifyModal()" class="h-8 px-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white flex items-center justify-center gap-1 text-xs shrink-0 shadow-xs transition" title="기사 배정 일정 알림 전송">
+        <button onclick="openCurrentDriverNotifyModal()" class="h-8 px-2 rounded-xl bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white flex items-center justify-center gap-0.5 text-xs shrink-0 shadow-xs transition" title="기사 배정 일정 알림 전송">
           <i class="fa-solid fa-bell text-xs"></i>
-          <span class="font-bold text-[11px]">알림</span>
+          <span class="font-bold text-[10px]">알림</span>
         </button>
 
         <!-- Refresh Button -->
-        <button onclick="triggerSync(false)" class="h-8 px-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 active:bg-slate-900 text-white flex items-center justify-center gap-1 text-xs shrink-0 shadow-xs transition" title="새로고침">
+        <button onclick="triggerSync(false)" class="h-8 px-2 rounded-xl bg-slate-800 hover:bg-slate-700 active:bg-slate-900 text-white flex items-center justify-center gap-0.5 text-xs shrink-0 shadow-xs transition" title="새로고침">
           <i class="fa-solid fa-rotate text-xs"></i>
-          <span class="font-bold text-[11px]">동기화</span>
+          <span class="font-bold text-[10px]">동기화</span>
         </button>
       </div>
     </div>
@@ -345,9 +357,14 @@
               <i class="fa-solid fa-arrows-up-down"></i> 드래그 또는 ▲▼ 로 순서 변경 (지도 즉시 반영)
             </span>
           </div>
-          <button onclick="resetOrder()" title="원래 시간순으로 복원" class="text-[10px] bg-slate-200 hover:bg-slate-300 text-slate-700 px-2 py-1 rounded font-bold transition flex items-center gap-1">
-            <i class="fa-solid fa-rotate-left"></i> 시간순 복원
-          </button>
+          <div class="flex items-center gap-1">
+            <button onclick="saveCurrentStopOrderToCloud()" title="현재 정렬된 순서를 클라우드에 영구 저장 및 모든 기사/관리자에게 실시간 동기화" class="text-[11px] bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white px-2.5 py-1 rounded-lg font-black transition flex items-center gap-1 shadow-xs">
+              <i class="fa-solid fa-cloud-arrow-up"></i> 순서 확정
+            </button>
+            <button onclick="resetOrder()" title="원래 시간순으로 복원" class="text-[10px] bg-slate-200 hover:bg-slate-300 text-slate-700 px-2 py-1 rounded font-bold transition flex items-center gap-1">
+              <i class="fa-solid fa-rotate-left"></i> 복원
+            </button>
+          </div>
         </div>
         <div id="routeTimeline" class="space-y-1.5 max-h-[460px] overflow-y-auto custom-scroll pr-1"></div>
       </div>
@@ -823,6 +840,54 @@
 
       <div class="pt-2 border-t border-slate-100 flex justify-end">
         <button onclick="closeAssignmentNotifyModal()" class="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl text-xs transition">
+          닫기
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Contract History & Field Issue Memo Modal -->
+  <div id="contractHistoryModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50" onclick="if(event.target===this)closeContractHistoryModal()">
+    <div class="bg-white rounded-3xl max-w-2xl w-full p-5 sm:p-6 shadow-2xl border border-slate-200 space-y-4 max-h-[92vh] flex flex-col">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3 shrink-0">
+        <div class="flex items-center gap-2">
+          <span class="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-sm font-black">
+            <i class="fa-solid fa-file-contract"></i>
+          </span>
+          <div>
+            <h3 class="font-black text-sm text-slate-900 flex items-center gap-2">
+              계약번호 과거 배송 및 현장 메모 이력
+            </h3>
+            <p class="text-[11px] text-slate-500 font-medium">동일 계약번호로 진행된 과거 모든 배송/회수 일정과 현장 기사 메모를 조회합니다.</p>
+          </div>
+        </div>
+        <button onclick="closeContractHistoryModal()" class="w-7 h-7 rounded-full bg-slate-100 text-slate-400 hover:text-slate-600 flex items-center justify-center text-xs">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <!-- Search Box -->
+      <div class="flex items-center gap-2 bg-slate-50 p-2 rounded-2xl border border-slate-200 shrink-0">
+        <i class="fa-solid fa-magnifying-glass text-slate-400 pl-1.5 text-xs"></i>
+        <input type="text" id="contractHistorySearchInput" placeholder="계약번호 입력 (예: 2R2609031)..." 
+               onkeydown="if(event.key==='Enter')searchContractHistory(this.value)"
+               class="flex-1 bg-transparent border-none text-xs font-mono font-bold text-slate-900 focus:outline-none">
+        <button onclick="searchContractHistory(document.getElementById('contractHistorySearchInput').value)" 
+                class="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-xs transition shadow-xs">
+          조회
+        </button>
+      </div>
+
+      <!-- History List Container -->
+      <div id="contractHistoryList" class="flex-1 overflow-y-auto custom-scroll space-y-3 pr-1 text-xs">
+        <div class="py-12 text-center text-slate-400 font-medium">
+          계약번호를 입력하거나 배송 목록에서 계약번호를 클릭해주세요.
+        </div>
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="pt-2 border-t border-slate-100 flex justify-end shrink-0">
+        <button onclick="closeContractHistoryModal()" class="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl text-xs transition">
           닫기
         </button>
       </div>
@@ -2894,9 +2959,22 @@
       return diff;
     }
 
+    function confirmPhoneCall(name, phone, e) {
+      if (!phone) return false;
+      var target = name ? `[${name}]` : '고객';
+      var ok = confirm(`📞 ${target} 님께 전화를 연결하시겠습니까?\n연락처: ${phone}`);
+      if (!ok) {
+        if (e && e.preventDefault) e.preventDefault();
+        return false;
+      }
+      return true;
+    }
+
     function getStopTimes(r) {
       var depart = '';
       var arrive = '';
+      var issue = '';
+      var issueAuthor = '';
       var raw = (r && (r.추후일정_특이사항 || r.memo_special)) ? (r.추후일정_특이사항 || r.memo_special) : '';
       if (raw) {
         try {
@@ -2904,6 +2982,8 @@
           if (parsed && typeof parsed === 'object') {
             depart = parsed.depart || '';
             arrive = parsed.arrive || '';
+            issue = parsed.issue || '';
+            issueAuthor = parsed.issue_author || '';
           }
         } catch(e) {
           var dMatch = String(raw).match(/출발[:\s]*(\d{1,2}:\d{2})/);
@@ -2912,12 +2992,17 @@
           if (aMatch) arrive = aMatch[1];
         }
       }
-      return { depart: depart, arrive: arrive };
+      return { depart: depart, arrive: arrive, issue: issue, issueAuthor: issueAuthor };
     }
 
-    async function recordDepartureTime(realIdx) {
+    async function recordDepartureTime(realIdx, skipConfirm) {
       if (realIdx < 0 || realIdx >= records.length) return;
       var r = records[realIdx];
+      if (!skipConfirm) {
+        if (!confirm(`🚗 [${r.고객사}] 출발 시각을 기록하시겠습니까?`)) {
+          return;
+        }
+      }
       var times = getStopTimes(r);
       var nowStr = new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false });
       times.depart = nowStr;
@@ -2941,6 +3026,9 @@
     async function recordArrivalTime(realIdx) {
       if (realIdx < 0 || realIdx >= records.length) return;
       var r = records[realIdx];
+      if (!confirm(`🏁 [${r.고객사}] 배송지에 도착하셨습니까?\n현재 시각으로 도착 완료가 기록됩니다.`)) {
+        return;
+      }
       var times = getStopTimes(r);
       var nowStr = new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false });
       if (!times.depart) times.depart = nowStr;
@@ -3178,10 +3266,20 @@
               </div>
             ` : ''}
 
+            ${times.issue ? `
+              <div class="mx-2 ml-6 p-2 bg-rose-50 border border-rose-200 rounded-lg text-[11px] text-rose-900 font-medium leading-tight space-y-0.5" title="${times.issue}">
+                <div class="font-black flex items-center gap-1 text-[10px] text-rose-700">
+                  <i class="fa-solid fa-triangle-exclamation"></i>
+                  <span>현장 특이사항${times.issueAuthor ? ' (' + times.issueAuthor + ')' : ''}</span>
+                </div>
+                <div class="font-bold whitespace-pre-wrap pl-3">${times.issue}</div>
+              </div>
+            ` : ''}
+
             <!-- Mobile Quick Buttons (통화 & 티맵 출발 & 배송지 도착 & 소요시간) -->
             <div class="flex items-center flex-wrap gap-1.5 pl-6 pt-1">
               ${phoneNum ? `
-                <a href="tel:${phoneNum}" onclick="event.stopPropagation();" class="px-2 py-1 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-lg text-[10px] flex items-center gap-1 shadow-xs transition" title="${contactDisplay}">
+                <a href="tel:${phoneNum}" onclick="event.stopPropagation(); return confirmPhoneCall('${(contactName || r.고객사).replace(/'/g, "\\'")}', '${phoneNum}', event);" class="px-2 py-1 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-lg text-[10px] flex items-center gap-1 shadow-xs transition" title="${contactDisplay}">
                   <i class="fa-solid fa-phone"></i> ${contactName ? contactName : '통화'}
                 </a>
               ` : `
@@ -3377,14 +3475,49 @@
     // ==========================================
     // Stop Order Management (Drag & Drop, Move)
     // ==========================================
-    function moveStop(fromIdx, toIdx) {
+    async function moveStop(fromIdx, toIdx) {
       if (fromIdx === toIdx || fromIdx < 0 || fromIdx >= records.length || toIdx < 0 || toIdx >= records.length) return;
       var moved = records.splice(fromIdx, 1)[0];
       records.splice(toIdx, 0, moved);
       cachedRoadRouteData = null; // 순서 변경 시 실제 경로 캐시 무효화 (재계산 준비)
       renderRouteMap();
       renderTable();
-      showToast('📍 [' + moved.고객사 + '] 순서가 ' + (toIdx + 1) + '번째로 변경되었습니다!');
+      saveCurrentStopOrderToCloud(true); // 이동 즉시 클라우드에 자동 동기화
+      showToast('📍 [' + moved.고객사 + '] 순서가 ' + (toIdx + 1) + '번째로 변경되었습니다! (클라우드 동기화 완료)');
+    }
+
+    async function saveCurrentStopOrderToCloud(isSilent) {
+      var activeRecords = getFilteredRecords();
+      if (!activeRecords || activeRecords.length === 0) {
+        if (!isSilent) showToast('⚠️ 순서를 저장할 배송 건이 없습니다.');
+        return;
+      }
+
+      // Update in-memory stop_order for activeRecords
+      activeRecords.forEach(function(r, idx) {
+        r.stop_order = idx + 1;
+      });
+
+      if (!supabaseClient) {
+        if (!isSilent) showToast('⚠️ 오프라인 모드: 로컬 순서만 반영되었습니다.');
+        return;
+      }
+
+      try {
+        var updates = activeRecords.filter(function(r) { return r.ID; }).map(function(r, idx) {
+          return supabaseClient.from('delivery_schedules').update({
+            stop_order: idx + 1
+          }).eq('id', r.ID);
+        });
+
+        await Promise.all(updates);
+        if (!isSilent) {
+          showToast('☁️ 방문 순서 ' + activeRecords.length + '건이 클라우드에 영구 저장 및 실시간 동기화되었습니다!');
+        }
+      } catch (err) {
+        console.error('saveCurrentStopOrderToCloud error:', err);
+        if (!isSilent) showToast('⚠️ 순서 클라우드 저장 중 오류가 발생했습니다.');
+      }
     }
 
     function onDragStart(e, idx) {
@@ -3412,25 +3545,33 @@
       draggedStopIndex = null;
     }
 
-    function resetOrder() {
+    async function resetOrder() {
       // 시간순 오름차순으로 재정렬
       records.sort(function(a, b) {
         return parseVisitMinutes(a.방문시간) - parseVisitMinutes(b.방문시간);
       });
+      var activeRecords = getFilteredRecords();
+      activeRecords.forEach(function(r, idx) {
+        r.stop_order = idx + 1;
+      });
       cachedRoadRouteData = null; // 시간순 복원 시 경로 캐시 무효화
       renderRouteMap();
       renderTable();
-      showToast('🔄 방문시간 순서대로 재정렬되었습니다.');
+      saveCurrentStopOrderToCloud(true);
+      showToast('🔄 방문시간 순서대로 재정렬 및 클라우드 동기화되었습니다.');
     }
 
     // ==========================================
     // Mobile Quick Actions (T-map & Phone)
     // ==========================================
     function openTmapNav(custName, addr, realIdx) {
+      if (!confirm(`🚗 [${custName}] 티맵 내비게이션 안내를 시작하시겠습니까?\n출발 시각이 자동으로 기록됩니다.`)) {
+        return;
+      }
       if (typeof realIdx === 'number' && records[realIdx]) {
         var times = getStopTimes(records[realIdx]);
         if (!times.depart) {
-          recordDepartureTime(realIdx);
+          recordDepartureTime(realIdx, true);
         }
       }
       var clean = (addr || '').replace(/\([^)]*\)/g, '').trim();
@@ -3921,20 +4062,35 @@
           <td class="py-2.5 px-3 text-center">
             <input type="checkbox" class="row-checkbox w-4 h-4 rounded text-indigo-600 cursor-pointer" data-id="${r.ID || ''}" data-idx="${realIdx}" onchange="onRowCheckboxChange()">
           </td>
-          <td class="py-2.5 px-3 font-mono text-slate-500">${r.계약번호 || '-'}</td>
+          <td class="py-2.5 px-3 font-mono">
+            ${r.계약번호 ? `
+              <button type="button" onclick="openContractHistoryModal('${r.계약번호}')" class="text-indigo-600 hover:text-indigo-900 hover:underline font-bold text-xs flex items-center gap-1" title="계약번호 [${r.계약번호}] 과거 이력 및 현장 메모 조회">
+                <span>${r.계약번호}</span>
+                <i class="fa-solid fa-clock-rotate-left text-[10px]"></i>
+              </button>
+            ` : `<span class="text-slate-400">-</span>`}
+          </td>
           <td class="py-2.5 px-2">${categorySelectHtml}</td>
           <td class="py-2.5 px-2">${methodSelectHtml}</td>
           <td class="py-2.5 px-3 font-bold text-slate-900">${r.고객사}</td>
           <td class="py-2.5 px-3.5 text-slate-600 max-w-xs truncate" title="${r.주소}">${r.주소}</td>
           <td class="py-2.5 px-2.5 text-slate-600 font-bold">${r.방문시간 || '-'}</td>
           <td class="py-2.5 px-3 text-slate-800 font-semibold max-w-xs truncate" title="${r.품목_수량}">${r.품목_수량 || '-'}</td>
-          <td class="py-2 px-2">${memoInputHtml}</td>
+          <td class="py-2 px-2">
+            ${memoInputHtml}
+            ${times.issue ? `
+              <div class="mt-1 px-1.5 py-0.5 bg-rose-50 border border-rose-200 rounded text-[10px] text-rose-700 font-bold flex items-center gap-1" title="${times.issue}">
+                <i class="fa-solid fa-triangle-exclamation text-rose-500 text-[9px] shrink-0"></i>
+                <span class="truncate max-w-[190px]">현장: ${times.issue}</span>
+              </div>
+            ` : ''}
+          </td>
           <td class="py-2.5 px-3">${driverSelectHtml}</td>
           <td class="py-2 px-2 text-center">
             <div class="flex flex-col items-center justify-center gap-0.5">
               ${contactName ? `<span class="text-[11px] font-bold text-slate-800 leading-tight">${contactName}</span>` : ''}
               ${phoneNum ? `
-                <a href="tel:${phoneNum}" class="px-2 py-0.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 rounded font-semibold text-[10px] inline-flex items-center gap-1 transition" title="${contactDisplay}">
+                <a href="tel:${phoneNum}" onclick="return confirmPhoneCall('${(contactName || r.고객사).replace(/'/g, "\\'")}', '${phoneNum}', event);" class="px-2 py-0.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 rounded font-semibold text-[10px] inline-flex items-center gap-1 transition" title="${contactDisplay}">
                   <i class="fa-solid fa-phone text-[9px] text-emerald-600"></i> ${phoneNum}
                 </a>
               ` : `
@@ -4092,7 +4248,12 @@
           <div class="flex items-center justify-between gap-2">
             <div class="flex items-center gap-2">
               <input type="checkbox" class="row-checkbox w-4 h-4 rounded text-indigo-600 cursor-pointer" data-id="${r.ID || ''}" data-idx="${realIdx}" onchange="onRowCheckboxChange()">
-              <span class="font-mono text-slate-400 text-[11px] font-bold">#${realIdx + 1}</span>
+              ${r.계약번호 ? `
+                <button type="button" onclick="openContractHistoryModal('${r.계약번호}')" class="font-mono text-indigo-600 hover:text-indigo-900 font-black text-[11px] flex items-center gap-0.5" title="계약번호 [${r.계약번호}] 이력 조회">
+                  <span>${r.계약번호}</span>
+                  <i class="fa-solid fa-clock-rotate-left text-[9px]"></i>
+                </button>
+              ` : `<span class="font-mono text-slate-400 text-[11px] font-bold">#${realIdx + 1}</span>`}
               ${catSelectHtml}
               <span class="px-2 py-0.5 rounded-lg text-[10px] font-bold ${r.배송방법 === '방문수령' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-blue-50 text-blue-700 border border-blue-200'}">
                 ${r.배송방법 || '직배송'}
@@ -4146,6 +4307,16 @@
                    class="w-full px-2.5 py-1.5 text-xs bg-slate-50 border border-slate-200 focus:border-indigo-500 rounded-lg text-slate-700 font-medium">
           </div>
 
+          ${times.issue ? `
+            <div class="p-2 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-900 font-medium space-y-0.5" title="${times.issue}">
+              <div class="font-black flex items-center gap-1 text-[11px] text-rose-700">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+                <span>현장 기사 특이사항${times.issueAuthor ? ' (' + times.issueAuthor + ')' : ''}</span>
+              </div>
+              <div class="font-bold whitespace-pre-wrap pl-3.5 leading-snug">${times.issue}</div>
+            </div>
+          ` : ''}
+
           <!-- Time Record Badges & Action Buttons -->
           <div class="flex items-center justify-between pt-1 border-t border-slate-100 text-xs">
             <div class="flex items-center gap-1.5 flex-wrap">
@@ -4156,7 +4327,7 @@
 
             <div class="flex items-center gap-1">
               ${phoneNum ? `
-                <a href="tel:${phoneNum}" class="px-2 py-1 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-lg text-[10px] flex items-center gap-1 shadow-xs" title="${contactDisplay}">
+                <a href="tel:${phoneNum}" onclick="return confirmPhoneCall('${(contactName || r.고객사).replace(/'/g, "\\'")}', '${phoneNum}', event);" class="px-2 py-1 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-lg text-[10px] flex items-center gap-1 shadow-xs" title="${contactDisplay}">
                   <i class="fa-solid fa-phone"></i> ${contactName || '통화'}
                 </a>
               ` : ''}
@@ -4284,6 +4455,7 @@
       clearTableSelection();
       updateDriverFilterOptions();
       updateKPIs();
+      saveCurrentStopOrderToCloud(true);
       renderRouteMap();
       renderTable();
       showToast('🚗 선택된 ' + updatedCount + '건이 [' + newDriver + '] 기사님으로 일괄 배정되었습니다!');
@@ -4640,12 +4812,20 @@
             배송방법: row.delivery_method || '직배송',
             추후일정_특이사항: row.memo_special || '',
             비고_전문: row.memo_full || '',
-            원본시트: row.source_sheet || ''
+            원본시트: row.source_sheet || '',
+            stop_order: (row.stop_order !== null && row.stop_order !== undefined) ? Number(row.stop_order) : null
           };
         });
 
-        // 시간순 정렬
+        // stop_order 우선 정렬 (stop_order가 지정된 경우 최우선 정렬, 없는 경우 방문시간순)
         records.sort(function(a, b) {
+          var aHasOrder = (a.stop_order !== null && a.stop_order !== undefined && !isNaN(a.stop_order) && a.stop_order > 0);
+          var bHasOrder = (b.stop_order !== null && b.stop_order !== undefined && !isNaN(b.stop_order) && b.stop_order > 0);
+          if (aHasOrder && bHasOrder) {
+            return a.stop_order - b.stop_order;
+          }
+          if (aHasOrder) return -1;
+          if (bHasOrder) return 1;
           return parseVisitMinutes(a.방문시간) - parseVisitMinutes(b.방문시간);
         });
         originalRecords = JSON.parse(JSON.stringify(records));
@@ -4676,6 +4856,193 @@
         if (statusEl) statusEl.innerText = '동기화 오류: ' + (err.message || err);
         if (!isSilent) showToast('❌ DB 연동 오류: ' + (err.message || err));
       }
+    }
+
+    // ==========================================
+    // Contract History & Field Issue Memo Engine
+    // ==========================================
+    function openContractHistoryModal(contractNo) {
+      var modal = document.getElementById('contractHistoryModal');
+      if (!modal) return;
+      modal.classList.remove('hidden');
+      var searchInput = document.getElementById('contractHistorySearchInput');
+      if (searchInput) {
+        searchInput.value = contractNo || '';
+      }
+      if (contractNo) {
+        searchContractHistory(contractNo);
+      } else {
+        var container = document.getElementById('contractHistoryList');
+        if (container) {
+          container.innerHTML = `
+            <div class="py-12 text-center text-slate-400 font-medium">
+              계약번호를 입력하거나 배송 목록에서 계약번호를 클릭해주세요.
+            </div>
+          `;
+        }
+      }
+    }
+
+    function closeContractHistoryModal() {
+      var modal = document.getElementById('contractHistoryModal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    async function searchContractHistory(queryNo) {
+      var q = (queryNo || '').trim();
+      var container = document.getElementById('contractHistoryList');
+      if (!container) return;
+
+      if (!q) {
+        container.innerHTML = '<div class="py-8 text-center text-slate-400 font-bold">계약번호를 입력해주세요.</div>';
+        return;
+      }
+
+      container.innerHTML = '<div class="py-8 text-center text-slate-500 font-bold flex items-center justify-center gap-2"><i class="fa-solid fa-spinner fa-spin"></i> 과거 배송 및 현장 메모 이력 조회 중...</div>';
+
+      if (!supabaseClient) {
+        var matches = records.filter(function(r) {
+          return (r.계약번호 || '').toLowerCase().indexOf(q.toLowerCase()) !== -1;
+        });
+        renderContractHistoryResults(matches, q);
+        return;
+      }
+
+      try {
+        var res = await supabaseClient
+          .from('delivery_schedules')
+          .select('*')
+          .ilike('contract_no', '%' + q + '%')
+          .order('delivery_date', { ascending: false });
+
+        if (res.error) throw res.error;
+        var rows = (res.data || []).filter(function(row) {
+          return row.source_sheet !== 'SYSTEM_CONFIG_USERS' &&
+                 row.source_sheet !== 'SYSTEM_CONFIG_DRIVER_ORIGINS' &&
+                 row.customer_name !== 'SYSTEM_CONFIG_USERS';
+        });
+        renderContractHistoryResults(rows, q);
+      } catch (err) {
+        console.error('searchContractHistory error:', err);
+        container.innerHTML = '<div class="py-8 text-center text-rose-500 font-bold">이력 조회 중 오류가 발생했습니다.</div>';
+      }
+    }
+
+    function renderContractHistoryResults(rows, query) {
+      var container = document.getElementById('contractHistoryList');
+      if (!container) return;
+
+      if (!rows || rows.length === 0) {
+        container.innerHTML = `
+          <div class="py-12 text-center text-slate-400 space-y-2">
+            <i class="fa-solid fa-file-circle-question text-3xl text-slate-300"></i>
+            <p class="font-bold text-slate-600 text-xs">일치하는 계약번호 [${query}] 내역이 없습니다.</p>
+          </div>
+        `;
+        return;
+      }
+
+      var html = `
+        <div class="text-[11px] text-slate-500 font-bold pb-1 flex items-center justify-between">
+          <span>총 <b>${rows.length}</b>건의 관련 일정 및 메모가 조회되었습니다.</span>
+          <span class="text-indigo-600">최신일자순</span>
+        </div>
+        <div class="space-y-2.5">
+      `;
+
+      rows.forEach(function(row) {
+        var date = row.delivery_date || row.배송일자 || '-';
+        var cust = row.customer_name || row.고객사 || '-';
+        var addr = row.address || row.주소 || '-';
+        var driver = row.driver_name || row.담당기사 || '미배정';
+        var cat = row.category || row.구분 || '배송';
+        var items = row.items || row.품목_수량 || '';
+        var status = row.status || row.의뢰상태 || '진행중';
+        var memoSpecialRaw = row.memo_special || row.추후일정_특이사항 || '';
+        var memoFull = row.memo_full || row.비고_전문 || '';
+        var contract = row.contract_no || row.계약번호 || query;
+
+        var depart = '';
+        var arrive = '';
+        var issue = '';
+        var issueAuthor = '';
+        if (memoSpecialRaw) {
+          try {
+            var p = JSON.parse(memoSpecialRaw);
+            if (p && typeof p === 'object') {
+              depart = p.depart || '';
+              arrive = p.arrive || '';
+              issue = p.issue || '';
+              issueAuthor = p.issue_author || '';
+            }
+          } catch(e) {
+            issue = memoSpecialRaw;
+          }
+        }
+
+        html += `
+          <div class="p-3 bg-slate-50 hover:bg-white rounded-2xl border border-slate-200 transition space-y-2">
+            <div class="flex items-center justify-between flex-wrap gap-1">
+              <div class="flex items-center gap-1.5 font-bold">
+                <span class="px-2 py-0.5 rounded-lg text-[10px] font-black bg-indigo-100 text-indigo-800">${cat}</span>
+                <span class="text-xs font-black text-slate-900">${cust}</span>
+                <span class="text-[10px] font-mono text-slate-400">(${contract})</span>
+              </div>
+              <div class="flex items-center gap-1.5 text-[11px]">
+                <span class="font-bold text-slate-700 bg-white px-2 py-0.5 rounded-md border border-slate-200">
+                  <i class="fa-regular fa-calendar text-indigo-500"></i> ${date}
+                </span>
+                <span class="font-bold text-amber-900 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
+                  🚗 ${driver}
+                </span>
+              </div>
+            </div>
+
+            <div class="text-[11px] text-slate-600 flex items-center gap-1 truncate" title="${addr}">
+              <i class="fa-solid fa-location-dot text-rose-500 text-[10px] shrink-0"></i>
+              <span class="truncate">${addr}</span>
+            </div>
+
+            ${items ? `
+              <div class="text-[10px] text-slate-500 flex items-center gap-1 truncate" title="${items}">
+                <i class="fa-solid fa-box text-slate-400 text-[9px] shrink-0"></i>
+                <span class="truncate">${items}</span>
+              </div>
+            ` : ''}
+
+            <!-- 타임라인 시간 기록 (출발 / 도착) -->
+            ${(depart || arrive) ? `
+              <div class="flex items-center gap-2 text-[10px] font-bold text-slate-600 pt-0.5">
+                ${depart ? `<span class="bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded border border-blue-200">🚀 출발: ${depart}</span>` : ''}
+                ${arrive ? `<span class="bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded border border-emerald-200">🏁 도착: ${arrive}</span>` : ''}
+                <span class="text-slate-400 font-medium">상태: ${status}</span>
+              </div>
+            ` : ''}
+
+            <!-- 현장 특이사항 / 기사 메모 (가장 중요) -->
+            ${issue ? `
+              <div class="p-2 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-900 font-medium space-y-0.5">
+                <div class="font-black flex items-center gap-1 text-[11px] text-rose-700">
+                  <i class="fa-solid fa-triangle-exclamation"></i>
+                  <span>현장 기사 특이사항 메모${issueAuthor ? ' (' + issueAuthor + ')' : ''}</span>
+                </div>
+                <div class="font-bold leading-relaxed whitespace-pre-wrap pl-3.5">${issue}</div>
+              </div>
+            ` : ''}
+
+            <!-- 기본 비고 전문 -->
+            ${memoFull ? `
+              <div class="p-1.5 bg-amber-50/70 border border-amber-200/60 rounded-lg text-[10px] text-amber-900 flex items-start gap-1">
+                <i class="fa-solid fa-comment-dots text-amber-600 mt-0.5 shrink-0"></i>
+                <span class="whitespace-pre-wrap">${memoFull}</span>
+              </div>
+            ` : ''}
+          </div>
+        `;
+      });
+
+      html += '</div>';
+      container.innerHTML = html;
     }
 
     function showToast(msg) {

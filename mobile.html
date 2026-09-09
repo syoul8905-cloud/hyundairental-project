@@ -578,9 +578,22 @@
       return { name: name, phone: phone };
     }
 
+    function confirmPhoneCall(name, phone, e) {
+      if (!phone) return false;
+      var target = name ? `[${name}]` : '고객';
+      var ok = confirm(`📞 ${target} 님께 전화를 연결하시겠습니까?\n연락처: ${phone}`);
+      if (!ok) {
+        if (e && e.preventDefault) e.preventDefault();
+        return false;
+      }
+      return true;
+    }
+
     function getStopTimes(record) {
       var depart = '';
       var arrive = '';
+      var issue = '';
+      var issueAuthor = '';
       var raw = (record && (record.memo_special || record.추후일정_특이사항)) ? (record.memo_special || record.추후일정_특이사항) : '';
       if (raw) {
         try {
@@ -588,6 +601,8 @@
           if (parsed && typeof parsed === 'object') {
             depart = parsed.depart || '';
             arrive = parsed.arrive || '';
+            issue = parsed.issue || '';
+            issueAuthor = parsed.issue_author || '';
           }
         } catch(e) {
           var dMatch = String(raw).match(/출발[:\s]*(\d{1,2}:\d{2})/);
@@ -596,7 +611,7 @@
           if (aMatch) arrive = aMatch[1];
         }
       }
-      return { depart: depart, arrive: arrive };
+      return { depart: depart, arrive: arrive, issue: issue, issueAuthor: issueAuthor };
     }
 
     // ==========================================
@@ -755,6 +770,18 @@
         // 관리자/기사 구분 없이 모바일웹에서는 본인(currentUser.id)에게 배정된 건들만 표출!
         driverRecords = allRows.filter(function(r) {
           return (r.driver_name || '').trim() === currentUser.id;
+        });
+
+        // stop_order 우선 정렬 (관리자가 지정한 순서가 최우선 반영됨)
+        driverRecords.sort(function(a, b) {
+          var aHasOrder = (a.stop_order !== null && a.stop_order !== undefined && !isNaN(a.stop_order) && a.stop_order > 0);
+          var bHasOrder = (b.stop_order !== null && b.stop_order !== undefined && !isNaN(b.stop_order) && b.stop_order > 0);
+          if (aHasOrder && bHasOrder) {
+            return a.stop_order - b.stop_order;
+          }
+          if (aHasOrder) return -1;
+          if (bHasOrder) return 1;
+          return parseVisitMinutes(a.visit_time) - parseVisitMinutes(b.visit_time);
         });
 
         renderCards();
@@ -917,6 +944,22 @@
             </div>
           ` : ''}
 
+          <!-- Field Issue Memo Section -->
+          <div class="p-2.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
+            <div class="flex items-center justify-between">
+              <span class="text-[11px] font-black text-slate-700 flex items-center gap-1">
+                <i class="fa-solid fa-pen-to-square text-indigo-600"></i> 현장 특이사항 / 메모
+              </span>
+              ${times.issueAuthor ? `<span class="text-[9px] bg-indigo-50 text-indigo-700 border border-indigo-200 px-1.5 py-0.2 rounded font-bold">${times.issueAuthor}</span>` : ''}
+            </div>
+            <textarea id="fieldIssueInput_${idx}" rows="2" placeholder="부재, 경비실 보관, 장비 불량 등 현장 이슈 입력..." class="w-full text-xs p-2 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-500 font-medium">${times.issue || ''}</textarea>
+            <div class="flex justify-end">
+              <button type="button" onclick="saveDriverIssueMemo(${idx})" class="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white text-[11px] font-black rounded-lg shadow-xs flex items-center gap-1">
+                <i class="fa-solid fa-floppy-disk text-[10px]"></i> 메모 저장
+              </button>
+            </div>
+          </div>
+
           <!-- Status & Dur Badge -->
           <div class="flex items-center justify-between text-xs pt-1 border-t border-slate-100">
             <div class="flex items-center gap-1.5 flex-wrap">
@@ -931,7 +974,7 @@
           <div class="grid grid-cols-12 gap-2 pt-1">
             <div class="col-span-4">
               ${phoneNum ? `
-                <a href="tel:${phoneNum}" class="btn-touch w-full bg-emerald-500 hover:bg-emerald-600 text-white font-black text-xs rounded-xl shadow-xs transition gap-1" title="${contactDisplay}">
+                <a href="tel:${phoneNum}" onclick="return confirmPhoneCall('${(contactName || r.customer_name).replace(/'/g, "\\'")}', '${phoneNum}', event);" class="btn-touch w-full bg-emerald-500 hover:bg-emerald-600 text-white font-black text-xs rounded-xl shadow-xs transition gap-1" title="${contactDisplay}">
                   <i class="fa-solid fa-phone"></i> ${contactName ? contactName : '통화'}
                 </a>
               ` : `
@@ -960,11 +1003,47 @@
     }
 
     // ==========================================
+    // Field Issue Memo Save Engine
+    // ==========================================
+    async function saveDriverIssueMemo(idx) {
+      var r = driverRecords[idx];
+      if (!r) return;
+      var inputEl = document.getElementById('fieldIssueInput_' + idx);
+      if (!inputEl) return;
+      var newIssue = inputEl.value.trim();
+
+      var times = getStopTimes(r);
+      times.issue = newIssue;
+      times.issue_author = (currentUser && currentUser.id) ? currentUser.id : '기사';
+      times.updated_at = new Date().toISOString();
+
+      var jsonStr = JSON.stringify(times);
+      r.memo_special = jsonStr;
+
+      if (supabaseClient && r.id) {
+        var res = await supabaseClient.from('delivery_schedules').update({
+          memo_special: jsonStr
+        }).eq('id', r.id);
+        if (res.error) {
+          console.error('Failed to save field memo:', res.error);
+          showToast('❌ 메모 저장 실패');
+          return;
+        }
+      }
+      showToast('💾 현장 특이사항 메모가 저장되었습니다!');
+      renderCards();
+    }
+
+    // ==========================================
     // Actions: Tmap & Depart Time Record
     // ==========================================
     async function startTmapAndRecord(idx) {
       var r = driverRecords[idx];
       if (!r) return;
+
+      if (!confirm(`🚗 [${r.customer_name}] 티맵 내비게이션 안내를 시작하시겠습니까?\n출발 시각이 자동으로 기록됩니다.`)) {
+        return;
+      }
 
       var nowStr = new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false });
       var times = getStopTimes(r);
@@ -1004,6 +1083,10 @@
       var r = driverRecords[idx];
       if (!r) return;
 
+      if (!confirm(`🏁 [${r.customer_name}] 배송지에 도착하셨습니까?\n현재 시각으로 도착 완료가 기록됩니다.`)) {
+        return;
+      }
+
       var nowStr = new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false });
       var times = getStopTimes(r);
       if (!times.depart) times.depart = nowStr;
@@ -1027,16 +1110,30 @@
       showToast('🏁 [' + r.customer_name + '] 배송지 도착 완료! (' + (dur !== null ? dur + '분 소요' : nowStr) + ')');
     }
 
-    // Reorder
-    function moveStopOrder(idx, dir) {
+    // Reorder & Cloud Sync
+    async function moveStopOrder(idx, dir) {
       var targetIdx = idx + dir;
       if (targetIdx < 0 || targetIdx >= driverRecords.length) return;
       var tmp = driverRecords[idx];
       driverRecords[idx] = driverRecords[targetIdx];
       driverRecords[targetIdx] = tmp;
+
+      driverRecords.forEach(function(r, i) {
+        r.stop_order = i + 1;
+      });
+
+      if (supabaseClient) {
+        var updates = driverRecords.filter(function(r) { return r.id; }).map(function(r, i) {
+          return supabaseClient.from('delivery_schedules').update({
+            stop_order: i + 1
+          }).eq('id', r.id);
+        });
+        await Promise.all(updates);
+      }
+
       renderCards();
       cachedMobileRoadData = null;
-      showToast('🔄 방문 순서가 변경되었습니다.');
+      showToast('🔄 방문 순서가 변경 및 클라우드 동기화되었습니다.');
     }
 
     // ==========================================
