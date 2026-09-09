@@ -278,7 +278,7 @@
               <th class="py-2.5 px-3.5">배송지 주소</th>
               <th class="py-2.5 px-2.5">방문시간</th>
               <th class="py-2.5 px-3">품목 및 수량</th>
-              <th class="py-2.5 px-3 min-w-[200px]">비고 (영업요청 / 관리자 지시)</th>
+              <th class="py-2.5 px-3 min-w-[180px]">비고</th>
               <th class="py-2.5 px-3">담당기사 배정</th>
               <th class="py-2.5 px-2.5 text-center">모바일 통화</th>
               <th class="py-2.5 px-2.5 text-center">내비 연동</th>
@@ -487,9 +487,9 @@
 
         <div>
           <label class="block text-[11px] font-bold text-slate-600 mb-1 flex items-center gap-1">
-            <i class="fa-solid fa-comment-dots text-amber-500"></i> 비고 (영업사원 요청 및 추가 지시사항)
+            <i class="fa-solid fa-comment-dots text-amber-500"></i> 비고
           </label>
-          <textarea id="editMemo" rows="2" placeholder="기사 전달 요청사항, 영업 메모, 추가 지시사항..." class="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-indigo-500 text-slate-700"></textarea>
+          <textarea id="editMemo" rows="2" placeholder="비고 입력..." class="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-indigo-500 text-slate-700"></textarea>
         </div>
       </div>
 
@@ -565,9 +565,9 @@
 
         <div>
           <label class="block text-[11px] font-bold text-slate-600 mb-1 flex items-center gap-1">
-            <i class="fa-solid fa-comment-dots text-amber-500"></i> 비고 (영업사원 요청 및 추가 지시사항)
+            <i class="fa-solid fa-comment-dots text-amber-500"></i> 비고
           </label>
-          <textarea id="addMemo" rows="2" placeholder="기사 전달 요청사항, 영업 메모, 추가 지시사항..." class="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-indigo-500 text-slate-700"></textarea>
+          <textarea id="addMemo" rows="2" placeholder="비고 입력..." class="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-indigo-500 text-slate-700"></textarea>
         </div>
       </div>
 
@@ -1553,7 +1553,14 @@
           var contactIndices = findColIndices(['핸드폰', '전화번호', '담당자_연락처', '연락처']);
           var recipientIndices = findColIndices(['받는사람', '담당자']);
           var contractIndices = findColIndices(['계약번호', '주문번호']);
-          var memoIndices = findColIndices(['출고/회수의뢰 비고', '비고', '특이사항', '비고_전문']);
+          // '출고/회수의뢰 비고'는 PC 세팅 등 출고작업자용이므로 완전히 배제하고, 순수 '비고' 컬럼만 가져옴
+          var memoIndices = [];
+          header.forEach(function(h, idx) {
+            var trimmed = (h || '').trim();
+            if (trimmed === '비고' || trimmed === '비고_전문' || (trimmed.indexOf('비고') !== -1 && trimmed.indexOf('출고') === -1 && trimmed.indexOf('회수') === -1)) {
+              memoIndices.push(idx);
+            }
+          });
           var driverIndices = findColIndices(['배송담당', '담당기사', '기사']);
           var dateIndices = findColIndices(['배송예정일자', '배송일자', '일자']);
 
@@ -1839,17 +1846,17 @@
           </select>
         `;
 
-        // 비고/지시사항 인라인 입력
+        // 비고 인라인 입력
         var memoEscaped = (r.비고_전문 || '').replace(/"/g, '&quot;');
         var memoInputHtml = `
           <div class="relative flex items-center min-w-[200px]">
             <input type="text" 
                    value="${memoEscaped}" 
-                   placeholder="영업요청/지시사항 입력..." 
+                   placeholder="비고 입력..." 
                    onchange="onInlineMemoChange(${realIdx}, this.value)"
                    class="w-full px-2.5 py-1 text-xs bg-slate-50/70 hover:bg-white focus:bg-white border border-slate-200 focus:border-indigo-500 rounded-lg text-slate-700 placeholder:text-slate-300 transition focus:outline-none focus:ring-1 focus:ring-indigo-500 font-medium"
                    title="${memoEscaped}">
-            ${r.비고_전문 ? `<i class="fa-solid fa-comment-dots text-[11px] text-amber-500 absolute right-2 pointer-events-none" title="비고/지시 있음"></i>` : ''}
+            ${r.비고_전문 ? `<i class="fa-solid fa-comment-dots text-[11px] text-amber-500 absolute right-2 pointer-events-none" title="비고 있음"></i>` : ''}
           </div>
         `;
 
@@ -1948,7 +1955,7 @@
       r.비고_전문 = (newMemo || '').trim();
       renderRouteMap();
 
-      showToast('📝 [' + r.고객사 + '] 비고/지시사항이 저장되었습니다!');
+      showToast('📝 [' + r.고객사 + '] 비고가 저장되었습니다!');
 
       if (supabaseClient && r.ID) {
         supabaseClient.from('delivery_schedules').update({ 
