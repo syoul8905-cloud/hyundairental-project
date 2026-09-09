@@ -1313,34 +1313,6 @@
     // ==========================================
     // Master Table & Inline Driver Assignment
     // ==========================================
-    function renderTable() {
-      var tbody = document.getElementById('tableBody');
-      var kw = (document.getElementById('tableSearchInput').value || '').toLowerCase().trim();
-      var typeFilter = document.getElementById('tableTypeFilter').value;
-      var driverFilter = document.getElementById('driverFilterSelect') ? document.getElementById('driverFilterSelect').value : 'all';
-
-      var filtered = records.filter(function(r) {
-        if (typeFilter !== 'all' && (r.구분 || '').indexOf(typeFilter) === -1) return false;
-        if (driverFilter !== 'all') {
-          var d = (r.담당기사 || '').trim();
-          if (driverFilter === '' && d !== '') return false;
-          if (driverFilter !== '' && d !== driverFilter) return false;
-        }
-        if (kw) {
-          var matchStr = (r.고객사 + ' ' + r.주소 + ' ' + r.품목_수량 + ' ' + r.담당기사 + ' ' + r.계약번호).toLowerCase();
-          if (matchStr.indexOf(kw) === -1) return false;
-        }
-        return true;
-      });
-
-      document.getElementById('tableCount').innerText = filtered.length;
-      tbody.innerHTML = '';
-
-      if (filtered.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="10" class="py-8 text-center text-slate-400 font-medium">조회된 배송 내역이 없습니다.</td></tr>';
-        return;
-      }
-
     function getCategoryBadgeStyle(cat) {
       if (cat === '배송') return 'bg-blue-50 text-blue-700 border-blue-200';
       if (cat === '회수') return 'bg-purple-50 text-purple-700 border-purple-200';
