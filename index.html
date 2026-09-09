@@ -847,11 +847,19 @@
         </div>
 
         <div>
-          <label class="block text-xs font-bold text-slate-600 mb-1">비밀번호</label>
+          <div class="flex items-center justify-between mb-1">
+            <label class="block text-xs font-bold text-slate-600">비밀번호 (PIN)</label>
+            <span class="text-[10px] text-indigo-600 font-bold bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-100">숫자 4자리</span>
+          </div>
           <div class="relative">
             <i class="fa-solid fa-lock absolute left-3.5 top-3 text-slate-400 text-xs"></i>
-            <input type="password" id="loginPassword" required placeholder="비밀번호 입력" 
-                   class="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:border-indigo-500 focus:bg-white transition">
+            <input type="password" id="loginPassword" required inputmode="numeric" pattern="[0-9]*" maxlength="4"
+                   placeholder="숫자 4자리 PIN 입력"
+                   oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 4)"
+                   class="w-full pl-9 pr-8 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 tracking-widest focus:outline-none focus:border-indigo-500 focus:bg-white transition">
+            <button type="button" onclick="togglePasswordVisibility('loginPassword', this)" class="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600">
+              <i class="fa-solid fa-eye-slash text-xs"></i>
+            </button>
           </div>
         </div>
 
@@ -919,8 +927,10 @@
             <input type="text" id="newUserId" placeholder="예: 홍길동" class="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold focus:outline-none focus:border-indigo-500">
           </div>
           <div class="sm:col-span-1">
-            <label class="block text-[11px] font-bold text-slate-600 mb-1">비밀번호</label>
-            <input type="text" id="newUserPw" value="1234" placeholder="비밀번호" class="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-mono focus:outline-none focus:border-indigo-500">
+            <label class="block text-[11px] font-bold text-slate-600 mb-1">비밀번호 (숫자 4자리)</label>
+            <input type="text" id="newUserPw" value="1234" maxlength="4" inputmode="numeric" pattern="[0-9]*"
+                   placeholder="4자리 PIN" oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 4)"
+                   class="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-mono font-bold tracking-widest focus:outline-none focus:border-indigo-500">
           </div>
           <div class="sm:col-span-1">
             <label class="block text-[11px] font-bold text-slate-600 mb-1">역할 / 권한</label>
@@ -993,19 +1003,22 @@
                  class="w-full px-3 py-2 bg-slate-100 border border-slate-200 rounded-lg text-xs font-bold text-slate-500 cursor-not-allowed">
         </div>
         <div>
-          <label class="block text-[11px] font-bold text-slate-600 mb-1">현재 비밀번호</label>
-          <input type="password" id="userSettingCurrentPw" required placeholder="현재 비밀번호 입력"
-                 class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold focus:outline-none focus:border-indigo-500">
+          <label class="block text-[11px] font-bold text-slate-600 mb-1">현재 비밀번호 (숫자 4자리)</label>
+          <input type="password" id="userSettingCurrentPw" required maxlength="4" inputmode="numeric" pattern="[0-9]*"
+                 placeholder="현재 4자리 PIN" oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 4)"
+                 class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold tracking-widest focus:outline-none focus:border-indigo-500">
         </div>
         <div>
-          <label class="block text-[11px] font-bold text-slate-600 mb-1">새로운 비밀번호</label>
-          <input type="password" id="userSettingNewPw" required placeholder="새 비밀번호 입력"
-                 class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold focus:outline-none focus:border-indigo-500">
+          <label class="block text-[11px] font-bold text-slate-600 mb-1">새로운 비밀번호 (숫자 4자리)</label>
+          <input type="password" id="userSettingNewPw" required maxlength="4" inputmode="numeric" pattern="[0-9]*"
+                 placeholder="새 4자리 PIN" oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 4)"
+                 class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold tracking-widest focus:outline-none focus:border-indigo-500">
         </div>
         <div>
           <label class="block text-[11px] font-bold text-slate-600 mb-1">새로운 비밀번호 확인</label>
-          <input type="password" id="userSettingConfirmPw" required placeholder="새 비밀번호 재입력"
-                 class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold focus:outline-none focus:border-indigo-500">
+          <input type="password" id="userSettingConfirmPw" required maxlength="4" inputmode="numeric" pattern="[0-9]*"
+                 placeholder="새 4자리 PIN 재입력" oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 4)"
+                 class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold tracking-widest focus:outline-none focus:border-indigo-500">
         </div>
 
         <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
@@ -1210,15 +1223,31 @@
       if (overlay) overlay.classList.add('hidden');
     }
 
+    function togglePasswordVisibility(targetId, btn) {
+      var input = document.getElementById(targetId);
+      if (!input) return;
+      if (input.type === 'password') {
+        input.type = 'text';
+        if (btn) btn.innerHTML = '<i class="fa-solid fa-eye text-xs text-indigo-600"></i>';
+      } else {
+        input.type = 'password';
+        if (btn) btn.innerHTML = '<i class="fa-solid fa-eye-slash text-xs text-slate-400"></i>';
+      }
+    }
+
     function attemptLogin() {
       var id = (document.getElementById('loginUsername').value || '').trim();
-      var pw = (document.getElementById('loginPassword').value || '').trim();
+      var pw = (document.getElementById('loginPassword').value || '').replace(/[^0-9]/g, '').slice(0, 4);
       var remId = document.getElementById('loginRememberId').checked;
       var remPw = document.getElementById('loginRememberPw').checked;
       var isAuto = document.getElementById('loginAutoLogin').checked;
 
       if (!id || !pw) {
-        alert('아이디와 비밀번호를 모두 입력해주세요.');
+        alert('아이디와 비밀번호(숫자 4자리)를 모두 입력해주세요.');
+        return;
+      }
+      if (pw.length !== 4) {
+        alert('비밀번호는 숫자 4자리 PIN 번호로 입력해주세요. (기본: 1234)');
         return;
       }
 
@@ -1229,7 +1258,7 @@
       }
 
       if (user.pw !== pw) {
-        alert('비밀번호가 일치하지 않습니다.');
+        alert('비밀번호가 일치하지 않습니다. (숫자 4자리 PIN)');
         return;
       }
 
@@ -1369,8 +1398,9 @@
           </td>
           <td class="py-2 px-3">
             <div class="flex items-center gap-1.5">
-              <input type="text" id="adminUserPw_${idx}" value="${u.pw}" 
-                     class="w-24 px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-mono focus:outline-none focus:border-indigo-500 text-slate-700">
+              <input type="text" id="adminUserPw_${idx}" value="${u.pw}" maxlength="4" inputmode="numeric" pattern="[0-9]*"
+                     oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 4)"
+                     class="w-20 px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-mono font-bold text-center tracking-widest focus:outline-none focus:border-indigo-500 text-slate-700">
               <button onclick="onAdminSavePassword(${idx})" class="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold rounded-lg text-[11px] border border-indigo-200 transition">
                 저장
               </button>
@@ -1392,11 +1422,16 @@
 
     async function createNewUserAccount() {
       var id = (document.getElementById('newUserId').value || '').trim();
-      var pw = (document.getElementById('newUserPw').value || '').trim();
+      var pw = (document.getElementById('newUserPw').value || '').replace(/[^0-9]/g, '').slice(0, 4);
       var role = document.getElementById('newUserRole').value;
 
       if (!id || !pw) {
-        alert('이름과 비밀번호를 모두 입력해주세요.');
+        alert('이름과 비밀번호(숫자 4자리)를 모두 입력해주세요.');
+        return;
+      }
+
+      if (pw.length !== 4) {
+        alert('비밀번호는 숫자 4자리 PIN 번호로 입력해주세요. (예: 1234)');
         return;
       }
 
@@ -1433,7 +1468,11 @@
         alert('비밀번호를 입력해주세요.');
         return;
       }
-      var newPw = inp.value.trim();
+      var newPw = inp.value.replace(/[^0-9]/g, '').slice(0, 4);
+      if (newPw.length !== 4) {
+        alert('비밀번호는 숫자 4자리 PIN 번호로 입력해주세요.');
+        return;
+      }
       authUsers[idx].pw = newPw;
       await saveAuthUsersToCloud();
       showToast('🔑 [' + authUsers[idx].id + '] 비밀번호가 "' + newPw + '"(으)로 수정되었습니다.');
@@ -1474,12 +1513,17 @@
     }
 
     async function changeMyPassword() {
-      var currentPw = (document.getElementById('userSettingCurrentPw').value || '').trim();
-      var newPw = (document.getElementById('userSettingNewPw').value || '').trim();
-      var confirmPw = (document.getElementById('userSettingConfirmPw').value || '').trim();
+      var currentPw = (document.getElementById('userSettingCurrentPw').value || '').replace(/[^0-9]/g, '').slice(0, 4);
+      var newPw = (document.getElementById('userSettingNewPw').value || '').replace(/[^0-9]/g, '').slice(0, 4);
+      var confirmPw = (document.getElementById('userSettingConfirmPw').value || '').replace(/[^0-9]/g, '').slice(0, 4);
 
       if (!currentPw || !newPw || !confirmPw) {
         alert('모든 필드를 입력해주세요.');
+        return;
+      }
+
+      if (newPw.length !== 4) {
+        alert('새로운 비밀번호는 숫자 4자리 PIN 번호로 입력해주세요.');
         return;
       }
 

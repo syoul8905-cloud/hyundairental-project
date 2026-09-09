@@ -68,11 +68,19 @@
         </div>
 
         <div>
-          <label class="block text-xs font-bold text-slate-700 mb-1">비밀번호</label>
+          <div class="flex items-center justify-between mb-1">
+            <label class="block text-xs font-bold text-slate-700">비밀번호 (PIN)</label>
+            <span class="text-[10px] text-indigo-600 font-bold bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-100">숫자 4자리</span>
+          </div>
           <div class="relative">
             <i class="fa-solid fa-lock absolute left-3.5 top-3.5 text-slate-400"></i>
-            <input type="password" id="loginPassword" placeholder="비밀번호 입력 (초기: 1234)" required
-                   class="w-full pl-10 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:outline-none focus:border-indigo-600">
+            <input type="password" id="loginPassword" inputmode="numeric" pattern="[0-9]*" maxlength="4"
+                   placeholder="숫자 4자리 PIN (초기: 1234)" required
+                   oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 4)"
+                   class="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold tracking-widest focus:outline-none focus:border-indigo-600">
+            <button type="button" onclick="togglePasswordVisibility('loginPassword', this)" class="absolute right-3 top-3 text-slate-400 hover:text-slate-600 p-0.5">
+              <i class="fa-solid fa-eye-slash text-xs"></i>
+            </button>
           </div>
         </div>
 
@@ -465,9 +473,40 @@
       { id: '조경찬', pw: '1234', role: 'driver' }
     ];
 
+    function togglePasswordVisibility(targetId, btn) {
+      var input = document.getElementById(targetId);
+      if (!input) return;
+      if (input.type === 'password') {
+        input.type = 'text';
+        if (btn) btn.innerHTML = '<i class="fa-solid fa-eye text-xs text-indigo-600"></i>';
+      } else {
+        input.type = 'password';
+        if (btn) btn.innerHTML = '<i class="fa-solid fa-eye-slash text-xs text-slate-400"></i>';
+      }
+    }
+
+    async function syncAuthUsersFromCloud() {
+      if (!supabaseClient) return;
+      try {
+        var res = await supabaseClient.from('delivery_schedules')
+          .select('memo_full')
+          .eq('source_sheet', 'SYSTEM_CONFIG_USERS')
+          .limit(1);
+        if (res.data && res.data.length > 0 && res.data[0].memo_full) {
+          var cloudUsers = JSON.parse(res.data[0].memo_full);
+          if (Array.isArray(cloudUsers) && cloudUsers.length > 0) {
+            localStorage.setItem('DELIVERY_AUTH_USERS_V3', JSON.stringify(cloudUsers));
+            localStorage.setItem('DELIVERY_AUTH_USERS', JSON.stringify(cloudUsers));
+          }
+        }
+      } catch (e) {
+        console.warn('Mobile cloud users sync error:', e);
+      }
+    }
+
     function getAuthUsers() {
       try {
-        var raw = localStorage.getItem('DELIVERY_AUTH_USERS');
+        var raw = localStorage.getItem('DELIVERY_AUTH_USERS_V3') || localStorage.getItem('DELIVERY_AUTH_USERS');
         if (raw) return JSON.parse(raw);
       } catch(e) {}
       return DEFAULT_AUTH_USERS;
@@ -582,15 +621,26 @@
     // ==========================================
     // Auth Engine
     // ==========================================
-    function handleMobileLogin(e) {
+    async function handleMobileLogin(e) {
       e.preventDefault();
       var id = document.getElementById('loginUsername').value.trim();
-      var pw = document.getElementById('loginPassword').value.trim();
+      var pw = document.getElementById('loginPassword').value.replace(/[^0-9]/g, '').slice(0, 4);
+
+      if (!id || !pw) {
+        alert('이름과 비밀번호를 모두 입력해주세요.');
+        return;
+      }
+      if (pw.length !== 4) {
+        alert('비밀번호는 숫자 4자리 PIN 번호로 입력해주세요. (초기: 1234)');
+        return;
+      }
+
+      await syncAuthUsersFromCloud();
       var users = getAuthUsers();
       var user = users.find(function(u) { return u.id === id && u.pw === pw; });
 
       if (!user) {
-        alert('이름 또는 비밀번호가 일치하지 않습니다.');
+        alert('이름 또는 비밀번호가 일치하지 않습니다.\n비밀번호는 숫자 4자리 PIN 번호입니다.');
         return;
       }
 
@@ -1208,9 +1258,10 @@
     }
 
     // Auto login check
-    window.addEventListener('DOMContentLoaded', function() {
+    window.addEventListener('DOMContentLoaded', async function() {
+      await syncAuthUsersFromCloud();
       var savedId = localStorage.getItem('DELIVERY_SAVED_ID') || '';
-      var savedPw = localStorage.getItem('DELIVERY_SAVED_PW') || '';
+      var savedPw = (localStorage.getItem('DELIVERY_SAVED_PW') || '').replace(/[^0-9]/g, '').slice(0, 4);
       var isAuto = localStorage.getItem('DELIVERY_AUTO_LOGIN') === 'true';
 
       if (savedId) document.getElementById('loginUsername').value = savedId;
