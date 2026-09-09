@@ -2437,9 +2437,7 @@
         select.appendChild(unOpt);
       }
 
-      if (curr === 'all') {
-        select.value = 'all';
-      }
+      select.value = curr;
 
       var mobileSelect = document.getElementById('driverFilterSelectMobile');
       if (mobileSelect) {
@@ -3972,6 +3970,7 @@
       }
 
       clearTableSelection();
+      updateDriverFilterOptions();
       updateKPIs();
       renderRouteMap();
       renderTable();
