@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>현장 배송기사용 모바일 웹 사용 매뉴얼</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700;800;900&display=swap');
+    body { font-family: 'Pretendard', sans-serif; color: #1e293b; line-height: 1.6; }
+    @page { size: A4 portrait; margin: 12mm 12mm 15mm 12mm; }
+    @media print {
+      body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .page-break { page-break-after: always; }
+      .no-break { break-inside: avoid; }
+    }
+  </style>
+</head>
+<body class="bg-white text-slate-800 text-xs">
+
+  <!-- ================= PAGE 1 ================= -->
+  <div class="page-break pb-6">
+    <!-- Header Banner -->
+    <div class="bg-gradient-to-r from-indigo-900 via-indigo-800 to-blue-900 text-white p-6 rounded-2xl mb-5 shadow-sm">
+      <div class="flex items-center justify-between">
+        <div>
+          <span class="bg-indigo-400/30 text-indigo-100 border border-indigo-300/40 text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+            Mobile Delivery Cockpit Manual
+          </span>
+          <h1 class="text-2xl font-black mt-2 tracking-tight">현장 배송기사용 모바일 웹 매뉴얼</h1>
+          <p class="text-indigo-200 text-xs mt-1 font-medium">스마트폰 1터치 바로가기 설치, 티맵 연동 및 도착 시간 관리 가이드</p>
+        </div>
+        <div class="w-14 h-14 bg-white/10 rounded-2xl flex items-center justify-center border border-white/20 text-3xl shadow-inner">
+          <i class="fa-solid fa-truck-fast text-white"></i>
+        </div>
+      </div>
+      <div class="mt-4 pt-3 border-t border-indigo-700/60 flex items-center justify-between text-[11px] text-indigo-200">
+        <span>현대렌탈서비스 현장배송물류팀</span>
+        <span>배송사원 전용 · 모바일 웹 (mobile.html)</span>
+      </div>
+    </div>
+
+    <!-- Section 1: PWA Home Shortcut Installation -->
+    <div class="space-y-3 mb-5">
+      <div class="border-l-4 border-indigo-600 pl-3">
+        <h2 class="text-base font-black text-slate-900">1. 스마트폰 바탕화면에 배송차량 바로가기 추가 (필수)</h2>
+        <p class="text-slate-500 text-[11px]">매번 인터넷 주소를 입력하지 않고 앱처럼 1초 만에 실행하는 방법</p>
+      </div>
+
+      <div class="bg-amber-50 border border-amber-200 rounded-xl p-3.5 space-y-2">
+        <div class="flex items-center gap-2">
+          <div class="w-6 h-6 rounded-lg bg-amber-500 text-white flex items-center justify-center text-xs">
+            <i class="fa-solid fa-star"></i>
+          </div>
+          <b class="text-amber-950 text-xs">최초 1회 바탕화면에 아이콘을 만들어 두시면 매일 출근 시 터치 한 번으로 열립니다!</b>
+        </div>
+        <p class="text-amber-900 text-[11px] leading-relaxed">
+          스마트폰 브라우저로 접속 주소(<b>https://hyundairental-project-1.vercel.app/mobile.html</b>)를 연 후 아래 안내에 따라 설치하세요.
+        </p>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        <!-- Android Guide -->
+        <div class="bg-white border border-slate-200 rounded-xl p-3.5 shadow-xs space-y-2">
+          <div class="flex items-center gap-2 text-slate-900 font-black text-xs">
+            <i class="fa-brands fa-android text-emerald-600 text-base"></i>
+            <span>갤럭시 / 안드로이드 (Chrome)</span>
+          </div>
+          <ol class="list-decimal list-inside text-slate-600 space-y-1.5 text-[11px] pl-1">
+            <li>화면 상단의 노란색 <b>[🚚 바로가기]</b> 버튼 또는 화면 안내 배너의 <b>[설치]</b> 터치</li>
+            <li>팝업창에서 파란색 <b>[바탕화면에 배송차량 아이콘 추가하기]</b> 터치</li>
+            <li>브라우저 설치 팝업이 뜨면 <b>[설치]</b> 또는 <b>[추가]</b> 선택</li>
+            <li>스마트폰 바탕화면에 <b>배송차량 아이콘</b>이 생성됩니다!</li>
+          </ol>
+          <div class="p-2 bg-slate-50 rounded text-[10px] text-slate-400">
+            * 팝업이 안 뜰 경우: 크롬 우측 상단 [점 3개] ➔ [홈 화면에 추가] 터치
+          </div>
+        </div>
+
+        <!-- iOS Guide -->
+        <div class="bg-white border border-slate-200 rounded-xl p-3.5 shadow-xs space-y-2">
+          <div class="flex items-center gap-2 text-slate-900 font-black text-xs">
+            <i class="fa-brands fa-apple text-slate-800 text-base"></i>
+            <span>아이폰 (Safari 사파리)</span>
+          </div>
+          <ol class="list-decimal list-inside text-slate-600 space-y-1.5 text-[11px] pl-1">
+            <li>사파리 브라우저 하단 중앙의 <b>[공유 아이콘 <i class="fa-solid fa-arrow-up-from-bracket text-indigo-600"></i>]</b> 터치</li>
+            <li>메뉴를 아래로 스크롤하여 <b>[홈 화면에 추가 <i class="fa-solid fa-square-plus text-indigo-600"></i>]</b> 터치</li>
+            <li>우측 상단의 <b>[추가]</b> 글자 터치</li>
+            <li>아이폰 바탕화면에 <b>배송차량 아이콘</b>이 즉시 생성됩니다!</li>
+          </ol>
+          <div class="p-2 bg-slate-50 rounded text-[10px] text-slate-400">
+            * 사파리(Safari) 브라우저에서 실행하셔야 홈 화면 추가가 지원됩니다.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 2: Login & Daily Schedule -->
+    <div class="space-y-3">
+      <div class="border-l-4 border-indigo-600 pl-3">
+        <h2 class="text-base font-black text-slate-900">2. 로그인 및 당일 배송 스케줄 자동 로드</h2>
+        <p class="text-slate-500 text-[11px]">본인 계정 로그인 및 배정 건 실시간 확인</p>
+      </div>
+
+      <div class="grid grid-cols-3 gap-2.5 text-[11px]">
+        <div class="bg-white border border-slate-200 p-3 rounded-xl shadow-xs">
+          <b class="text-indigo-900 flex items-center gap-1.5 mb-1.5">
+            <i class="fa-solid fa-key text-indigo-600"></i> 기사 계정 로그인
+          </b>
+          <p class="text-slate-600 text-[10px] leading-relaxed">
+            최초 1회 관리자에게 부여받은 ID(예: 김승지)와 비밀번호를 입력하고 로그인합니다. 로그인 정보는 스마트폰에 안전하게 유지됩니다.
+          </p>
+        </div>
+        <div class="bg-white border border-slate-200 p-3 rounded-xl shadow-xs">
+          <b class="text-indigo-900 flex items-center gap-1.5 mb-1.5">
+            <i class="fa-solid fa-filter text-indigo-600"></i> 본인 배정 건 자동 선별
+          </b>
+          <p class="text-slate-600 text-[10px] leading-relaxed">
+            로그인 즉시 오늘 날짜 기준으로 <b>본인에게 배정된 배송/회수 일정만</b> 자동으로 선별되어 세로 카드 리스트로 정렬됩니다.
+          </p>
+        </div>
+        <div class="bg-white border border-slate-200 p-3 rounded-xl shadow-xs">
+          <b class="text-indigo-900 flex items-center gap-1.5 mb-1.5">
+            <i class="fa-solid fa-chart-line text-indigo-600"></i> 상단 실시간 진행률
+          </b>
+          <p class="text-slate-600 text-[10px] leading-relaxed">
+            화면 상단에서 <i>[총 N건 중 완료 N건, 남은 배송 N건]</i> 현황과 그라데이션 진행률 바를 실시간으로 확인합니다.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= PAGE 2 ================= -->
+  <div class="page-break pb-6">
+    <!-- Section 3: Field Operations (Tmap & Arrival) -->
+    <div class="space-y-4">
+      <div class="border-l-4 border-indigo-600 pl-3">
+        <h2 class="text-base font-black text-slate-900">3. 현장 배송 업무 핵심 기능 (티맵 안내 & 도착 기록)</h2>
+        <p class="text-slate-500 text-[11px]">주소 검색 없이 원터치 길안내 실행 및 시간 자동 전송</p>
+      </div>
+
+      <!-- Main Action Flow Box -->
+      <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
+        <div class="grid grid-cols-2 gap-3">
+          <!-- T-map Button -->
+          <div class="bg-white p-3.5 rounded-xl border-2 border-indigo-500/40 shadow-xs space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="px-2.5 py-1 bg-indigo-600 text-white rounded-lg font-black text-xs flex items-center gap-1">
+                <i class="fa-solid fa-location-arrow"></i> 티맵 길안내 ↗
+              </span>
+              <span class="text-[10px] text-indigo-600 font-bold">출발 시 필수 터치!</span>
+            </div>
+            <p class="text-slate-700 text-[11px] leading-relaxed">
+              다음 배송지로 <b>출발하기 전</b> 이 버튼을 누릅니다.
+            </p>
+            <ul class="text-[10px] text-slate-600 space-y-1 bg-indigo-50/50 p-2 rounded-lg border border-indigo-100">
+              <li>• 스마트폰의 <b>티맵(T-map) 앱이 즉시 실행</b>되며 목적지 주소가 자동 입력되어 바로 길안내가 시작됩니다.</li>
+              <li>• <b>중요</b>: 버튼을 누르는 순간 시스템에 <b>[출발 시각]</b>이 자동 기록되어 관리자에게 전송됩니다.</li>
+            </ul>
+          </div>
+
+          <!-- Arrival Button -->
+          <div class="bg-white p-3.5 rounded-xl border-2 border-emerald-500/40 shadow-xs space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="px-2.5 py-1 bg-emerald-600 text-white rounded-lg font-black text-xs flex items-center gap-1">
+                <i class="fa-solid fa-flag-checkered"></i> 배송지 도착 🏁
+              </span>
+              <span class="text-[10px] text-emerald-600 font-bold">현장 도착 시 터치!</span>
+            </div>
+            <p class="text-slate-700 text-[11px] leading-relaxed">
+              고객사 현장에 <b>차량을 대고 도착했을 때</b> 이 버튼을 누릅니다.
+            </p>
+            <ul class="text-[10px] text-slate-600 space-y-1 bg-emerald-50/50 p-2 rounded-lg border border-emerald-100">
+              <li>• 배송 카드가 <b>[도착 완료]</b> 상태로 변경되며 상단 진행률이 올라갑니다.</li>
+              <li>• <b>중요</b>: 버튼을 누르는 순간 시스템에 <b>[도착 시각]</b>이 자동 기록되어 관리자 대시보드에 즉시 표출됩니다.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 4: Customer Call & Notes -->
+      <div class="border-l-4 border-indigo-600 pl-3 pt-2">
+        <h2 class="text-base font-black text-slate-900">4. 고객사 원터치 통화 및 영업 요청사항 확인</h2>
+        <p class="text-slate-500 text-[11px]">배송 전 통화 연결 및 관리자 전달 메모 확인</p>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3 text-[11px]">
+        <div class="bg-white border border-slate-200 p-3.5 rounded-xl shadow-xs space-y-1.5">
+          <b class="text-slate-900 flex items-center gap-1.5">
+            <i class="fa-solid fa-phone text-emerald-600"></i> 원터치 전화 걸기
+          </b>
+          <p class="text-slate-600 text-[10px] leading-relaxed">
+            고객사명 옆의 <b>[📞 초록색 전화 아이콘]</b>을 터치하면 담당자 번호가 스마트폰 다이얼에 자동 입력되어 즉시 통화로 연결됩니다.
+            번호를 외우거나 따로 입력할 필요가 전혀 없습니다.
+          </p>
+        </div>
+
+        <div class="bg-white border border-slate-200 p-3.5 rounded-xl shadow-xs space-y-1.5">
+          <b class="text-slate-900 flex items-center gap-1.5">
+            <i class="fa-solid fa-note-sticky text-amber-500"></i> 비고 (영업 요청 / 관리자 지시)
+          </b>
+          <p class="text-slate-600 text-[10px] leading-relaxed">
+            배송 카드 하단에 노란색 메모 배너가 있을 경우 반드시 확인하세요.
+            <i>"도착 10분 전 사전 통화 필수", "후문 화물 엘리베이터 이용", "결제 단말기 지참"</i> 등 중요한 현장 지시사항이 적혀 있습니다.
+          </p>
+        </div>
+      </div>
+
+      <!-- Section 5: Change Order -->
+      <div class="border-l-4 border-indigo-600 pl-3 pt-2">
+        <h2 class="text-base font-black text-slate-900">5. 현장 상황에 따른 방문 순서 변경</h2>
+        <p class="text-slate-500 text-[11px]">교통 정체나 고객사 사정으로 순서를 바꿔야 할 때</p>
+      </div>
+
+      <div class="bg-white border border-slate-200 p-3.5 rounded-xl shadow-xs space-y-1.5">
+        <p class="text-slate-700 text-[11px] leading-relaxed">
+          각 배송 카드의 우측에 있는 <b>[▲ 위로]</b> 및 <b>[▼ 아래로]</b> 버튼을 누르면 해당 배송지의 방문 순서를 자유롭게 바꿀 수 있습니다.
+          순서를 바꾸면 번호(1번, 2번...)가 즉시 재계산되며 스마트폰 화면에 즉각 반영됩니다.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= PAGE 3 ================= -->
+  <div class="page-break pb-6">
+    <!-- Section 6: Map & Real Route -->
+    <div class="space-y-4">
+      <div class="border-l-4 border-indigo-600 pl-3">
+        <h2 class="text-base font-black text-slate-900">6. [전체 지도 보기 & 실제 주행 경로 계산] 활용법</h2>
+        <p class="text-slate-500 text-[11px]">오늘 하루 나의 전체 배송지 위치와 실제 도로 내비게이션 주행선 확인</p>
+      </div>
+
+      <div class="bg-indigo-50/50 border border-indigo-200 rounded-xl p-3.5 space-y-3">
+        <div class="flex items-center gap-2">
+          <div class="w-7 h-7 rounded-lg bg-indigo-600 text-white flex items-center justify-center text-xs">
+            <i class="fa-solid fa-map-location-dot"></i>
+          </div>
+          <div>
+            <b class="text-indigo-950 text-xs">어디서나 원터치로 풀스크린 지도 팝업 실행</b>
+            <p class="text-slate-500 text-[10px]">화면 하단 고정 바의 <b>[🗺️ 지도 보기]</b> 또는 상단 <b>[전체 배송 지도 보기]</b> 터치</p>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3 text-[11px]">
+          <div class="bg-white p-3 rounded-lg border border-slate-200 space-y-1">
+            <b class="text-slate-900 flex items-center gap-1">
+              <i class="fa-solid fa-location-dot text-indigo-600"></i> 1. 카카오맵 순번 마커 확인
+            </b>
+            <p class="text-slate-600 text-[10px] leading-relaxed">
+              지도가 열리면 오늘 가야 할 배송지들이 <b>1번부터 끝 번호까지 파란색 원형 핀</b>으로 지도 위에 한눈에 표시됩니다.
+              핀을 터치하면 고객사명과 주소가 인포윈도우로 나타납니다.
+            </p>
+          </div>
+
+          <div class="bg-white p-3 rounded-lg border border-indigo-200 space-y-1">
+            <b class="text-indigo-950 flex items-center gap-1">
+              <i class="fa-solid fa-route text-indigo-600"></i> 2. 실제 경로 계산 (교통상황 반영)
+            </b>
+            <p class="text-slate-600 text-[10px] leading-relaxed">
+              지도 상단의 보라색 <b>[🚗 실제 경로 계산]</b> 버튼을 누르면, 단순 직선이 아니라 <b>실제 자동차 도로망을 따라가는 파란색 주행선</b>이 그려집니다.
+            </p>
+          </div>
+        </div>
+
+        <div class="p-2.5 bg-white rounded-lg border border-slate-200 text-[10px] text-slate-700">
+          <b class="text-indigo-700">💡 실제 도로 주행거리 및 소요시간 배너 안내:</b>
+          <p class="mt-0.5 text-slate-600">
+            경로 계산 완료 시 상단 배너에 <i>"총 주행거리: 45.2km · 예상 소요시간: 1시간 18분"</i> 형태로 실제 이동 거리와 시간이 표출되므로 오늘 하루 전체 운행 일정을 사전에 계획하기에 매우 유용합니다.
+          </p>
+        </div>
+      </div>
+
+      <!-- Section 7: Important Tips & FAQ -->
+      <div class="border-l-4 border-indigo-600 pl-3 pt-2">
+        <h2 class="text-base font-black text-slate-900">7. 배송 기사 실무 꿀팁 및 FAQ</h2>
+        <p class="text-slate-500 text-[11px]">현장에서 자주 묻는 질문 및 대응 요령</p>
+      </div>
+
+      <div class="space-y-2 text-[10px]">
+        <div class="bg-white border border-slate-200 p-3 rounded-xl shadow-xs">
+          <b class="text-slate-900 text-[11px] flex items-center gap-1.5">
+            <i class="fa-solid fa-circle-question text-indigo-600"></i> Q. 티맵 버튼을 눌렀는데 티맵 앱이 안 열려요.
+          </b>
+          <p class="text-slate-600 mt-1 pl-4 leading-relaxed">
+            A. 스마트폰에 <b>티맵(T-map)</b> 앱이 설치되어 있는지 확인해주세요. 설치되어 있지 않다면 앱스토어/플레이스토어에서 티맵을 먼저 설치하시면 이후 원터치로 바로 연동됩니다.
+          </p>
+        </div>
+
+        <div class="bg-white border border-slate-200 p-3 rounded-xl shadow-xs">
+          <b class="text-slate-900 text-[11px] flex items-center gap-1.5">
+            <i class="fa-solid fa-circle-question text-indigo-600"></i> Q. 관리자가 배송 건을 추가해주었는데 모바일 화면에 안 보여요.
+          </b>
+          <p class="text-slate-600 mt-1 pl-4 leading-relaxed">
+            A. 모바일 화면 우측 상단의 <b>[새로고침 <i class="fa-solid fa-rotate text-slate-700"></i>]</b> 아이콘을 터치하시면 최신 배송 스케줄이 0.5초 만에 즉시 갱신됩니다.
+          </p>
+        </div>
+
+        <div class="bg-white border border-slate-200 p-3 rounded-xl shadow-xs">
+          <b class="text-slate-900 text-[11px] flex items-center gap-1.5">
+            <i class="fa-solid fa-circle-question text-indigo-600"></i> Q. 티맵 안내를 깜빡하고 누르지 않고 현장에 도착했어요.
+          </b>
+          <p class="text-slate-600 mt-1 pl-4 leading-relaxed">
+            A. 걱정하지 마시고 현장에서 <b>[배송지 도착 🏁]</b> 버튼을 바로 눌러주세요. 도착 시간은 정상 기록되며, 필요 시 관리자가 대시보드에서 보정할 수 있습니다.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>
