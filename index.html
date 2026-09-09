@@ -1553,11 +1553,14 @@
           var contactIndices = findColIndices(['핸드폰', '전화번호', '담당자_연락처', '연락처']);
           var recipientIndices = findColIndices(['받는사람', '담당자']);
           var contractIndices = findColIndices(['계약번호', '주문번호']);
-          // '출고/회수의뢰 비고'는 PC 세팅 등 출고작업자용이므로 완전히 배제하고, 순수 '비고' 컬럼만 가져옴
+          // '출고/회수의뢰 비고'는 PC 세팅 등 출고작업자용이므로 완전히 배제하고, 오직 순수 '비고' 컬럼만 가져옴
           var memoIndices = [];
           header.forEach(function(h, idx) {
             var trimmed = (h || '').trim();
-            if (trimmed === '비고' || trimmed === '비고_전문' || (trimmed.indexOf('비고') !== -1 && trimmed.indexOf('출고') === -1 && trimmed.indexOf('회수') === -1)) {
+            if (trimmed.indexOf('출고') !== -1 || trimmed.indexOf('회수') !== -1) {
+              return; // 작업자/공장용 비고 무조건 배제
+            }
+            if (trimmed === '비고' || trimmed === '비고_전문') {
               memoIndices.push(idx);
             }
           });
@@ -1751,12 +1754,27 @@
         });
 
         try {
-          var res = await supabaseClient.from('delivery_schedules').upsert(payload);
+          var cleanTargetDate = targetDate.replace(/\./g, '-');
+          var shortTargetDate = targetDate.replace(/-/g, '.');
+
+          // 기존 해당 일자 구버전/중복 데이터를 완전히 삭제 후 최신 데이터로 일괄 등록
+          await supabaseClient.from('delivery_schedules').delete().eq('delivery_date', targetDate);
+          if (cleanTargetDate !== targetDate) {
+            await supabaseClient.from('delivery_schedules').delete().eq('delivery_date', cleanTargetDate);
+          }
+          if (shortTargetDate !== targetDate) {
+            await supabaseClient.from('delivery_schedules').delete().eq('delivery_date', shortTargetDate);
+          }
+          await supabaseClient.from('delivery_schedules').delete().eq('source_sheet', targetDate);
+          await supabaseClient.from('delivery_schedules').delete().eq('source_sheet', shortTargetDate);
+
+          var res = await supabaseClient.from('delivery_schedules').insert(payload);
           if (res.error) {
-            console.warn('Supabase upsert warning:', res.error);
+            console.warn('Supabase insert warning:', res.error);
           } else {
-            showToast('💾 Supabase DB에 ' + payload.length + '건 클라우드 저장 완료!');
+            showToast('💾 Supabase DB에 ' + payload.length + '건 클라우드 갱신 완료!');
             await loadAvailableDates();
+            await triggerSync(true);
           }
         } catch(e) {
           console.error(e);
