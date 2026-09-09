@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3b82f6"/>
+      <stop offset="50%" stop-color="#4f46e5"/>
+      <stop offset="100%" stop-color="#1e1b4b"/>
+    </linearGradient>
+    <linearGradient id="truckGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#e2e8f0"/>
+    </linearGradient>
+    <linearGradient id="windowGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="100%" stop-color="#0284c7"/>
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="16" stdDeviation="16" flood-color="#0f172a" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+
+  <!-- App Icon Background (Squircle) -->
+  <rect width="512" height="512" rx="115" fill="url(#bgGrad)"/>
+  
+  <!-- Subtle inner border -->
+  <rect x="8" y="8" width="496" height="496" rx="108" fill="none" stroke="#ffffff" stroke-opacity="0.15" stroke-width="4"/>
+
+  <!-- Speed motion lines behind truck -->
+  <g opacity="0.4" stroke="#ffffff" stroke-linecap="round">
+    <line x1="45" y1="210" x2="85" y2="210" stroke-width="10"/>
+    <line x1="30" y1="250" x2="95" y2="250" stroke-width="14"/>
+    <line x1="50" y1="290" x2="80" y2="290" stroke-width="10"/>
+  </g>
+
+  <!-- Delivery Truck Group -->
+  <g filter="url(#shadow)">
+    <!-- Cargo Box (화물 적재함) -->
+    <rect x="105" y="145" width="205" height="190" rx="18" fill="url(#truckGrad)"/>
+    
+    <!-- Cargo Box Accent Line (현대 배송 느낌의 블루 스트라이프) -->
+    <rect x="105" y="225" width="205" height="18" fill="#4f46e5"/>
+
+    <!-- Cab (운전석 본체) -->
+    <path d="M 305 200 
+             L 360 200 
+             Q 395 210 415 255 
+             L 425 285 
+             Q 430 295 430 305 
+             L 430 335 
+             L 305 335 Z" 
+          fill="url(#truckGrad)"/>
+
+    <!-- Front Bumper -->
+    <rect x="420" y="315" width="20" height="20" rx="6" fill="#94a3b8"/>
+
+    <!-- Headlight (전조등) -->
+    <path d="M 422 285 L 432 290 L 432 305 L 420 305 Z" fill="#fbbf24"/>
+
+    <!-- Windshield (운전석 창문) -->
+    <path d="M 318 215 
+             L 358 215 
+             Q 385 225 400 260 
+             L 318 260 Z" 
+          fill="url(#windowGrad)"/>
+
+    <!-- Wheel Wells (바퀴 홈 아치) -->
+    <circle cx="185" cy="335" r="50" fill="#1e1b4b" opacity="0.3"/>
+    <circle cx="365" cy="335" r="50" fill="#1e1b4b" opacity="0.3"/>
+
+    <!-- Rear Wheel (뒷바퀴) -->
+    <circle cx="185" cy="335" r="42" fill="#1e293b"/>
+    <circle cx="185" cy="335" r="28" fill="#475569"/>
+    <circle cx="185" cy="335" r="14" fill="#cbd5e1"/>
+
+    <!-- Front Wheel (앞바퀴) -->
+    <circle cx="365" cy="335" r="42" fill="#1e293b"/>
+    <circle cx="365" cy="335" r="28" fill="#475569"/>
+    <circle cx="365" cy="335" r="14" fill="#cbd5e1"/>
+
+    <!-- Road / Ground Shadow -->
+    <ellipse cx="270" cy="385" rx="175" ry="14" fill="#0f172a" opacity="0.35"/>
+  </g>
+
+  <!-- Bottom Badge: "배송" / "DELIVERY" -->
+  <g transform="translate(256, 435)">
+    <rect x="-80" y="-18" width="160" height="34" rx="17" fill="#ffffff" fill-opacity="0.2"/>
+    <text text-anchor="middle" y="6" fill="#ffffff" font-family="'Pretendard', sans-serif" font-weight="900" font-size="18" letter-spacing="3">
+      현대 배송
+    </text>
+  </g>
+</svg>

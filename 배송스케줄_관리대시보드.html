@@ -4,6 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>배송스케줄 통합 관제 시스템 (단독 웹 / Supabase Cloud)</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="./icons/icon-192.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
+  <link rel="icon" type="image/svg+xml" href="./icons/icon-truck.svg">
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
@@ -176,8 +180,8 @@
             </button>
             <!-- 바로가기 설치 -->
             <button onclick="openShortcutInstallModal()" class="w-full px-3.5 py-2.5 text-left hover:bg-emerald-50 hover:text-emerald-600 font-bold flex items-center gap-2.5 transition text-slate-700">
-              <i class="fa-solid fa-circle-down text-emerald-500 text-sm"></i>
-              <span>바로가기 설치</span>
+              <i class="fa-solid fa-truck-fast text-emerald-500 text-sm"></i>
+              <span>배송차량 바로가기 설치</span>
             </button>
           </div>
           <div class="py-1">
@@ -964,12 +968,10 @@
     <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 space-y-4">
       <div class="flex items-center justify-between border-b border-slate-100 pb-3">
         <div class="flex items-center gap-2.5">
-          <div class="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-base">
-            <i class="fa-solid fa-mobile-screen-button"></i>
-          </div>
+          <img src="./icons/icon-192.png" alt="현대 배송차량 아이콘" class="w-10 h-10 rounded-xl shadow-xs border border-indigo-100 object-cover">
           <div>
-            <h3 class="font-black text-sm text-slate-900">스마트폰 홈 화면 바로가기 설치</h3>
-            <p class="text-[11px] text-slate-400">스마트폰 바탕화면에 앱 아이콘을 추가하여 1초 만에 배송을 시작하세요.</p>
+            <h3 class="font-black text-sm text-slate-900">스마트폰 홈 화면 배송차량 바로가기 설치</h3>
+            <p class="text-[11px] text-slate-400">스마트폰 바탕화면에 배송차량 앱 아이콘을 추가하여 1초 만에 배송을 시작하세요.</p>
           </div>
         </div>
         <button onclick="closeShortcutInstallModal()" class="text-slate-400 hover:text-slate-600 text-lg">
