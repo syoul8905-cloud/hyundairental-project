@@ -131,22 +131,23 @@
       </div>
 
       <!-- User Menu / Settings (Always Visible) -->
-      <div class="relative z-50 flex items-center gap-1 shrink-0" id="userMenuContainer">
+      <div class="flex items-center gap-1 shrink-0">
         <!-- 모바일 전용 CSV 버튼 (작은 화면에서 즉시 등록 지원) -->
         <button onclick="openCsvModal()" class="flex lg:hidden px-2 py-1 bg-indigo-600 text-white font-bold rounded-lg text-xs items-center gap-1 shadow-xs">
           <i class="fa-solid fa-file-csv"></i>
           <span class="hidden xs:inline">CSV</span>
         </button>
 
-        <button onclick="toggleUserMenu()" id="userMenuBtn" class="px-2 py-1 sm:px-2.5 sm:py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-900 font-bold rounded-lg transition flex items-center gap-1 sm:gap-1.5 border border-indigo-200 shadow-xs text-xs whitespace-nowrap">
-          <i class="fa-solid fa-circle-user text-indigo-600 text-sm"></i>
-          <span id="userMenuDisplayName" class="max-w-[70px] truncate sm:max-w-none">로그인</span>
-          <span id="userMenuRoleBadge" class="text-[9px] bg-indigo-200 text-indigo-900 px-1 py-0.2 sm:px-1.5 sm:py-0.5 rounded-full font-bold">인증대기</span>
-          <i class="fa-solid fa-chevron-down text-[9px] text-indigo-400"></i>
-        </button>
+        <div class="relative z-50" id="userMenuContainer">
+          <button onclick="toggleUserMenu()" id="userMenuBtn" class="px-2 py-1 sm:px-2.5 sm:py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-900 font-bold rounded-lg transition flex items-center gap-1 sm:gap-1.5 border border-indigo-200 shadow-xs text-xs whitespace-nowrap">
+            <i class="fa-solid fa-circle-user text-indigo-600 text-sm"></i>
+            <span id="userMenuDisplayName" class="max-w-[70px] truncate sm:max-w-none">로그인</span>
+            <span id="userMenuRoleBadge" class="text-[9px] bg-indigo-200 text-indigo-900 px-1 py-0.2 sm:px-1.5 sm:py-0.5 rounded-full font-bold">인증대기</span>
+            <i class="fa-solid fa-chevron-down text-[9px] text-indigo-400"></i>
+          </button>
 
-        <!-- Dropdown Menu -->
-        <div id="userMenuDropdown" class="hidden absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-2xl border border-slate-200 py-1.5 z-[9999] text-xs divide-y divide-slate-100">
+          <!-- Dropdown Menu (top-full 명시하여 버튼 바로 아래로 정상 팝업 보장) -->
+          <div id="userMenuDropdown" class="hidden absolute right-0 top-full mt-2 w-56 bg-white rounded-2xl shadow-2xl border border-slate-200 py-1.5 z-[9999] text-xs divide-y divide-slate-100">
           <div class="px-3.5 py-2.5 bg-slate-50 text-[11px] text-slate-500 font-medium rounded-t-2xl">
             접속자: <b id="userMenuDropdownName" class="text-slate-900 text-xs font-black">-</b>
           </div>
