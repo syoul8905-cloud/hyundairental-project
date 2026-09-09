@@ -1086,6 +1086,7 @@
             authUsers = cloudUsers;
             saveAuthUsersLocally();
             renderAdminUserTable();
+            populateBatchDriverSelect();
           }
         }
       } catch (e) {
@@ -1479,6 +1480,62 @@
 
     const DRIVER_LIST = ['김승지', '조경찬', '박종환', '최두성', '이성호', '장종순', '방문수령', '퀵'];
     const CATEGORY_LIST = ['배송', '회수', '설치', '수령', 'A/S'];
+
+    // 시스템 내 모든 등록 유저 및 기사 목록 취합 헬퍼
+    function getAllAvailableDrivers() {
+      var set = new Set();
+      // 1. authUsers에 등록된 모든 유저 (관리자/배송기사 전원)
+      if (Array.isArray(authUsers) && authUsers.length > 0) {
+        authUsers.forEach(function(u) {
+          if (u && u.id) set.add(u.id);
+        });
+      }
+      // 2. 기본 DRIVER_LIST (방문수령, 퀵 등 포함)
+      if (Array.isArray(DRIVER_LIST)) {
+        DRIVER_LIST.forEach(function(d) {
+          if (d) set.add(d);
+        });
+      }
+      // 3. 현재 스케줄 데이터 records에 기재된 기사명
+      if (Array.isArray(records)) {
+        records.forEach(function(r) {
+          var d = (r.담당기사 || '').trim();
+          if (d) set.add(d);
+        });
+      }
+      return Array.from(set);
+    }
+
+    // 일괄 배정 셀렉트(batchDriverSelect) 옵션 동적 채우기
+    function populateBatchDriverSelect() {
+      var select = document.getElementById('batchDriverSelect');
+      if (!select) return;
+      var currentVal = select.value;
+
+      var allDrivers = getAllAvailableDrivers();
+      select.innerHTML = '<option value="">기사 선택...</option>';
+
+      allDrivers.forEach(function(name) {
+        var opt = document.createElement('option');
+        opt.value = name;
+
+        var icon = '🚗 ';
+        var roleLabel = '';
+        if (name === '방문수령') {
+          icon = '🏢 ';
+        } else if (name === '퀵') {
+          icon = '⚡ ';
+        } else {
+          var matched = Array.isArray(authUsers) ? authUsers.find(function(u) { return u.id === name; }) : null;
+          if (matched) {
+            roleLabel = matched.role === 'admin' ? ' (관리자)' : ' (배송기사)';
+          }
+        }
+        opt.innerText = icon + name + roleLabel;
+        if (name === currentVal) opt.selected = true;
+        select.appendChild(opt);
+      });
+    }
 
     var records = [];
     var originalRecords = [];
@@ -1958,7 +2015,7 @@
 
       select.innerHTML = '<option value="all">전체 기사 보기 (' + records.length + '건)</option>';
 
-      DRIVER_LIST.forEach(function(d) {
+      getAllAvailableDrivers().forEach(function(d) {
         var count = driverCounts[d] || 0;
         var opt = document.createElement('option');
         opt.value = d;
@@ -1989,13 +2046,16 @@
       var editSelect = document.getElementById('editDriverQuickSelect');
       if (editSelect) {
         editSelect.innerHTML = '<option value="">기존 기사 선택...</option>';
-        DRIVER_LIST.forEach(function(d) {
+        getAllAvailableDrivers().forEach(function(d) {
           var opt2 = document.createElement('option');
           opt2.value = d;
           opt2.innerText = d;
           editSelect.appendChild(opt2);
         });
       }
+
+      // 일괄 배정 드롭다운 동기화
+      populateBatchDriverSelect();
     }
 
     function onDriverFilterChanged() {
@@ -3069,7 +3129,7 @@
         var driverSelectHtml = `
           <select onchange="onInlineDriverChange(${realIdx}, this.value)" class="py-1 px-2 bg-amber-50/80 hover:bg-amber-100 border border-amber-200 rounded-lg text-xs font-bold text-amber-900 focus:outline-none cursor-pointer">
             <option value="" ${!r.담당기사 ? 'selected' : ''}>⚠️ 기사 미배정</option>
-            ${DRIVER_LIST.map(function(d) {
+            ${getAllAvailableDrivers().map(function(d) {
               return `<option value="${d}" ${r.담당기사 === d ? 'selected' : ''}>🚗 ${d}</option>`;
             }).join('')}
           </select>
@@ -3231,7 +3291,7 @@
         var driverSelectHtml = `
           <select onchange="onInlineDriverChange(${realIdx}, this.value)" class="flex-1 py-1.5 px-2 bg-white border border-amber-300 rounded-xl text-xs font-black text-amber-950 focus:outline-none cursor-pointer shadow-xs">
             <option value="" ${!r.담당기사 ? 'selected' : ''}>⚠️ 기사 미배정</option>
-            ${DRIVER_LIST.map(function(d) {
+            ${getAllAvailableDrivers().map(function(d) {
               return `<option value="${d}" ${r.담당기사 === d ? 'selected' : ''}>🚗 ${d}</option>`;
             }).join('')}
           </select>
@@ -3360,6 +3420,7 @@
       countEl.innerText = uniqueIdxs.size;
 
       if (uniqueIdxs.size > 0) {
+        populateBatchDriverSelect();
         toolbar.classList.remove('hidden');
         toolbar.classList.add('flex');
       } else {
