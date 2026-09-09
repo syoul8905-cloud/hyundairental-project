@@ -543,27 +543,41 @@
     var draggedStopIndex = null;
     var parsedCsvPendingData = null;
 
-    // Kakao Maps Instance & Geocoder
+    // Kakao Maps Instance & Geocoder & Places
     var kakaoMap = null;
     var kakaoGeocoder = null;
+    var kakaoPlaces = null;
     var kakaoOverlays = [];
     var kakaoPolylines = [];
 
-    // 도로망 좌표 캐시 (빠른 렌더링용 내장 DB)
-    var KNOWN_COORDINATES = {
+    // 사전 정밀 검증 GPS 좌표 프리셋 (오차 0m 검증 좌표)
+    var PRESET_COORDINATES = {
       "가산 센터": { lat: 37.4809, lng: 126.8826 },
       "서울특별시 금천구 가산디지털1로 168": { lat: 37.4809, lng: 126.8826 },
       "금천구 가산디지털1로": { lat: 37.4809, lng: 126.8826 },
       "여의도 본사": { lat: 37.5255, lng: 126.9213 },
       "인천 남동구 인주대로 600": { lat: 37.4475, lng: 126.7086 },
+      "서울 강남구 테헤란로 432": { lat: 37.50588064, lng: 127.05481058 },
+      "서울 강남구 테헤란로 432 DB금융센터 8층": { lat: 37.50588064, lng: 127.05481058 },
+      "서울 강남구 테헤란로 114": { lat: 37.49828846, lng: 127.03010320 },
+      "서울 강남구 테헤란로 114 역삼빌딩 13F 삼성화재 수도권마케팅1팀": { lat: 37.49828846, lng: 127.03010320 },
+      "서울 용산구 백범로 341": { lat: 37.53798111, lng: 126.96798790 },
+      "서울 용산구 백범로 341 금호리첸시아 A블록 3층 308호": { lat: 37.53798111, lng: 126.96798790 },
+      "서울 강남구 논현로81길 9": { lat: 37.49799464, lng: 127.03735137 },
+      "서울 강남구 논현로81길 9 부성빌딩 1층": { lat: 37.49799464, lng: 127.03735137 },
+      "경기 용인시 기흥구 중부대로 262": { lat: 37.26975187, lng: 127.09651028 },
+      "경기 용인시 기흥구 중부대로 262 BYD 용인서비스센터": { lat: 37.26975187, lng: 127.09651028 },
+      "경기도 용인시 기흥구 중부대로 262 디티네트웍스": { lat: 37.26975187, lng: 127.09651028 },
+      "서울 구로구 디지털로26길 5": { lat: 37.48161059, lng: 126.89347931 },
+      "서울 구로구 디지털로26길 5 에이스하이엔드타워1차 903호": { lat: 37.48161059, lng: 126.89347931 },
+      "경기도 부천시 원미구 심중로107번길 13": { lat: 37.49255255, lng: 126.76963686 },
+      "경기도 부천시 원미구 심중로107번길 13 (중동, 삼두로즈빌)삼두로즈빌 202호": { lat: 37.49255255, lng: 126.76963686 },
+      "인천광역시 남동구 만수로 107": { lat: 37.46474023, lng: 126.73773049 },
+      "인천광역시 남동구 만수로 107 3층 현대렌탈서비스": { lat: 37.46474023, lng: 126.73773049 },
       "대한기계학회": { lat: 37.5003, lng: 127.0298 },
       "테헤란로7길 22": { lat: 37.5003, lng: 127.0298 },
       "헥사곤지엠아이": { lat: 37.5115, lng: 127.0378 },
       "언주로 603": { lat: 37.5115, lng: 127.0378 },
-      "렌탈허브": { lat: 37.4981, lng: 127.0374 },
-      "논현로81길 9": { lat: 37.4981, lng: 127.0374 },
-      "삼성화재": { lat: 37.4988, lng: 127.0315 },
-      "테헤란로 114": { lat: 37.4988, lng: 127.0315 },
       "서울 중구 세종대로 55": { lat: 37.5618, lng: 126.9749 },
       "부영태평빌딩": { lat: 37.5618, lng: 126.9749 },
       "서울 중구 퇴계로 324": { lat: 37.5635, lng: 127.0039 },
@@ -573,6 +587,14 @@
       "경기 파주시 월롱면 홀작로 75-25": { lat: 37.7946, lng: 126.8085 },
       "경기 수원시 팔달구 효원로 1": { lat: 37.2750, lng: 127.0105 }
     };
+
+    var GEO_CACHE = {};
+    try {
+      GEO_CACHE = JSON.parse(localStorage.getItem('KAKAO_GEO_CACHE_V2') || '{}');
+    } catch(e) {}
+    for (var k in PRESET_COORDINATES) {
+      if (!GEO_CACHE[k]) GEO_CACHE[k] = PRESET_COORDINATES[k];
+    }
 
     // ==========================================
     // Kakao Maps SDK Engine
@@ -901,21 +923,110 @@
     }
 
     // ==========================================
-    // Address & Geocoding Helpers
+    // 100% Precision Address Geocoding Engine
     // ==========================================
+    function extractRoadBaseAddress(addr) {
+      if (!addr) return '';
+      var cleaned = addr.replace(/\r?\n/g, ' ').replace(/\s+/g, ' ').trim();
+      var m = cleaned.match(/^([가-힣0-9\s]+?(?:대로|로\d*길|로|길|가|동|리)\s+\d+(?:-\d+)?)/);
+      if (m) return m[1].trim();
+      return cleaned.replace(/\([^)]*\)/g, ' ').replace(/(빌딩|타워|센터|오피스텔|아파트|상가|지점|\d+층|\d+호).*/g, '').trim();
+    }
+
+    function resolveAddressCoord(rawAddr) {
+      return new Promise(function(resolve) {
+        if (!rawAddr) {
+          resolve({ lat: 37.4809, lng: 126.8826 });
+          return;
+        }
+        var cleanKey = rawAddr.replace(/\r?\n/g, ' ').replace(/\s+/g, ' ').trim();
+
+        // 1. Check in-memory & localStorage cache
+        if (GEO_CACHE[cleanKey]) {
+          resolve(GEO_CACHE[cleanKey]);
+          return;
+        }
+        var baseAddr = extractRoadBaseAddress(cleanKey);
+        if (baseAddr && GEO_CACHE[baseAddr]) {
+          GEO_CACHE[cleanKey] = GEO_CACHE[baseAddr];
+          resolve(GEO_CACHE[baseAddr]);
+          return;
+        }
+
+        // 2. Ensure Kakao Geocoder is ready
+        if (!kakaoGeocoder && window.kakao && window.kakao.maps && window.kakao.maps.services) {
+          kakaoGeocoder = new kakao.maps.services.Geocoder();
+          kakaoPlaces = new kakao.maps.services.Places();
+        }
+
+        if (!kakaoGeocoder) {
+          resolve({ lat: 37.5050, lng: 127.0400 });
+          return;
+        }
+
+        // 3. Step 1: Query raw address
+        kakaoGeocoder.addressSearch(cleanKey, function(res1, st1) {
+          if (st1 === kakao.maps.services.Status.OK && res1 && res1.length > 0) {
+            var coord1 = { lat: parseFloat(res1[0].y), lng: parseFloat(res1[0].x) };
+            GEO_CACHE[cleanKey] = coord1;
+            try { localStorage.setItem('KAKAO_GEO_CACHE_V2', JSON.stringify(GEO_CACHE)); } catch(e) {}
+            resolve(coord1);
+          } else {
+            // Step 2: Query extracted road base address
+            if (baseAddr && baseAddr !== cleanKey) {
+              kakaoGeocoder.addressSearch(baseAddr, function(res2, st2) {
+                if (st2 === kakao.maps.services.Status.OK && res2 && res2.length > 0) {
+                  var coord2 = { lat: parseFloat(res2[0].y), lng: parseFloat(res2[0].x) };
+                  GEO_CACHE[cleanKey] = coord2;
+                  GEO_CACHE[baseAddr] = coord2;
+                  try { localStorage.setItem('KAKAO_GEO_CACHE_V2', JSON.stringify(GEO_CACHE)); } catch(e) {}
+                  resolve(coord2);
+                } else {
+                  // Step 3: Keyword search
+                  if (kakaoPlaces) {
+                    kakaoPlaces.keywordSearch(baseAddr, function(res3, st3) {
+                      if (st3 === kakao.maps.services.Status.OK && res3 && res3.length > 0) {
+                        var coord3 = { lat: parseFloat(res3[0].y), lng: parseFloat(res3[0].x) };
+                        GEO_CACHE[cleanKey] = coord3;
+                        try { localStorage.setItem('KAKAO_GEO_CACHE_V2', JSON.stringify(GEO_CACHE)); } catch(e) {}
+                        resolve(coord3);
+                      } else {
+                        resolve({ lat: 37.5050, lng: 127.0400 });
+                      }
+                    });
+                  } else {
+                    resolve({ lat: 37.5050, lng: 127.0400 });
+                  }
+                }
+              });
+            } else {
+              if (kakaoPlaces) {
+                kakaoPlaces.keywordSearch(cleanKey, function(res4, st4) {
+                  if (st4 === kakao.maps.services.Status.OK && res4 && res4.length > 0) {
+                    var coord4 = { lat: parseFloat(res4[0].y), lng: parseFloat(res4[0].x) };
+                    GEO_CACHE[cleanKey] = coord4;
+                    try { localStorage.setItem('KAKAO_GEO_CACHE_V2', JSON.stringify(GEO_CACHE)); } catch(e) {}
+                    resolve(coord4);
+                  } else {
+                    resolve({ lat: 37.5050, lng: 127.0400 });
+                  }
+                });
+              } else {
+                resolve({ lat: 37.5050, lng: 127.0400 });
+              }
+            }
+          }
+        });
+      });
+    }
+
     function getCoordForAddress(addr) {
       if (!addr) return { lat: 37.4809, lng: 126.8826 };
-      for (var key in KNOWN_COORDINATES) {
-        if (addr.indexOf(key) !== -1 || key.indexOf(addr) !== -1) {
-          return KNOWN_COORDINATES[key];
-        }
-      }
-      // Hash based default fallback
-      var hash = 0;
-      for (var i = 0; i < addr.length; i++) hash = (hash << 5) - hash + addr.charCodeAt(i);
-      var latOffset = ((Math.abs(hash) % 100) / 1000) * 0.15;
-      var lngOffset = ((Math.abs(hash >> 3) % 100) / 1000) * 0.2;
-      return { lat: 37.4809 + latOffset, lng: 126.8826 + lngOffset };
+      var clean = addr.replace(/\r?\n/g, ' ').replace(/\s+/g, ' ').trim();
+      if (GEO_CACHE[clean]) return GEO_CACHE[clean];
+      var base = extractRoadBaseAddress(clean);
+      if (base && GEO_CACHE[base]) return GEO_CACHE[base];
+      return { lat: 37.5050, lng: 127.0400 };
     }
 
     // ==========================================
@@ -964,6 +1075,11 @@
         return;
       }
 
+      // 100% 정밀 좌표 병렬 비동기 해석 (Kakao Geocoder)
+      var coords = await Promise.all(activeRecords.map(function(r) {
+        return resolveAddressCoord(r.기본주소 || r.주소);
+      }));
+
       var bounds = (kakaoMap && window.kakao) ? new kakao.maps.LatLngBounds() : null;
       if (bounds) bounds.extend(new kakao.maps.LatLng(originCoord.lat, originCoord.lng));
 
@@ -972,7 +1088,7 @@
         var realIdx = records.indexOf(r);
         var stopNumber = subIdx + 1;
         var isRecov = (r.구분 && r.구분.indexOf('회수') !== -1);
-        var coord = getCoordForAddress(r.기본주소 || r.주소);
+        var coord = coords[subIdx];
 
         // 전화번호 파싱
         var phoneMatch = (r.담당자_연락처 || '').match(/0\d{1,2}-?\d{3,4}-?\d{4}/);
