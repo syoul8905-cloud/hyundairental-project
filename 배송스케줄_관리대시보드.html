@@ -1126,6 +1126,7 @@
       currentUser = null;
       localStorage.removeItem('DELIVERY_AUTO_LOGIN');
       toggleUserMenu(false);
+      updateDriverFilterOptions(true);
       showLoginOverlay();
       showToast('🚪 로그아웃되었습니다.');
     }
@@ -1133,7 +1134,6 @@
     function applyRolePermissions(user) {
       var sectionMasterTable = document.getElementById('sectionMasterTable');
       var csvUploadBtn = document.getElementById('csvUploadBtn');
-      var driverFilterSelect = document.getElementById('driverFilterSelect');
       var adminMenuItem = document.getElementById('menuItemAdminSettings');
 
       if (user.role === 'driver') {
@@ -1141,14 +1141,13 @@
         if (sectionMasterTable) sectionMasterTable.classList.add('hidden');
         if (csvUploadBtn) csvUploadBtn.classList.add('hidden');
         if (adminMenuItem) adminMenuItem.classList.add('hidden');
-        updateDriverFilterOptions();
+        updateDriverFilterOptions(true);
       } else {
         // [관리자 모드]
         if (sectionMasterTable) sectionMasterTable.classList.remove('hidden');
         if (csvUploadBtn) csvUploadBtn.classList.remove('hidden');
         if (adminMenuItem) adminMenuItem.classList.remove('hidden');
-        if (driverFilterSelect) driverFilterSelect.disabled = false;
-        updateDriverFilterOptions();
+        updateDriverFilterOptions(true);
       }
 
       updateKPIs();
@@ -1794,16 +1793,15 @@
       });
     }
 
-    function updateDriverFilterOptions() {
+    function updateDriverFilterOptions(forceResetToAll) {
       var container = document.getElementById('driverFilterContainer');
 
       // 배송기사 모드일 때: 셀렉트박스를 숨기고 본인 전용 배지로 고정 표출
       if (currentUser && currentUser.role === 'driver') {
         if (container) {
           container.innerHTML = `
-            <span class="font-bold text-slate-500 text-xs flex items-center gap-1">
-              <i class="fa-solid fa-id-badge text-amber-600"></i> 배송 담당:
-            </span>
+            <i class="fa-solid fa-id-badge text-amber-600"></i>
+            <span class="font-bold text-slate-500 text-xs">배송 담당:</span>
             <span class="font-black text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-lg border border-indigo-200 text-xs flex items-center gap-1">
               🚗 ${currentUser.id} (나)
             </span>
@@ -1816,18 +1814,23 @@
       }
 
       // 관리자 모드일 때: 전체 드라이버 필터 드롭다운 렌더링
-      if (container && !document.getElementById('driverFilterSelect')) {
-        container.innerHTML = `
-          <i class="fa-solid fa-id-badge text-amber-600"></i>
-          <select id="driverFilterSelect" onchange="onDriverFilterChanged()" class="bg-transparent font-bold text-slate-800 text-xs focus:outline-none cursor-pointer max-w-[125px] truncate">
-            <option value="all">전체 기사</option>
-          </select>
-        `;
+      if (container) {
+        var existingSelect = document.getElementById('driverFilterSelect');
+        // 기사 모드 잔재(hidden select 또는 뱃지)가 있거나 select가 없으면 관리자용 UI로 즉시 복원
+        if (!existingSelect || existingSelect.classList.contains('hidden')) {
+          container.innerHTML = `
+            <i class="fa-solid fa-id-badge text-amber-600"></i>
+            <select id="driverFilterSelect" onchange="onDriverFilterChanged()" class="bg-transparent font-bold text-slate-800 text-xs focus:outline-none cursor-pointer max-w-[125px] truncate">
+              <option value="all">전체 기사</option>
+            </select>
+          `;
+          forceResetToAll = true;
+        }
       }
 
       var select = document.getElementById('driverFilterSelect');
       if (!select) return;
-      var curr = select.value || 'all';
+      var curr = forceResetToAll ? 'all' : (select.value || 'all');
 
       var driverCounts = {};
       var hasUnassigned = false;
@@ -1859,6 +1862,10 @@
         unOpt.innerText = '⚠️ 기사 미지정 (' + (driverCounts['__unassigned__'] || 0) + '건)';
         if (curr === '') unOpt.selected = true;
         select.appendChild(unOpt);
+      }
+
+      if (curr === 'all') {
+        select.value = 'all';
       }
 
       // Populate modal quick select
