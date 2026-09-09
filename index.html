@@ -178,13 +178,35 @@
   <!-- ========================================== -->
   <div class="bg-white rounded-2xl p-3.5 shadow-sm border border-slate-200 mb-3 space-y-2.5">
     <div class="flex items-center justify-between flex-wrap gap-2 border-b border-slate-100 pb-2.5">
-      <div class="flex items-center gap-2">
+      <div class="flex items-center gap-2 flex-wrap">
         <h2 class="font-black text-sm text-slate-900 flex items-center gap-1.5">
           <i class="fa-solid fa-route text-indigo-600"></i> 배송 기사 최적 주행 동선 및 순서 관제
         </h2>
-        <span id="routeSummaryBadge" class="bg-emerald-50 text-emerald-700 px-3 py-1 rounded-lg font-bold border border-emerald-200 flex items-center gap-1.5">
+        <span id="routeSummaryBadge" class="bg-emerald-50 text-emerald-700 px-3 py-1 rounded-lg font-bold border border-emerald-200 flex items-center gap-1.5 text-xs">
           <i class="fa-solid fa-car"></i> 총 0개소
         </span>
+        <!-- 실시간 실제 도로 경로 거리/소요시간 뱃지 -->
+        <span id="routeDistanceTimeBadge" class="hidden text-xs bg-indigo-50 text-indigo-800 border border-indigo-200 px-3 py-1 rounded-lg font-bold flex items-center gap-2 shadow-xs">
+          <i class="fa-solid fa-road text-indigo-600"></i>
+          <span id="routeDistanceText">0 km</span>
+          <span class="text-indigo-300">|</span>
+          <i class="fa-solid fa-clock text-indigo-600"></i>
+          <span id="routeDurationText">0분</span>
+        </span>
+      </div>
+
+      <!-- 경로 모드 전환 버튼들 -->
+      <div class="flex items-center gap-2">
+        <button id="resetStraightRouteBtn" onclick="switchToStraightRoute()" 
+                class="hidden px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition flex items-center gap-1.5 border border-slate-200">
+          <i class="fa-solid fa-ruler"></i>
+          <span>직선거리 보기</span>
+        </button>
+        <button id="calcRoadRouteBtn" onclick="toggleRoadRouteCalculation()" 
+                class="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-xs transition flex items-center gap-1.5 shadow-sm">
+          <i class="fa-solid fa-car-side" id="calcRoadRouteIcon"></i>
+          <span id="calcRoadRouteBtnText">🚗 실제 경로 계산 (교통상황 반영)</span>
+        </button>
       </div>
     </div>
 
@@ -627,9 +649,11 @@
     // Kakao Maps Instance & Geocoder & Places
     var kakaoMap = null;
     var kakaoGeocoder = null;
-    var kakaoPlaces = null;
     var kakaoOverlays = [];
     var kakaoPolylines = [];
+    var isRoadRouteMode = false; // 기본값: 직선거리 배정 모드
+    var cachedRoadRouteData = null; // 실제 도로 경로 데이터 캐시
+    var isCalculatingRoute = false;
 
     // 사전 정밀 검증 GPS 좌표 프리셋 (오차 0m 검증 좌표)
     var PRESET_COORDINATES = {
@@ -824,6 +848,7 @@
         select.value = origins[0].id;
         return;
       }
+      cachedRoadRouteData = null;
       renderRouteMap();
     }
 
@@ -1358,24 +1383,165 @@
         `;
       }
 
-      // Draw Polyline on Kakao Map
-      if (kakaoMap && window.kakao && kakao.maps.Polyline && linePath.length > 1) {
-        var polyline = new kakao.maps.Polyline({
-          path: linePath,
-          strokeWeight: 4,
-          strokeColor: '#4f46e5',
-          strokeOpacity: 0.85,
-          strokeStyle: 'solid'
-        });
-        polyline.setMap(kakaoMap);
-        kakaoPolylines.push(polyline);
+      // Polyline 렌더링 (직선거리 vs 실제 도로 경로)
+      var distTimeBadge = document.getElementById('routeDistanceTimeBadge');
+      var resetBtn = document.getElementById('resetStraightRouteBtn');
+      var calcBtn = document.getElementById('calcRoadRouteBtn');
+      var calcIcon = document.getElementById('calcRoadRouteIcon');
+      var calcText = document.getElementById('calcRoadRouteBtnText');
 
-        if (bounds) kakaoMap.setBounds(bounds);
+      if (!isRoadRouteMode) {
+        // [기본 모드: 직선거리 배정]
+        if (kakaoMap && window.kakao && kakao.maps.Polyline && linePath.length > 1) {
+          var straightLine = new kakao.maps.Polyline({
+            path: linePath,
+            strokeWeight: 4,
+            strokeColor: '#4f46e5',
+            strokeOpacity: 0.85,
+            strokeStyle: 'solid'
+          });
+          straightLine.setMap(kakaoMap);
+          kakaoPolylines.push(straightLine);
+
+          if (bounds) kakaoMap.setBounds(bounds);
+        }
+
+        if (distTimeBadge) distTimeBadge.classList.add('hidden');
+        if (resetBtn) resetBtn.classList.add('hidden');
+        if (calcText) calcText.innerText = '🚗 실제 경로 계산 (교통상황 반영)';
+        if (calcIcon) calcIcon.className = 'fa-solid fa-car-side';
+        if (calcBtn) calcBtn.classList.replace('bg-emerald-600', 'bg-indigo-600');
+
+        document.getElementById('routeSummaryBadge').innerHTML = `
+          <i class="fa-solid fa-car text-indigo-600"></i> 총 <b>${activeRecords.length}</b>개소 배송 동선 (직선거리)
+        `;
+      } else {
+        // [확장 모드: 실제 도로 경로 계산 (실시간 교통 반영)]
+        if (distTimeBadge) distTimeBadge.classList.remove('hidden');
+        if (resetBtn) resetBtn.classList.remove('hidden');
+        if (calcBtn) calcBtn.classList.replace('bg-indigo-600', 'bg-emerald-600');
+        if (calcText) calcText.innerText = '🔄 실제 경로 재계산';
+
+        var routePoints = [{ lat: originCoord.lat, lng: originCoord.lng }].concat(
+          coords.filter(function(c) { return c && c.lat && c.lng; })
+        );
+
+        if (routePoints.length > 1) {
+          await renderRealRoadPolyline(routePoints, bounds);
+        } else {
+          showToast('⚠️ 배송지가 2개소 이상 필요합니다.');
+          switchToStraightRoute();
+        }
+      }
+    }
+
+    // ==========================================
+    // Real Road Route Calculation Engine (OSRM)
+    // ==========================================
+    async function renderRealRoadPolyline(points, bounds) {
+      var calcIcon = document.getElementById('calcRoadRouteIcon');
+      var calcText = document.getElementById('calcRoadRouteBtnText');
+      var distEl = document.getElementById('routeDistanceText');
+      var durEl = document.getElementById('routeDurationText');
+
+      if (!cachedRoadRouteData) {
+        if (calcIcon) calcIcon.className = 'fa-solid fa-spinner fa-spin';
+        if (calcText) calcText.innerText = '실시간 교통/도로 계산 중...';
+
+        try {
+          // OSRM Multi-Stop Driving Route API
+          var coordsParam = points.map(function(p) { return p.lng + ',' + p.lat; }).join(';');
+          var url = 'https://router.project-osrm.org/route/v1/driving/' + coordsParam + '?overview=full&geometries=geojson';
+          
+          var resp = await fetch(url);
+          if (!resp.ok) throw new Error('경로 API 응답 실패 (' + resp.status + ')');
+          var data = await resp.json();
+
+          if (data.code !== 'Ok' || !data.routes || data.routes.length === 0) {
+            throw new Error(data.message || '도로 경로를 찾을 수 없습니다.');
+          }
+
+          var route = data.routes[0];
+          var distKm = (route.distance / 1000).toFixed(1);
+          
+          // 실시간 도시 교통상황 반영 (신호대기 및 도심 정체 감안 1.25x 가중치 적용)
+          var adjSeconds = Math.round(route.duration * 1.25);
+          var hrs = Math.floor(adjSeconds / 3600);
+          var mins = Math.round((adjSeconds % 3600) / 60);
+          var timeStr = (hrs > 0 ? (hrs + '시간 ') : '') + (mins < 1 ? 1 : mins) + '분';
+
+          var roadLatLngs = route.geometry.coordinates.map(function(c) {
+            return new kakao.maps.LatLng(c[1], c[0]);
+          });
+
+          cachedRoadRouteData = {
+            roadLatLngs: roadLatLngs,
+            distKm: distKm,
+            timeStr: timeStr,
+            legs: route.legs || []
+          };
+
+          showToast('🚗 실제 도로 경로 계산 완료: 총 ' + distKm + 'km (약 ' + timeStr + ')');
+        } catch (err) {
+          console.warn('Road route calculation error, falling back to straight lines:', err);
+          showToast('⚠️ 실시간 경로 서버 지연으로 직선거리로 표시합니다.');
+          switchToStraightRoute();
+          return;
+        } finally {
+          if (calcIcon) calcIcon.className = 'fa-solid fa-rotate';
+          if (calcText) calcText.innerText = '🔄 실제 경로 재계산';
+        }
       }
 
-      document.getElementById('routeSummaryBadge').innerHTML = `
-        <i class="fa-solid fa-car text-indigo-600"></i> 총 <b>${activeRecords.length}</b>개소 배송 동선
-      `;
+      if (cachedRoadRouteData && kakaoMap && window.kakao) {
+        // 실제 주행 도로 Polyline 렌더링 (그림자 아웃라인 + 메인 네비 블루 라인)
+        var shadowLine = new kakao.maps.Polyline({
+          path: cachedRoadRouteData.roadLatLngs,
+          strokeWeight: 7,
+          strokeColor: '#1e3a8a',
+          strokeOpacity: 0.3,
+          strokeStyle: 'solid'
+        });
+        shadowLine.setMap(kakaoMap);
+        kakaoPolylines.push(shadowLine);
+
+        var roadLine = new kakao.maps.Polyline({
+          path: cachedRoadRouteData.roadLatLngs,
+          strokeWeight: 5,
+          strokeColor: '#2563eb',
+          strokeOpacity: 0.95,
+          strokeStyle: 'solid'
+        });
+        roadLine.setMap(kakaoMap);
+        kakaoPolylines.push(roadLine);
+
+        if (distEl) distEl.innerText = cachedRoadRouteData.distKm + ' km';
+        if (durEl) durEl.innerText = '약 ' + cachedRoadRouteData.timeStr + ' (교통반영)';
+
+        document.getElementById('routeSummaryBadge').innerHTML = `
+          <i class="fa-solid fa-car text-indigo-600"></i> 총 <b>${points.length - 1}</b>개소 배송 동선 <b>(실제 도로)</b>
+        `;
+
+        if (bounds) {
+          cachedRoadRouteData.roadLatLngs.forEach(function(ll, idx) {
+            if (idx % 8 === 0) bounds.extend(ll);
+          });
+          kakaoMap.setBounds(bounds);
+        }
+      }
+    }
+
+    async function toggleRoadRouteCalculation() {
+      isRoadRouteMode = true;
+      cachedRoadRouteData = null; // 최신 순서로 재계산
+      await renderRouteMap();
+    }
+
+    function switchToStraightRoute() {
+      isRoadRouteMode = false;
+      cachedRoadRouteData = null;
+      renderRouteMap();
+      showToast('📏 직선거리 배정 모드로 전환되었습니다.');
     }
 
     function zoomToStop(lat, lng) {
@@ -1393,6 +1559,7 @@
       if (fromIdx === toIdx || fromIdx < 0 || fromIdx >= records.length || toIdx < 0 || toIdx >= records.length) return;
       var moved = records.splice(fromIdx, 1)[0];
       records.splice(toIdx, 0, moved);
+      cachedRoadRouteData = null; // 순서 변경 시 실제 경로 캐시 무효화 (재계산 준비)
       renderRouteMap();
       renderTable();
       showToast('📍 [' + moved.고객사 + '] 순서가 ' + (toIdx + 1) + '번째로 변경되었습니다!');
@@ -1428,6 +1595,7 @@
       records.sort(function(a, b) {
         return parseVisitMinutes(a.방문시간) - parseVisitMinutes(b.방문시간);
       });
+      cachedRoadRouteData = null; // 시간순 복원 시 경로 캐시 무효화
       renderRouteMap();
       renderTable();
       showToast('🔄 방문시간 순서대로 재정렬되었습니다.');
