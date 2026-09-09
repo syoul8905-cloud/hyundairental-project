@@ -33,109 +33,108 @@
     }
   </style>
 </head>
-<body class="bg-slate-100 text-slate-800 antialiased p-3 sm:p-4 select-none text-xs">
+<body class="bg-slate-100 text-slate-800 antialiased p-2.5 sm:p-3 select-none text-xs">
 
   <!-- ========================================== -->
   <!-- 1. GNB Header (단독 웹 시스템)             -->
   <!-- ========================================== -->
-  <header class="bg-white rounded-2xl p-3.5 sm:p-4 shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-3 mb-3">
-    <div class="flex items-center gap-3">
-      <div class="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white text-lg shadow-md shadow-indigo-600/20">
+  <header class="bg-white rounded-xl px-3 py-2 sm:px-3.5 sm:py-2.5 shadow-xs border border-slate-200 flex items-center justify-between gap-2 mb-2.5 overflow-x-auto">
+    <!-- Title & Brand -->
+    <div class="flex items-center gap-2.5 shrink-0">
+      <div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white text-sm shadow-sm shadow-indigo-600/20">
         <i class="fa-solid fa-truck-fast"></i>
       </div>
       <div>
         <div class="flex items-center gap-2">
-          <h1 class="text-base font-black text-slate-900">배송스케줄 통합 관제 시스템</h1>
-          <span id="syncBadge" class="bg-emerald-100 text-emerald-700 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 border border-emerald-200">
+          <h1 class="text-sm font-black text-slate-900 whitespace-nowrap">배송스케줄 관제</h1>
+          <span id="syncBadge" class="bg-emerald-100 text-emerald-700 text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-1 border border-emerald-200 whitespace-nowrap">
             <span id="syncPulse" class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-            <span id="syncStatusText">⚡ Supabase 클라우드 직결</span>
+            <span id="syncStatusText">⚡ 클라우드 직결</span>
           </span>
         </div>
-        <p class="text-[11px] text-slate-400">구글 시트 완전 탈피 · 단독 웹 배송 관제 · 카카오맵 & 모바일 티맵 연동</p>
+        <p class="text-[10px] text-slate-400 hidden 2xl:block">단독 웹 배송 관제 · 카카오맵 & 모바일 티맵 연동</p>
       </div>
     </div>
 
     <!-- Date, Driver, Origin, CSV Import, Kakao Settings Controls -->
-    <div class="flex flex-wrap items-center gap-2">
+    <div class="flex items-center gap-1.5 flex-nowrap shrink-0">
       <!-- Calendar Date Picker (클릭 시 달력 팝업) -->
-      <div class="flex items-center gap-1.5 bg-slate-50 hover:bg-slate-100/90 px-3 py-1.5 rounded-xl border border-slate-200 shadow-xs transition cursor-pointer relative group"
+      <div class="flex items-center gap-1 bg-slate-50 hover:bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200 shadow-xs transition cursor-pointer relative group text-xs whitespace-nowrap"
            onclick="openCalendarPicker(event)" title="클릭하여 달력에서 배송일자 선택">
-        <span class="font-bold text-slate-500 flex items-center gap-1">
-          <i class="fa-regular fa-calendar-days text-indigo-600"></i> 배송일자:
-        </span>
-        <span id="calendarDateDisplay" class="font-black text-slate-900 text-xs px-1">2026-09-09</span>
-        <i class="fa-solid fa-calendar text-[11px] text-indigo-500 group-hover:scale-110 transition-transform"></i>
+        <i class="fa-regular fa-calendar-days text-indigo-600"></i>
+        <span id="calendarDateDisplay" class="font-black text-slate-900 text-xs px-0.5">2026-09-09</span>
+        <i class="fa-solid fa-calendar text-[10px] text-indigo-500 group-hover:scale-110 transition-transform"></i>
         <!-- Hidden Native Datepicker -->
         <input type="date" id="calendarDateInput" onchange="onCalendarDateChanged(this.value)" 
                class="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10">
       </div>
 
       <!-- Quick Date Stepper (Prev, Today, Next) -->
-      <div class="flex items-center bg-slate-50 rounded-xl border border-slate-200 p-0.5 shadow-xs">
-        <button onclick="shiftDate(-1)" title="이전 날짜 이동" class="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-white text-slate-600 hover:text-indigo-600 transition font-bold text-xs">
+      <div class="flex items-center bg-slate-50 rounded-lg border border-slate-200 p-0.5 shadow-xs">
+        <button onclick="shiftDate(-1)" title="이전 날짜" class="w-5 h-5 flex items-center justify-center rounded hover:bg-white text-slate-600 hover:text-indigo-600 transition text-[10px]">
           <i class="fa-solid fa-chevron-left"></i>
         </button>
-        <button onclick="goToToday()" title="오늘 날짜로 이동" class="px-2 h-6 flex items-center justify-center rounded-lg hover:bg-white text-slate-700 hover:text-indigo-600 transition font-bold text-[11px]">
+        <button onclick="goToToday()" title="오늘" class="px-1.5 h-5 flex items-center justify-center rounded hover:bg-white text-slate-700 hover:text-indigo-600 transition font-bold text-[10px]">
           오늘
         </button>
-        <button onclick="shiftDate(1)" title="다음 날짜 이동" class="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-white text-slate-600 hover:text-indigo-600 transition font-bold text-xs">
+        <button onclick="shiftDate(1)" title="다음 날짜" class="w-5 h-5 flex items-center justify-center rounded hover:bg-white text-slate-600 hover:text-indigo-600 transition text-[10px]">
           <i class="fa-solid fa-chevron-right"></i>
         </button>
       </div>
 
       <!-- DB Recorded Dates Quick Select (Dropdown) -->
-      <div class="flex items-center gap-1 bg-slate-50 px-2 py-1.5 rounded-xl border border-slate-200" title="기존 스케줄 등록일 목록">
-        <select id="sheetDateSelect" onchange="onDateSelectDropdownChanged(this.value)" class="bg-transparent font-bold text-slate-700 text-[11px] focus:outline-none cursor-pointer max-w-[130px] truncate">
+      <div class="flex items-center bg-slate-50 px-1.5 py-1 rounded-lg border border-slate-200" title="기존 스케줄 등록일 목록">
+        <select id="sheetDateSelect" onchange="onDateSelectDropdownChanged(this.value)" class="bg-transparent font-bold text-slate-700 text-xs focus:outline-none cursor-pointer max-w-[110px] truncate">
           <option value="">등록일 목록...</option>
         </select>
       </div>
 
       <!-- Driver Filter -->
-      <div id="driverFilterContainer" class="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1.5 rounded-xl border border-slate-200">
-        <span class="font-bold text-slate-500"><i class="fa-solid fa-id-badge text-amber-600"></i> 담당 기사:</span>
-        <select id="driverFilterSelect" onchange="onDriverFilterChanged()" class="bg-transparent font-bold text-slate-800 focus:outline-none cursor-pointer max-w-[170px] truncate">
-          <option value="all">전체 기사 보기</option>
+      <div id="driverFilterContainer" class="flex items-center gap-1 bg-slate-50 px-2 py-1 rounded-lg border border-slate-200 text-xs whitespace-nowrap">
+        <i class="fa-solid fa-id-badge text-amber-600"></i>
+        <select id="driverFilterSelect" onchange="onDriverFilterChanged()" class="bg-transparent font-bold text-slate-800 text-xs focus:outline-none cursor-pointer max-w-[125px] truncate">
+          <option value="all">전체 기사</option>
         </select>
       </div>
 
       <!-- Origin Select -->
-      <div class="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1.5 rounded-xl border border-slate-200">
-        <span class="font-bold text-slate-500"><i class="fa-solid fa-flag text-emerald-600"></i> 출발지:</span>
-        <select id="originSelect" onchange="onOriginSelectChange()" class="bg-transparent font-bold text-slate-800 focus:outline-none cursor-pointer max-w-[190px] truncate">
-          <option value="gasan" selected>🏢 가산 센터 (금천구 가산디지털1로 168)</option>
-          <option value="home">🏠 기사 자택 (인천 남동구 인주대로 600)</option>
-          <option value="__manage__">⚙️ 출발지 주소 직접 수정/추가...</option>
+      <div class="flex items-center gap-1 bg-slate-50 px-2 py-1 rounded-lg border border-slate-200 text-xs whitespace-nowrap">
+        <i class="fa-solid fa-flag text-emerald-600"></i>
+        <select id="originSelect" onchange="onOriginSelectChange()" class="bg-transparent font-bold text-slate-800 text-xs focus:outline-none cursor-pointer max-w-[130px] truncate">
+          <option value="gasan" selected>🏢 가산 센터</option>
+          <option value="home">🏠 기사 자택</option>
+          <option value="__manage__">⚙️ 주소 수정...</option>
         </select>
-        <button onclick="openOriginModal()" title="출발지 주소 관리" class="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold rounded-lg text-[10px] border border-indigo-200 transition">
+        <button onclick="openOriginModal()" title="출발지 주소 관리" class="px-1.5 py-0.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold rounded text-[10px] border border-indigo-200 transition">
           <i class="fa-solid fa-pen-to-square"></i>
         </button>
       </div>
 
       <!-- CSV Upload Button (Primary Highlight - Admin Only) -->
-      <button id="csvUploadBtn" onclick="openCsvModal()" class="px-3.5 py-1.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-bold rounded-xl transition flex items-center gap-1.5 shadow-md shadow-indigo-600/20">
-        <i class="fa-solid fa-file-csv text-sm"></i>
-        <span>CSV 스케줄 등록</span>
+      <button id="csvUploadBtn" onclick="openCsvModal()" class="px-2.5 py-1 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-bold rounded-lg transition flex items-center gap-1 shadow-sm text-xs whitespace-nowrap">
+        <i class="fa-solid fa-file-csv"></i>
+        <span>CSV 등록</span>
       </button>
 
       <!-- Kakao Map Settings Button -->
-      <button onclick="openKakaoKeyModal()" title="카카오맵 API 키 설정" class="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold rounded-xl transition flex items-center gap-1.5 border border-amber-200">
+      <button onclick="openKakaoKeyModal()" title="카카오맵 API 키 설정" class="px-2 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold rounded-lg transition flex items-center gap-1 border border-amber-200 text-xs whitespace-nowrap">
         <i class="fa-solid fa-map-location-dot text-amber-600"></i>
-        <span>카카오맵 설정</span>
+        <span class="hidden sm:inline">지도 설정</span>
       </button>
 
       <!-- Manual Sync Button -->
-      <button onclick="triggerSync(false)" class="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl transition flex items-center gap-1.5 shadow-sm">
+      <button onclick="triggerSync(false)" title="DB 새로고침" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-lg transition flex items-center gap-1 shadow-xs text-xs whitespace-nowrap">
         <i id="syncIcon" class="fa-solid fa-rotate"></i>
-        <span>DB 새로고침</span>
+        <span class="hidden sm:inline">새로고침</span>
       </button>
 
       <!-- User Menu / Settings (우측 관리자/사용자 메뉴 & 바로가기 설치) -->
       <div class="relative" id="userMenuContainer">
-        <button onclick="toggleUserMenu()" id="userMenuBtn" class="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-900 font-bold rounded-xl transition flex items-center gap-2 border border-indigo-200 shadow-xs text-xs">
-          <i class="fa-solid fa-circle-user text-indigo-600 text-base"></i>
+        <button onclick="toggleUserMenu()" id="userMenuBtn" class="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-900 font-bold rounded-lg transition flex items-center gap-1.5 border border-indigo-200 shadow-xs text-xs whitespace-nowrap">
+          <i class="fa-solid fa-circle-user text-indigo-600 text-sm"></i>
           <span id="userMenuDisplayName">로그인 필요</span>
-          <span id="userMenuRoleBadge" class="text-[10px] bg-indigo-200 text-indigo-900 px-1.5 py-0.5 rounded-full font-bold">인증대기</span>
-          <i class="fa-solid fa-chevron-down text-[10px] text-indigo-400"></i>
+          <span id="userMenuRoleBadge" class="text-[9px] bg-indigo-200 text-indigo-900 px-1.5 py-0.5 rounded-full font-bold">인증대기</span>
+          <i class="fa-solid fa-chevron-down text-[9px] text-indigo-400"></i>
         </button>
 
         <!-- Dropdown Menu -->
@@ -1107,11 +1106,11 @@
       if (dropName) dropName.innerText = user.id + ' (' + (user.role === 'admin' ? '관리자' : '배송기사') + ')';
       if (roleBadge) {
         if (user.role === 'admin') {
-          roleBadge.innerText = '👑 관리자';
-          roleBadge.className = 'text-[10px] bg-rose-100 text-rose-800 px-2 py-0.5 rounded-full font-bold';
+          roleBadge.innerText = '관리자';
+          roleBadge.className = 'text-[9px] bg-rose-100 text-rose-800 px-1.5 py-0.5 rounded font-bold';
         } else {
-          roleBadge.innerText = '🚚 배송기사';
-          roleBadge.className = 'text-[10px] bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full font-bold';
+          roleBadge.innerText = '기사';
+          roleBadge.className = 'text-[9px] bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded font-bold';
         }
       }
 
@@ -1819,9 +1818,9 @@
       // 관리자 모드일 때: 전체 드라이버 필터 드롭다운 렌더링
       if (container && !document.getElementById('driverFilterSelect')) {
         container.innerHTML = `
-          <span class="font-bold text-slate-500"><i class="fa-solid fa-id-badge text-amber-600"></i> 담당 기사:</span>
-          <select id="driverFilterSelect" onchange="onDriverFilterChanged()" class="bg-transparent font-bold text-slate-800 focus:outline-none cursor-pointer max-w-[170px] truncate">
-            <option value="all">전체 기사 보기</option>
+          <i class="fa-solid fa-id-badge text-amber-600"></i>
+          <select id="driverFilterSelect" onchange="onDriverFilterChanged()" class="bg-transparent font-bold text-slate-800 text-xs focus:outline-none cursor-pointer max-w-[125px] truncate">
+            <option value="all">전체 기사</option>
           </select>
         `;
       }
@@ -3214,7 +3213,7 @@
 
         if (syncIcon) syncIcon.classList.remove('fa-spin');
         var nowStr = new Date().toLocaleTimeString('ko-KR', { hour12: false });
-        if (statusEl) statusEl.innerText = '⚡ Supabase 실시간 연동됨 (' + nowStr + ')';
+        if (statusEl) statusEl.innerText = '⚡ 실시간 연동 (' + nowStr + ')';
         if (!isSilent) showToast('⚡ Supabase DB ' + records.length + '건 동기화 완료!');
       } catch (err) {
         console.error('Supabase sync error:', err);
