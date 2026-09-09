@@ -382,22 +382,47 @@
       GEO_CACHE[k] = PRESET_COORDINATES[k];
     }
 
-    function getDriverOrigin(driverName) {
+    function getDriverOrigin(driverName, targetDate) {
+      var d = targetDate || currentDate;
       try {
-        var s = localStorage.getItem('DELIVERY_DRIVER_ORIGINS_V4');
+        var s = localStorage.getItem('DELIVERY_DAILY_DRIVER_ORIGINS_V1');
         if (s) {
-          var parsed = JSON.parse(s);
+          var daily = JSON.parse(s);
           var key = driverName ? driverName.trim() : '__all__';
-          if (parsed[key] && parsed[key].addr && parsed[key].lat) return parsed[key];
-          if (parsed['__all__'] && parsed['__all__'].addr && parsed['__all__'].lat) return parsed['__all__'];
+          if (daily && daily[d] && daily[d][key] && daily[d][key].addr && daily[d][key].lat) {
+            return daily[d][key];
+          }
         }
       } catch (e) {}
+      // 미지정 시 또는 익일(새 일자) -> 무조건 가산 센터 자동 복귀!
       return {
+        type: 'gasan',
         name: '가산 센터',
         addr: '서울특별시 금천구 벚꽃로 278',
         lat: 37.476483,
         lng: 126.883705
       };
+    }
+
+    async function syncDriverOriginsFromCloud() {
+      if (!supabaseClient) return;
+      try {
+        var res = await supabaseClient.from('delivery_schedules')
+          .select('memo_full')
+          .eq('source_sheet', 'SYSTEM_CONFIG_DRIVER_ORIGINS')
+          .limit(1);
+        if (res.data && res.data.length > 0 && res.data[0].memo_full) {
+          var config = JSON.parse(res.data[0].memo_full);
+          if (config.bases && typeof config.bases === 'object') {
+            localStorage.setItem('DELIVERY_DRIVER_REGISTERED_BASES_V1', JSON.stringify(config.bases));
+          }
+          if (config.daily && typeof config.daily === 'object') {
+            localStorage.setItem('DELIVERY_DAILY_DRIVER_ORIGINS_V1', JSON.stringify(config.daily));
+          }
+        }
+      } catch (e) {
+        console.warn('Mobile cloud driver origins sync error:', e);
+      }
     }
 
     function getCoordForAddress(addr) {
@@ -590,6 +615,8 @@
 
       try {
         if (!supabaseClient) throw new Error('Supabase client uninitialized');
+
+        await syncDriverOriginsFromCloud();
 
         var query = supabaseClient
           .from('delivery_schedules')
