@@ -1763,7 +1763,6 @@
       try {
         var res = await supabaseClient.from('delivery_schedules')
           .select('delivery_date, source_sheet')
-          .neq('source_sheet', 'SYSTEM_CONFIG_USERS')
           .order('delivery_date', { ascending: false });
         if (res.data && res.data.length > 0) {
           var dateSet = new Set();
@@ -3175,7 +3174,6 @@
 
         var query = supabaseClient.from('delivery_schedules')
           .select('*')
-          .neq('source_sheet', 'SYSTEM_CONFIG_USERS')
           .order('id', { ascending: true });
 
         if (selectedDate && selectedDate !== 'all') {
