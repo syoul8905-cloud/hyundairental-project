@@ -423,7 +423,7 @@
                   <th class="py-2 px-3 text-center">관리</th>
                 </tr>
               </thead>
-              <tbody id="vehicleManageListBody" class="divide-y divide-slate-100">
+              <tbody id="vehicleManageTableBody" class="divide-y divide-slate-100">
                 <!-- Vehicle Rows dynamically rendered -->
               </tbody>
             </table>
@@ -718,6 +718,7 @@
       }
 
       renderVehicleTabs();
+      renderVehicleManageList();
     }
 
     async function saveVehiclesMaster() {
@@ -1568,8 +1569,19 @@
     }
 
     function renderVehicleManageList() {
-      var tbody = document.getElementById('vehicleManageTableBody');
+      var tbody = document.getElementById('vehicleManageTableBody') || document.getElementById('vehicleManageListBody');
+      var countEl = document.getElementById('vehicleManageCount');
+      if (countEl) countEl.innerText = `총 ${vehiclesMaster.length}대`;
       if (!tbody) return;
+
+      if (!vehiclesMaster || vehiclesMaster.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="6" class="py-6 text-center text-slate-400">등록된 법인차량이 없습니다. 상단에서 차량을 추가해주세요.</td>
+          </tr>
+        `;
+        return;
+      }
 
       tbody.innerHTML = vehiclesMaster.map(function(v, idx) {
         return `
