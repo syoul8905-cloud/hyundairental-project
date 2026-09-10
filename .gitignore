@@ -4,3 +4,4 @@ test_syntax.html
 .gemini/
 *.tmp
 *.bak
+backups/
