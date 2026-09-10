@@ -550,6 +550,15 @@
           <input type="checkbox" id="csvForceDateCheck" checked class="rounded text-indigo-600 focus:ring-0">
           <span>CSV 내부 날짜와 관계없이 위 선택 날짜로 일괄 적용</span>
         </label>
+
+        <!-- Keep Manual Stops Option -->
+        <div id="csvManualStopsBox" class="p-2.5 bg-amber-50/90 border border-amber-200 rounded-xl flex items-center justify-between text-xs transition">
+          <label class="flex items-center gap-2 cursor-pointer font-bold text-amber-950">
+            <input type="checkbox" id="csvKeepManualStops" checked class="w-4 h-4 rounded text-indigo-600 focus:ring-0 cursor-pointer">
+            <span>기존 직접 추가한 배송지 (<span id="csvManualStopsCount" class="text-amber-700 font-black">0</span>건) 보존하여 함께 등록</span>
+          </label>
+          <span class="px-1.5 py-0.5 bg-amber-100 text-amber-800 rounded text-[10px] font-black shrink-0">자동 병합</span>
+        </div>
       </div>
 
       <!-- Drop Zone -->
@@ -4449,6 +4458,21 @@
       if (csvDateInp) {
         csvDateInp.value = currentHeaderDate;
       }
+
+      // 기존 직접 추가한 배송지 감지 및 표시
+      var manualStops = records.filter(function(r) {
+        return r.isManual || r.source_sheet === '직접추가' || r.원본시트 === '직접추가' || r.계약번호 === '신규등록';
+      });
+      var countEl = document.getElementById('csvManualStopsCount');
+      if (countEl) countEl.innerText = manualStops.length;
+      var boxEl = document.getElementById('csvManualStopsBox');
+      if (boxEl) {
+        if (manualStops.length > 0) {
+          boxEl.classList.remove('hidden');
+        } else {
+          boxEl.classList.remove('hidden'); // 항상 보여주되 0건으로 표시
+        }
+      }
     }
 
     function closeCsvModal() {
@@ -4703,7 +4727,38 @@
       var targetDate = (parsedCsvPendingData[0] && parsedCsvPendingData[0].배송일자)
                         || (document.getElementById('csvTargetDateInput') && document.getElementById('csvTargetDateInput').value);
 
-      records = parsedCsvPendingData;
+      var keepManual = document.getElementById('csvKeepManualStops') ? document.getElementById('csvKeepManualStops').checked : true;
+      var merged = parsedCsvPendingData.slice();
+      var manualMergedCount = 0;
+
+      if (keepManual && records && records.length > 0) {
+        var manualStops = records.filter(function(r) {
+          return r.isManual || r.source_sheet === '직접추가' || r.원본시트 === '직접추가' || r.계약번호 === '신규등록';
+        });
+
+        manualStops.forEach(function(m) {
+          var isDup = merged.some(function(c) {
+            return (c.계약번호 && m.계약번호 && c.계약번호 !== '신규등록' && c.계약번호 === m.계약번호)
+                   || (c.고객사 === m.고객사 && c.주소 === m.주소);
+          });
+          if (!isDup) {
+            var copy = Object.assign({}, m);
+            copy.배송일자 = targetDate;
+            copy.source_sheet = '직접추가';
+            copy.원본시트 = '직접추가';
+            copy.isManual = true;
+            merged.push(copy);
+            manualMergedCount++;
+          }
+        });
+      }
+
+      // 시간순 정렬
+      merged.sort(function(a, b) {
+        return parseVisitMinutes(a.방문시간) - parseVisitMinutes(b.방문시간);
+      });
+
+      records = merged;
       originalRecords = JSON.parse(JSON.stringify(records));
 
       closeCsvModal();
@@ -4736,7 +4791,11 @@
       renderTable();
       renderRouteMap();
 
-      showToast('🎉 ' + records.length + '건의 스케줄이 [' + targetDate + '] 일자로 자동 등록되었습니다!');
+      var toastMsg = '🎉 ' + parsedCsvPendingData.length + '건의 스케줄이 [' + targetDate + '] 일자로 자동 등록되었습니다!';
+      if (manualMergedCount > 0) {
+        toastMsg = '🎉 CSV ' + parsedCsvPendingData.length + '건 + 직접 추가 배송지 ' + manualMergedCount + '건이 안전하게 함께 등록되었습니다!';
+      }
+      showToast(toastMsg);
 
       // Supabase 클라우드 일괄 저장
       if (supabaseClient) {
@@ -4753,7 +4812,8 @@
             items: r.품목_수량,
             status: r.의뢰상태,
             delivery_method: r.배송방법,
-            memo_full: r.비고_전문
+            memo_full: r.비고_전문,
+            source_sheet: r.source_sheet || r.원본시트 || (r.isManual ? '직접추가' : 'CSV업로드')
           };
         });
 
@@ -4761,7 +4821,7 @@
           var cleanTargetDate = targetDate.replace(/\./g, '-');
           var shortTargetDate = targetDate.replace(/-/g, '.');
 
-          // 기존 해당 일자 구버전/중복 데이터를 완전히 삭제 후 최신 데이터로 일괄 등록
+          // 기존 해당 일자 구버전/중복 데이터를 완전히 삭제 후 최신(CSV + 직접추가 합본) 데이터로 일괄 등록
           await supabaseClient.from('delivery_schedules').delete().eq('delivery_date', targetDate);
           if (cleanTargetDate !== targetDate) {
             await supabaseClient.from('delivery_schedules').delete().eq('delivery_date', cleanTargetDate);
@@ -4915,7 +4975,12 @@
           </td>
           <td class="py-2.5 px-2">${categorySelectHtml}</td>
           <td class="py-2.5 px-2">${methodSelectHtml}</td>
-          <td class="py-2.5 px-3 font-bold text-slate-900">${r.고객사}</td>
+          <td class="py-2.5 px-3 font-bold text-slate-900">
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <span>${r.고객사}</span>
+              ${(r.isManual || r.source_sheet === '직접추가' || r.원본시트 === '직접추가' || r.계약번호 === '신규등록') ? '<span class="px-1.5 py-0.5 bg-amber-100 text-amber-800 rounded text-[10px] font-black border border-amber-300 shrink-0 shadow-2xs" title="직접 추가된 배송지 (CSV 등록 시 자동 보존)">직접추가</span>' : ''}
+            </div>
+          </td>
           <td class="py-2.5 px-3.5 text-slate-600 max-w-xs truncate" title="${r.주소}">${r.주소}</td>
           <td class="py-2.5 px-2.5 text-slate-600 font-bold">${r.방문시간 || '-'}</td>
           <td class="py-2.5 px-3 text-slate-800 font-semibold max-w-xs truncate" title="${r.품목_수량}">${r.품목_수량 || '-'}</td>
@@ -5130,7 +5195,10 @@
           </div>
 
           <div>
-            <h4 class="font-black text-slate-900 text-sm leading-tight">${r.고객사 || '고객사 미정'}</h4>
+            <h4 class="font-black text-slate-900 text-sm leading-tight flex items-center gap-1.5 flex-wrap">
+              <span>${r.고객사 || '고객사 미정'}</span>
+              ${(r.isManual || r.source_sheet === '직접추가' || r.원본시트 === '직접추가' || r.계약번호 === '신규등록') ? '<span class="px-1.5 py-0.5 bg-amber-100 text-amber-800 rounded text-[10px] font-black border border-amber-300 shrink-0">직접추가</span>' : ''}
+            </h4>
             <p class="text-xs text-slate-600 font-medium pt-1 flex items-start gap-1">
               <i class="fa-solid fa-location-dot text-rose-500 mt-0.5 shrink-0"></i>
               <span class="break-all">${r.주소 || '주소 없음'}</span>
@@ -5800,7 +5868,10 @@
         품목_수량: item || '-',
         의뢰상태: '출고대기',
         배송방법: method,
-        비고_전문: memo
+        비고_전문: memo,
+        source_sheet: '직접추가',
+        원본시트: '직접추가',
+        isManual: true
       };
 
       records.push(newRecord);
@@ -5824,7 +5895,8 @@
           items: newRecord.품목_수량,
           status: newRecord.의뢰상태,
           delivery_method: newRecord.배송방법,
-          memo_full: newRecord.비고_전문
+          memo_full: newRecord.비고_전문,
+          source_sheet: '직접추가'
         }]).then(function(res) {
           if (res.error) console.error('DB Insert error:', res.error);
         });
@@ -5920,6 +5992,8 @@
             추후일정_특이사항: row.memo_special || '',
             비고_전문: row.memo_full || '',
             원본시트: row.source_sheet || '',
+            source_sheet: row.source_sheet || '',
+            isManual: (row.source_sheet === '직접추가' || row.contract_no === '신규등록'),
             stop_order: (row.stop_order !== null && row.stop_order !== undefined) ? Number(row.stop_order) : null
           };
         });
