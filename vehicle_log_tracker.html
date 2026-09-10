@@ -1032,17 +1032,16 @@
       if (currentViewMode === 'detailed') {
         thead.innerHTML = `
           <tr class="bg-slate-100/90 text-slate-600 text-[11px] font-bold border-b border-slate-200 uppercase tracking-wider">
-            <th class="py-2.5 px-3 w-28 text-center">날짜 (요일)</th>
-            <th class="py-2.5 px-3 w-20 text-center">구분</th>
-            <th class="py-2.5 px-3 w-36 text-left">방문지 (고객사/장소)</th>
-            <th class="py-2.5 px-3 text-left min-w-[220px]">배송지 상세 도로명 주소</th>
+            <th class="py-2.5 px-3 w-14 text-center">순번</th>
+            <th class="py-2.5 px-3 w-28 text-center">방문 구분</th>
+            <th class="py-2.5 px-3 text-left min-w-[280px]">방문지 (고객사) & 상세 도로명 주소</th>
             <th class="py-2.5 px-3 w-24 text-right">출발 계기판</th>
             <th class="py-2.5 px-3 w-24 text-right">도착 계기판</th>
             <th class="py-2.5 px-3 w-20 text-right">구간 거리</th>
             <th class="py-2.5 px-3 w-24 text-right">주차비</th>
             <th class="py-2.5 px-3 w-24 text-right">주유비</th>
             <th class="py-2.5 px-3 w-36 text-left">배송 품목 / 메모</th>
-            <th class="py-2.5 px-3 w-16 text-center">수정</th>
+            <th class="py-2.5 px-3 w-20 text-center whitespace-nowrap">비용 관리</th>
           </tr>
         `;
       } else {
@@ -1179,21 +1178,26 @@
           if (isUnop) {
             totalVisitedDestCount++;
             return `
-              <tr class="hover:bg-slate-50/70 transition text-xs bg-slate-50/50 border-b border-slate-100">
-                <td class="py-2.5 px-3 text-center font-medium ${isWeekend ? 'text-rose-600 font-bold' : 'text-slate-700'}">
-                  ${monthDayStr} <span class="text-[10px] font-normal text-slate-400">(${dayOfWeek})</span>
+              <tr class="bg-slate-50/70 border-b border-slate-200 text-xs text-slate-500">
+                <td class="py-2.5 px-3 text-center">
+                  <span class="w-5 h-5 rounded-full bg-slate-200 text-slate-500 font-mono text-[10px] font-bold inline-flex items-center justify-center">-</span>
                 </td>
                 <td class="py-2.5 px-3 text-center">
-                  <span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 font-bold text-[10px] border border-slate-200">미운행</span>
+                  <span class="inline-flex items-center gap-1 whitespace-nowrap px-2 py-0.5 rounded-full bg-slate-200/80 text-slate-600 font-bold text-[10px]">미운행</span>
                 </td>
-                <td class="py-2.5 px-3 text-slate-400 font-medium">-</td>
-                <td class="py-2.5 px-3 text-slate-400 font-mono text-[11px]">-</td>
+                <td class="py-2.5 px-3">
+                  <div class="flex items-center gap-2">
+                    <span class="font-bold text-slate-700">${monthDayStr} (${dayOfWeek})</span>
+                    <span class="text-slate-400">·</span>
+                    <span class="text-slate-500">${log.memo || '정기 미운행'}</span>
+                  </div>
+                </td>
                 <td class="py-2.5 px-3 text-right font-mono text-slate-400">${log.start_km.toLocaleString()} km</td>
                 <td class="py-2.5 px-3 text-right font-mono text-slate-400">${log.end_km.toLocaleString()} km</td>
-                <td class="py-2.5 px-3 text-right font-mono text-slate-400 font-bold">0 km</td>
+                <td class="py-2.5 px-3 text-right font-mono font-bold text-slate-400">0 km</td>
                 <td class="py-2.5 px-3 text-right font-mono text-slate-400">-</td>
                 <td class="py-2.5 px-3 text-right font-mono text-slate-400">-</td>
-                <td class="py-2.5 px-3 text-slate-400 text-[11px]">${log.memo || '정기 미운행'}</td>
+                <td class="py-2.5 px-3 text-slate-400 text-[11px]">-</td>
                 <td class="py-2.5 px-3 text-center">
                   <button onclick="openEditLogModal(${log.id})" class="p-1 text-slate-400 hover:text-indigo-600 transition" title="수정">
                     <i class="fa-solid fa-pen-to-square text-xs"></i>
@@ -1204,94 +1208,91 @@
           }
 
           var legs = getResolvedStopLegs(log);
-          if (legs.length === 0) {
-            totalVisitedDestCount++;
-            var destText = log.destination_name || log.destination_addr || '가산 센터';
-            return `
-              <tr class="hover:bg-indigo-50/30 transition text-xs border-b border-slate-200">
-                <td class="py-2.5 px-3 text-center font-medium ${isWeekend ? 'text-rose-600 font-bold' : 'text-slate-800'}">
-                  ${monthDayStr} <span class="text-[10px] font-normal text-slate-400">(${dayOfWeek})</span>
-                </td>
-                <td class="py-2.5 px-3 text-center">
-                  <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">일반운행</span>
-                </td>
-                <td class="py-2.5 px-3 font-bold text-slate-900">${destText}</td>
-                <td class="py-2.5 px-3 font-mono text-[11px] text-slate-600">${log.destination_addr || '-'}</td>
-                <td class="py-2.5 px-3 text-right font-mono text-slate-600">${log.start_km.toLocaleString()} km</td>
-                <td class="py-2.5 px-3 text-right font-mono font-bold text-slate-900">${log.end_km.toLocaleString()} km</td>
-                <td class="py-2.5 px-3 text-right font-mono font-black text-indigo-600">${log.distance_km} km</td>
-                <td class="py-2.5 px-3 text-right font-mono font-bold text-amber-700">${log.parking_fee > 0 ? '₩' + log.parking_fee.toLocaleString() : '-'}</td>
-                <td class="py-2.5 px-3 text-right font-mono font-bold text-rose-700">${log.fuel_fee > 0 ? '₩' + log.fuel_fee.toLocaleString() : '-'}</td>
-                <td class="py-2.5 px-3 text-slate-500 text-[11px] truncate max-w-[150px]">${log.memo || '-'}</td>
-                <td class="py-2.5 px-3 text-center">
-                  <button onclick="openEditLogModal(${log.id})" class="p-1 text-slate-400 hover:text-indigo-600 transition" title="수정">
-                    <i class="fa-solid fa-pen-to-square text-xs"></i>
-                  </button>
-                </td>
-              </tr>
-            `;
-          }
-
           totalVisitedDestCount += legs.length;
+          var delivCount = legs.filter(function(l) { return l.type === 'delivery'; }).length;
 
-          return legs.map(function(leg, legIdx) {
-            var isFirstLeg = (legIdx === 0);
+          // 1. Day Group Header Row (일자별 명확한 구분 바)
+          var headerRow = `
+            <tr class="bg-slate-100/80 border-t-2 border-b border-slate-300/80 text-xs">
+              <td colspan="10" class="py-2 px-3">
+                <div class="flex items-center justify-between flex-wrap gap-2">
+                  <div class="flex items-center gap-2">
+                    <span class="px-2.5 py-0.5 rounded-md font-black text-xs ${isWeekend ? 'bg-rose-600 text-white' : 'bg-indigo-600 text-white'} shadow-2xs">
+                      ${monthDayStr} (${dayOfWeek})
+                    </span>
+                    <span class="font-bold text-slate-800 text-xs">${log.driver_name} 기사</span>
+                    <span class="text-slate-300">|</span>
+                    <span class="text-indigo-700 font-mono font-black text-xs">당일 주행: ${log.distance_km} km</span>
+                    <span class="text-slate-500 font-mono text-[11px]">(${log.start_km.toLocaleString()} km → ${log.end_km.toLocaleString()} km)</span>
+                  </div>
+                  <div class="flex items-center gap-3 text-[11px]">
+                    <span class="text-slate-600 font-medium">배송 <b class="text-indigo-600">${delivCount}</b>건 (총 ${legs.length}곳 방문)</span>
+                    <span class="font-mono ${log.parking_fee > 0 ? 'text-amber-700 font-bold' : 'text-slate-400'}">주차비: ₩${log.parking_fee.toLocaleString()}</span>
+                    <span class="font-mono ${log.fuel_fee > 0 ? 'text-rose-700 font-bold' : 'text-slate-400'}">주유비: ₩${log.fuel_fee.toLocaleString()}</span>
+                    <button type="button" onclick="openEditLogModal(${log.id})" class="px-2 py-0.5 rounded bg-white hover:bg-slate-50 text-slate-600 hover:text-indigo-600 border border-slate-300 transition text-[10px] font-bold shadow-2xs">
+                      <i class="fa-solid fa-pen-to-square"></i> 당일 일지 수정
+                    </button>
+                  </div>
+                </div>
+              </td>
+            </tr>
+          `;
+
+          // 2. Granular Leg Rows (배송지별 상세 행)
+          var legRows = legs.map(function(leg, legIdx) {
             var isReturn = (leg.type === 'return');
             var typeBadge = isReturn
-              ? '<span class="px-1.5 py-0.5 rounded text-[10px] font-black bg-teal-100 text-teal-800 border border-teal-200">🏁 복귀</span>'
-              : `<span class="px-1.5 py-0.5 rounded text-[10px] font-black bg-indigo-50 text-indigo-700 border border-indigo-200">📦 배송 ${leg.order}</span>`;
+              ? '<span class="inline-flex items-center gap-1 whitespace-nowrap px-2 py-0.5 rounded-full text-[10px] font-black bg-teal-50 text-teal-700 border border-teal-200 shadow-2xs"><i class="fa-solid fa-flag-checkered text-[9px]"></i> 복귀</span>'
+              : `<span class="inline-flex items-center gap-1 whitespace-nowrap px-2 py-0.5 rounded-full text-[10px] font-black bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-2xs"><i class="fa-solid fa-box text-[9px]"></i> 배송 #${leg.order}</span>`;
 
             var parkingBtn = `
-              <button type="button" onclick="openEditStopFeeModal(${log.id}, ${leg.stopIndex})" class="px-2 py-0.5 rounded hover:bg-amber-100/70 transition font-mono font-bold text-right text-xs ${leg.parking_fee > 0 ? 'text-amber-700 bg-amber-50 border border-amber-200' : 'text-slate-400 hover:text-amber-600'}" title="클릭하여 주차비 입력">
-                ${leg.parking_fee > 0 ? '₩' + leg.parking_fee.toLocaleString() : '<span class="text-[10px] font-normal hover:underline">+입력</span>'}
+              <button type="button" onclick="openEditStopFeeModal(${log.id}, ${leg.stopIndex})" class="px-2 py-0.5 rounded-md transition font-mono font-bold text-right text-xs ${leg.parking_fee > 0 ? 'text-amber-800 bg-amber-50 border border-amber-300 shadow-2xs' : 'text-slate-400 hover:text-amber-600 hover:bg-amber-50/50 border border-dashed border-slate-200'}" title="클릭하여 주차비 입력">
+                ${leg.parking_fee > 0 ? '₩' + leg.parking_fee.toLocaleString() : '<span class="text-[10px] font-normal">+ ₩0</span>'}
               </button>
             `;
 
             var fuelBtn = `
-              <button type="button" onclick="openEditStopFeeModal(${log.id}, ${leg.stopIndex})" class="px-2 py-0.5 rounded hover:bg-rose-100/70 transition font-mono font-bold text-right text-xs ${leg.fuel_fee > 0 ? 'text-rose-700 bg-rose-50 border border-rose-200' : 'text-slate-400 hover:text-rose-600'}" title="클릭하여 주유비 입력">
-                ${leg.fuel_fee > 0 ? '₩' + leg.fuel_fee.toLocaleString() : '<span class="text-[10px] font-normal hover:underline">+입력</span>'}
+              <button type="button" onclick="openEditStopFeeModal(${log.id}, ${leg.stopIndex})" class="px-2 py-0.5 rounded-md transition font-mono font-bold text-right text-xs ${leg.fuel_fee > 0 ? 'text-rose-800 bg-rose-50 border border-rose-300 shadow-2xs' : 'text-slate-400 hover:text-rose-600 hover:bg-rose-50/50 border border-dashed border-slate-200'}" title="클릭하여 주유비 입력">
+                ${leg.fuel_fee > 0 ? '₩' + leg.fuel_fee.toLocaleString() : '<span class="text-[10px] font-normal">+ ₩0</span>'}
               </button>
             `;
 
             var copyBtn = leg.addr ? `
               <button type="button" onclick="copyToClipboard('${leg.addr}')" class="text-slate-400 hover:text-indigo-600 p-0.5 shrink-0 transition" title="주소 복사">
-                <i class="fa-regular fa-copy text-[10px]"></i>
+                <i class="fa-regular fa-copy text-[10.5px]"></i>
               </button>
             ` : '';
 
-            var rowBgClass = isReturn ? 'bg-slate-50/40' : (isFirstLeg ? 'bg-white' : 'bg-white');
-            var borderClass = (legIdx === legs.length - 1) ? 'border-b-2 border-slate-200' : 'border-b border-slate-100';
+            var rowBg = isReturn ? 'bg-slate-50/40' : 'bg-white';
+            var borderBottom = (legIdx === legs.length - 1) ? 'border-b-2 border-slate-200' : 'border-b border-slate-100';
 
             return `
-              <tr class="hover:bg-indigo-50/40 transition text-xs ${rowBgClass} ${borderClass}">
-                <td class="py-2 px-3 text-center font-medium ${isWeekend ? 'text-rose-600 font-bold' : 'text-slate-800'}">
-                  ${isFirstLeg ? `
-                    <div class="font-black text-slate-900">${monthDayStr} <span class="text-[10px] font-normal text-slate-400">(${dayOfWeek})</span></div>
-                    <div class="text-[9.5px] font-mono text-indigo-600 font-bold mt-0.5">당일 ${log.distance_km}km (${log.driver_name})</div>
-                  ` : `
-                    <span class="text-slate-300 font-mono text-[10px]">↳ ${legIdx + 1}</span>
-                  `}
-                </td>
+              <tr class="hover:bg-indigo-50/40 transition text-xs ${rowBg} ${borderBottom}">
                 <td class="py-2 px-3 text-center">
+                  <span class="w-5 h-5 rounded-full bg-slate-100 text-slate-600 font-mono text-[10px] font-bold inline-flex items-center justify-center">${legIdx + 1}</span>
+                </td>
+                <td class="py-2 px-3 text-center whitespace-nowrap">
                   ${typeBadge}
                 </td>
-                <td class="py-2 px-3 font-bold text-slate-900">
-                  <div class="truncate max-w-[140px]" title="${leg.name}">${leg.name}</div>
-                </td>
                 <td class="py-2 px-3 text-left">
-                  <div class="flex items-center gap-1">
-                    <i class="fa-solid fa-location-dot text-indigo-500 text-[10px] shrink-0"></i>
-                    <span class="text-slate-700 font-mono text-[11px] truncate max-w-[280px]" title="${leg.addr}">${leg.addr || '-'}</span>
-                    ${copyBtn}
+                  <div class="space-y-0.5">
+                    <div class="font-bold text-slate-900 text-xs flex items-center gap-1.5">
+                      <span class="truncate max-w-[220px]" title="${leg.name}">${leg.name}</span>
+                    </div>
+                    <div class="flex items-center gap-1 text-[11px] text-slate-500 font-mono">
+                      <i class="fa-solid fa-location-dot text-indigo-400 text-[10px] shrink-0"></i>
+                      <span class="truncate max-w-[340px] select-all" title="${leg.addr}">${leg.addr || '-'}</span>
+                      ${copyBtn}
+                    </div>
                   </div>
                 </td>
-                <td class="py-2 px-3 text-right font-mono text-slate-600">
+                <td class="py-2 px-3 text-right font-mono text-slate-500">
                   ${leg.start_km.toLocaleString()} km
                 </td>
                 <td class="py-2 px-3 text-right font-mono font-bold text-slate-900">
                   ${leg.end_km.toLocaleString()} km
                 </td>
-                <td class="py-2 px-3 text-right font-mono font-black text-indigo-600">
+                <td class="py-2 px-3 text-right font-mono font-black text-indigo-600 text-xs">
                   ${leg.distance_km} km
                 </td>
                 <td class="py-2 px-3 text-right">
@@ -1301,23 +1302,19 @@
                   ${fuelBtn}
                 </td>
                 <td class="py-2 px-3 text-slate-500 text-[11px]">
-                  <div class="truncate max-w-[150px]" title="${leg.memo}">${leg.memo || '-'}</div>
+                  <div class="truncate max-w-[160px]" title="${leg.memo}">${leg.memo || '-'}</div>
                 </td>
-                <td class="py-2 px-3 text-center">
-                  <div class="flex items-center justify-center gap-1">
-                    <button type="button" onclick="openEditStopFeeModal(${log.id}, ${leg.stopIndex})" class="p-1 text-slate-400 hover:text-amber-600 transition" title="비용/메모 입력">
-                      <i class="fa-solid fa-receipt text-xs"></i>
-                    </button>
-                    ${isFirstLeg ? `
-                      <button type="button" onclick="openEditLogModal(${log.id})" class="p-1 text-slate-400 hover:text-slate-700 transition" title="당일 일지 전체 수정">
-                        <i class="fa-solid fa-pen-to-square text-xs"></i>
-                      </button>
-                    ` : ''}
-                  </div>
+                <td class="py-2 px-3 text-center whitespace-nowrap">
+                  <button type="button" onclick="openEditStopFeeModal(${log.id}, ${leg.stopIndex})" class="px-2.5 py-1 bg-slate-100 hover:bg-amber-100 text-slate-700 hover:text-amber-900 border border-slate-200 hover:border-amber-300 rounded-lg transition text-[10px] font-bold inline-flex items-center gap-1 shadow-2xs" title="배송지별 주차비/주유비 수정">
+                    <i class="fa-solid fa-receipt text-[10px] text-amber-600"></i>
+                    <span>비용</span>
+                  </button>
                 </td>
               </tr>
             `;
           }).join('');
+
+          return headerRow + legRows;
         }).join('');
 
         tbody.innerHTML = rowsHtml;
