@@ -1317,6 +1317,104 @@
       updateMobileVehicleWidgetUI();
       closeMobileVehicleSelectModal();
       showToast(`🚗 오늘 운행 차량이 [${vNo}]로 선택되었습니다.`);
+      syncTodayScheduleToVehicleLog(vNo);
+    }
+
+    async function syncTodayScheduleToVehicleLog(vNo) {
+      if (!vNo) return;
+      try {
+        var veh = mobileVehiclesMaster.find(function(v) { return v.vehicle_no === vNo; }) || {};
+        var drvName = getCurrentDriverName() || veh.default_driver || '조경찬';
+        var dest = getMobileDriverDestination();
+        var destAddr = dest.addr || DEFAULT_GASAN_ORIGIN.addr;
+        var destName = dest.name || DEFAULT_GASAN_ORIGIN.name;
+
+        // Build structured stops list (Origin -> Deliveries -> Return)
+        var stops = [];
+        stops.push({
+          id: 'stop_origin',
+          type: 'origin',
+          name: '가산 센터',
+          addr: DEFAULT_GASAN_ORIGIN.addr,
+          time: '08:30',
+          memo: '출고 및 배송 출발'
+        });
+
+        if (window.driverRecords && window.driverRecords.length > 0) {
+          window.driverRecords.forEach(function(r, idx) {
+            stops.push({
+              id: 'stop_deliv_' + (r.id || (idx + 1)),
+              type: 'delivery',
+              order: idx + 1,
+              name: r.customer_name || '고객사',
+              addr: r.customer_address || '',
+              time: r.delivery_time || r.visit_time || '',
+              memo: (r.product_name || '') + (r.order_memo ? ` (${r.order_memo})` : ''),
+              contact: r.contact_name ? `${r.contact_name} ${r.contact_phone || ''}`.trim() : ''
+            });
+          });
+        }
+
+        stops.push({
+          id: 'stop_return',
+          type: 'return',
+          name: destName,
+          addr: destAddr,
+          time: '18:00',
+          memo: '운행 복귀 및 마감'
+        });
+
+        if (supabaseClient) {
+          var checkRes = await supabaseClient.from('delivery_schedules')
+            .select('*')
+            .eq('source_sheet', 'VEHICLE_TRIP_LOGS')
+            .eq('customer_name', vNo)
+            .eq('delivery_date', currentDate)
+            .limit(1);
+
+          var existingPayload = {};
+          var rowId = null;
+          if (checkRes.data && checkRes.data.length > 0) {
+            rowId = checkRes.data[0].id;
+            try { existingPayload = JSON.parse(checkRes.data[0].memo_full || '{}'); } catch(e) {}
+          }
+
+          var startKm = existingPayload.start_km || veh.current_km || veh.initial_km || 0;
+          var endKm = existingPayload.end_km || startKm;
+          var distanceKm = existingPayload.distance_km || (endKm - startKm) || 0;
+
+          var mergedPayload = Object.assign({}, existingPayload, {
+            vehicle_no: vNo,
+            trip_date: currentDate,
+            driver_name: drvName,
+            start_km: startKm,
+            end_km: endKm,
+            distance_km: distanceKm,
+            destination_addr: destAddr,
+            destination_name: destName,
+            stops: stops
+          });
+
+          if (rowId) {
+            await supabaseClient.from('delivery_schedules')
+              .update({
+                driver_name: drvName,
+                memo_full: JSON.stringify(mergedPayload)
+              })
+              .eq('id', rowId);
+          } else {
+            await supabaseClient.from('delivery_schedules').insert([{
+              customer_name: vNo,
+              source_sheet: 'VEHICLE_TRIP_LOGS',
+              delivery_date: currentDate,
+              driver_name: drvName,
+              memo_full: JSON.stringify(mergedPayload)
+            }]);
+          }
+        }
+      } catch(err) {
+        console.warn('Error syncing schedule to vehicle log:', err);
+      }
     }
 
     async function openMobileVehicleClosingModal() {
@@ -1673,6 +1771,10 @@
 
       cachedMobileRoadData = null;
       renderCards();
+
+      if (currentMobileVehicleNo && driverRecords.length > 0) {
+        syncTodayScheduleToVehicleLog(currentMobileVehicleNo);
+      }
 
       if (showWelcome) {
         var label = (currentUser.role === 'admin' && selectedViewingDriver !== '__ALL__')

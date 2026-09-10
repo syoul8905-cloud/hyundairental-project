@@ -10,6 +10,8 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <!-- Supabase JS CDN -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- Kakao Maps Services SDK (정밀 지오코딩 및 네비게이션 경로 거리 연동) -->
+  <script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=500cdd195811a28981f211d6641c3aca&libraries=services"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700;800;900&display=swap');
     body { font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif; }
@@ -323,9 +325,30 @@
             </select>
           </div>
           <div class="col-span-2">
-            <label class="block text-[11px] font-bold text-slate-500 mb-1">도착지 주소</label>
+        <label class="block text-[11px] font-bold text-slate-500 mb-1">도착지 주소</label>
             <input type="text" id="modalDestAddr" value="서울 금천구 벚꽃로 278 (가산 센터)" placeholder="도착지 주소 입력" class="w-full bg-slate-50 text-slate-800 px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-teal-500 focus:outline-none">
           </div>
+        </div>
+
+        <!-- Row 4.8: Stops Management (방문 경로 및 배송지 순서 관리) -->
+        <div class="p-3 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-1.5">
+              <i class="fa-solid fa-route text-indigo-600"></i>
+              <span class="font-black text-slate-800 text-xs">방문 경로 및 배송 순서 관리</span>
+              <span id="modalStopsBadge" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800">0곳</span>
+            </div>
+            <button type="button" onclick="addManualStopToModal()" class="px-2.5 py-1 bg-white hover:bg-indigo-50 text-indigo-600 border border-indigo-200 hover:border-indigo-300 rounded-lg text-[10px] font-bold shadow-2xs transition flex items-center gap-1">
+              <i class="fa-solid fa-plus text-[9px]"></i>
+              <span>배송지 수기 추가</span>
+            </button>
+          </div>
+
+          <!-- Stops List Container -->
+          <div id="modalStopsContainer" class="space-y-1.5 max-h-40 overflow-y-auto custom-scroll pr-1">
+            <!-- Dynamically rendered stops with up/down/delete controls -->
+          </div>
+          <p class="text-[10px] text-slate-400">▲/▼ 버튼으로 배송 순서를 변경하거나 수기 배송지를 추가하여 저장할 수 있습니다.</p>
         </div>
 
         <!-- Row 5: Memo -->
@@ -383,31 +406,91 @@
         </div>
 
         <!-- Vehicle List Table -->
-        <div>
-          <h4 class="font-black text-slate-800 text-xs mb-2">등록된 차량 목록</h4>
-          <div class="border border-slate-200 rounded-xl overflow-hidden">
-            <table class="w-full text-left text-xs">
-              <thead class="bg-slate-100 text-slate-600 text-[11px] font-bold">
+        <div class="space-y-1.5">
+          <h4 class="font-black text-slate-800 text-xs flex items-center justify-between">
+            <span>등록 법인차량 목록</span>
+            <span id="vehicleManageCount" class="text-slate-400 font-normal">총 2대</span>
+          </h4>
+          <div class="border border-slate-200 rounded-xl overflow-hidden max-h-48 overflow-y-auto custom-scroll">
+            <table class="w-full text-left text-xs border-collapse">
+              <thead class="bg-slate-100 text-slate-600 font-bold sticky top-0 text-[10px] uppercase border-b border-slate-200">
                 <tr>
                   <th class="py-2 px-3">차량번호</th>
                   <th class="py-2 px-3">차종</th>
                   <th class="py-2 px-3 text-right">최근 계기판</th>
+                  <th class="py-2 px-3 text-center">기본기사</th>
                   <th class="py-2 px-3 text-center">상태</th>
-                  <th class="py-2 px-3 text-center">삭제</th>
+                  <th class="py-2 px-3 text-center">관리</th>
                 </tr>
               </thead>
-              <tbody id="vehicleManageTableBody" class="divide-y divide-slate-100">
-                <!-- Injected via JS -->
+              <tbody id="vehicleManageListBody" class="divide-y divide-slate-100">
+                <!-- Vehicle Rows dynamically rendered -->
               </tbody>
             </table>
           </div>
         </div>
+      </div>
 
-        <div class="flex justify-end pt-2">
-          <button onclick="closeVehicleManageModal()" class="px-4 py-1.5 bg-slate-800 text-white font-bold rounded-xl text-xs hover:bg-slate-700">
-            닫기
-          </button>
+      <div class="px-4 py-3 bg-slate-50 border-t border-slate-200 flex justify-end">
+        <button onclick="closeVehicleManageModal()" class="px-4 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-xs rounded-xl transition">
+          닫기
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sub-Modal: Edit Vehicle Modal -->
+  <div id="editVehicleSubModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 hidden flex items-center justify-center p-3 animate-in fade-in duration-150">
+    <div class="bg-white rounded-2xl w-full max-w-sm shadow-2xl border border-slate-200 p-4 space-y-3.5 animate-in zoom-in-95 duration-200">
+      <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+        <h4 class="font-black text-slate-900 text-xs flex items-center gap-1.5">
+          <i class="fa-solid fa-pen-to-square text-indigo-600"></i>
+          <span>법인차량 정보 수정</span>
+        </h4>
+        <button type="button" onclick="closeEditVehicleSubModal()" class="w-6 h-6 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition text-xs">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <input type="hidden" id="editVehicleIdx" value="-1">
+      
+      <div class="space-y-3 text-xs">
+        <div>
+          <label class="block text-[11px] font-bold text-slate-700 mb-1">차량 번호 *</label>
+          <input type="text" id="editVehicleNo" placeholder="예: 826라8911" class="w-full bg-slate-50 font-bold text-slate-800 px-3 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
         </div>
+        <div>
+          <label class="block text-[11px] font-bold text-slate-700 mb-1">차종</label>
+          <input type="text" id="editVehicleModel" placeholder="예: 스타리아" class="w-full bg-slate-50 font-bold text-slate-800 px-3 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+        </div>
+        <div>
+          <label class="block text-[11px] font-bold text-slate-700 mb-1">최근 계기판 Km *</label>
+          <input type="number" id="editVehicleKm" placeholder="예: 32150" class="w-full bg-white font-mono font-black text-indigo-700 px-3 py-2 rounded-xl border border-indigo-200 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+          <span class="text-[10px] text-slate-400 mt-0.5 block">운행일지 시작/기준 마일리지로 활용됩니다.</span>
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-[11px] font-bold text-slate-700 mb-1">기본 배정 기사</label>
+            <input type="text" id="editVehicleDriver" placeholder="예: 조경찬" class="w-full bg-slate-50 font-bold text-slate-800 px-3 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+          </div>
+          <div>
+            <label class="block text-[11px] font-bold text-slate-700 mb-1">운행 상태</label>
+            <select id="editVehicleActive" class="w-full bg-slate-50 font-bold text-slate-800 px-3 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+              <option value="true">운행중 (활성)</option>
+              <option value="false">비활성 (미운행)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+        <button type="button" onclick="closeEditVehicleSubModal()" class="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-xl text-xs transition">
+          취소
+        </button>
+        <button type="button" onclick="saveEditedVehicle()" class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl text-xs shadow-xs transition flex items-center gap-1 active:scale-98">
+          <i class="fa-solid fa-check"></i>
+          <span>수정사항 저장</span>
+        </button>
       </div>
     </div>
   </div>
@@ -416,7 +499,7 @@
   <!-- Modal 3: Auto Distribute Mileage Modal     -->
   <!-- ========================================== -->
   <div id="autoDistributeModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 hidden flex items-center justify-center p-3 animate-in fade-in duration-150">
-    <div class="bg-white rounded-2xl w-full max-w-xl shadow-2xl border border-slate-200 overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[92vh]">
+    <div class="bg-white rounded-2xl w-full max-w-2xl shadow-2xl border border-slate-200 overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[92vh]">
       <!-- Header -->
       <div class="px-5 py-3.5 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white flex items-center justify-between shrink-0">
         <div class="flex items-center gap-2">
@@ -425,7 +508,7 @@
           </div>
           <div>
             <h3 class="font-black text-sm">운행종료 Km 기반 일자별 자동 분배</h3>
-            <p class="text-[10px] text-slate-300">최종 계기판 입력 한 번으로 당월 운행일지를 오차 없이 자동 계산·생성합니다.</p>
+            <p class="text-[10px] text-slate-300">월말 최종 계기판 입력으로 당월 운행일지를 네비 경로 거리 비례로 오차 없이 자동 분배합니다.</p>
           </div>
         </div>
         <button onclick="closeAutoDistributeModal()" class="w-7 h-7 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition">
@@ -483,18 +566,25 @@
         <!-- Distribution Method Selection -->
         <div>
           <label class="block text-xs font-black text-slate-800 mb-1.5">분배 알고리즘 기준</label>
-          <div class="grid grid-cols-2 gap-2">
-            <label class="cursor-pointer flex items-start gap-2.5 p-3 rounded-xl border border-indigo-200 bg-indigo-50/30 hover:bg-indigo-50 transition">
-              <input type="radio" name="distributeMethod" value="delivery_weight" checked onchange="calculateAutoDistributePreview()" class="mt-0.5 text-indigo-600 focus:ring-indigo-500">
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <label class="cursor-pointer flex items-start gap-2.5 p-3 rounded-xl border-2 border-indigo-500 bg-indigo-50/40 hover:bg-indigo-50 transition">
+              <input type="radio" name="distributeMethod" value="navi_weight" checked onchange="calculateAutoDistributePreview()" class="mt-0.5 text-indigo-600 focus:ring-indigo-500">
               <div>
-                <span class="block text-xs font-black text-slate-900">배송 건수 비례 분배 (추천)</span>
-                <span class="text-[10px] text-slate-500 leading-tight block mt-0.5">클라우드 배송 스케줄 건수에 비례하여 가중 배분합니다. 배송 없는 날 0km.</span>
+                <span class="block text-xs font-black text-slate-900">🛰️ 네비 경로 거리 비례 (추천)</span>
+                <span class="text-[10px] text-slate-500 leading-tight block mt-0.5">배송지 간 실제 이동 경로 거리(km)를 반영하여 장거리/단거리 맞춤 비례 분배 (가까운 곳은 적게, 먼 곳은 알맞게 배분)</span>
+              </div>
+            </label>
+            <label class="cursor-pointer flex items-start gap-2.5 p-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 transition">
+              <input type="radio" name="distributeMethod" value="delivery_weight" onchange="calculateAutoDistributePreview()" class="mt-0.5 text-indigo-600 focus:ring-indigo-500">
+              <div>
+                <span class="block text-xs font-black text-slate-900">📦 배송 건수 단순 비례</span>
+                <span class="text-[10px] text-slate-500 leading-tight block mt-0.5">배송 스케줄 건수에 비례하여 단순 가중 배분합니다.</span>
               </div>
             </label>
             <label class="cursor-pointer flex items-start gap-2.5 p-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 transition">
               <input type="radio" name="distributeMethod" value="weekday_even" onchange="calculateAutoDistributePreview()" class="mt-0.5 text-indigo-600 focus:ring-indigo-500">
               <div>
-                <span class="block text-xs font-black text-slate-900">평일(월~금) 자연 분배</span>
+                <span class="block text-xs font-black text-slate-900">⚖️ 평일(월~금) 자연 분배</span>
                 <span class="text-[10px] text-slate-500 leading-tight block mt-0.5">평일 근무일에 자연스러운 편차(70~95km)를 두어 균등하게 분배합니다.</span>
               </div>
             </label>
@@ -520,14 +610,15 @@
                 <tr>
                   <th class="py-1.5 px-2.5 text-center">날짜 (요일)</th>
                   <th class="py-1.5 px-2 text-center">배송건수</th>
+                  <th class="py-1.5 px-2 text-center text-indigo-700">네비 추천(km)</th>
                   <th class="py-1.5 px-2 text-right">출발 Km</th>
                   <th class="py-1.5 px-2 text-right">종료 Km</th>
-                  <th class="py-1.5 px-2.5 text-right font-black">당일거리</th>
+                  <th class="py-1.5 px-2.5 text-right font-black">분배 거리(km)</th>
                 </tr>
               </thead>
               <tbody id="autoPreviewTableBody" class="divide-y divide-slate-100 text-slate-800 font-mono text-[11px]">
                 <tr>
-                  <td colspan="5" class="py-8 text-center text-slate-400 font-sans">
+                  <td colspan="6" class="py-8 text-center text-slate-400 font-sans">
                     운행종료 Km를 입력하시면 일자별 주행거리가 자동으로 계산됩니다.
                   </td>
                 </tr>
@@ -716,6 +807,7 @@
                 is_local_dismissal: Boolean(parsed.is_local_dismissal),
                 destination_addr: parsed.destination_addr || '',
                 destination_name: parsed.destination_name || '',
+                stops: parsed.stops || [],
                 memo: parsed.memo || ''
               };
             });
@@ -938,14 +1030,296 @@
     }
 
     // ==========================================
-    // 6. Add / Edit Trip Log Modal Handlers
+    // 6. Navigation Distance & Stops Management
+    // ==========================================
+    const REGION_COORDS = {
+      '금천': { lat: 37.4568, lng: 126.8954 },
+      '가산': { lat: 37.4806, lng: 126.8833 },
+      '구로': { lat: 37.4954, lng: 126.8874 },
+      '영등포': { lat: 37.5264, lng: 126.8962 },
+      '여의도': { lat: 37.5216, lng: 126.9242 },
+      '마포': { lat: 37.5663, lng: 126.9016 },
+      '강남': { lat: 37.4979, lng: 127.0276 },
+      '서초': { lat: 37.4837, lng: 127.0324 },
+      '송파': { lat: 37.5145, lng: 127.1059 },
+      '강동': { lat: 37.5301, lng: 127.1238 },
+      '종로': { lat: 37.5730, lng: 126.9794 },
+      '중구': { lat: 37.5636, lng: 126.9975 },
+      '용산': { lat: 37.5326, lng: 126.9900 },
+      '동작': { lat: 37.5124, lng: 126.9393 },
+      '관악': { lat: 37.4784, lng: 126.9516 },
+      '양천': { lat: 37.5170, lng: 126.8665 },
+      '강서': { lat: 37.5509, lng: 126.8495 },
+      '광진': { lat: 37.5385, lng: 127.0823 },
+      '성동': { lat: 37.5633, lng: 127.0371 },
+      '동대문': { lat: 37.5744, lng: 127.0397 },
+      '중랑': { lat: 37.6063, lng: 127.0926 },
+      '성북': { lat: 37.5891, lng: 127.0182 },
+      '강북': { lat: 37.6396, lng: 127.0255 },
+      '도봉': { lat: 37.6688, lng: 127.0471 },
+      '노원': { lat: 37.6542, lng: 127.0568 },
+      '은평': { lat: 37.6027, lng: 126.9291 },
+      '서대문': { lat: 37.5791, lng: 126.9368 },
+      '수원': { lat: 37.2636, lng: 127.0286 },
+      '성남': { lat: 37.4200, lng: 127.1265 },
+      '분당': { lat: 37.3827, lng: 127.1189 },
+      '용인': { lat: 37.2411, lng: 127.1776 },
+      '수지': { lat: 37.3223, lng: 127.0975 },
+      '기흥': { lat: 37.2804, lng: 127.1147 },
+      '화성': { lat: 37.1995, lng: 126.8315 },
+      '동탄': { lat: 37.2001, lng: 127.0744 },
+      '안양': { lat: 37.3943, lng: 126.9568 },
+      '동안': { lat: 37.3916, lng: 126.9634 },
+      '만안': { lat: 37.4002, lng: 126.9149 },
+      '군포': { lat: 37.3616, lng: 126.9352 },
+      '의왕': { lat: 37.3448, lng: 126.9683 },
+      '과천': { lat: 37.4292, lng: 126.9877 },
+      '부천': { lat: 37.5034, lng: 126.7660 },
+      '광명': { lat: 37.4786, lng: 126.8646 },
+      '시흥': { lat: 37.3802, lng: 126.8029 },
+      '안산': { lat: 37.3219, lng: 126.8309 },
+      '단원': { lat: 37.3252, lng: 126.8173 },
+      '상록': { lat: 37.3082, lng: 126.8523 },
+      '고양': { lat: 37.6584, lng: 126.8320 },
+      '일산': { lat: 37.6760, lng: 126.7680 },
+      '덕양': { lat: 37.6373, lng: 126.8328 },
+      '파주': { lat: 37.7600, lng: 126.7800 },
+      '김포': { lat: 37.6152, lng: 126.7157 },
+      '인천': { lat: 37.4563, lng: 126.7052 },
+      '부평': { lat: 37.5074, lng: 126.7219 },
+      '남동': { lat: 37.4470, lng: 126.7314 },
+      '연수': { lat: 37.4101, lng: 126.6783 },
+      '송도': { lat: 37.3895, lng: 126.6534 },
+      '서구': { lat: 37.5454, lng: 126.6760 },
+      '계양': { lat: 37.5374, lng: 126.7378 },
+      '청라': { lat: 37.5361, lng: 126.6508 },
+      '남양주': { lat: 37.6360, lng: 127.2165 },
+      '구리': { lat: 37.5943, lng: 127.1296 },
+      '하남': { lat: 37.5393, lng: 127.2148 },
+      '평택': { lat: 36.9921, lng: 127.1129 }
+    };
+
+    function getCoordsFromAddress(addr) {
+      if (!addr) return { lat: 37.4806, lng: 126.8833 };
+      for (var k in REGION_COORDS) {
+        if (addr.indexOf(k) !== -1) {
+          return REGION_COORDS[k];
+        }
+      }
+      return { lat: 37.4806, lng: 126.8833 };
+    }
+
+    function calcHaversineDistanceKm(lat1, lon1, lat2, lon2) {
+      var R = 6371; // km
+      var dLat = (lat2 - lat1) * Math.PI / 180;
+      var dLon = (lon2 - lon1) * Math.PI / 180;
+      var a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLon / 2) * Math.sin(dLon / 2);
+      var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return R * c;
+    }
+
+    function calcRouteDistanceForStops(stops) {
+      if (!stops || stops.length <= 1) return 0;
+      var totalStraight = 0;
+      for (var i = 0; i < stops.length - 1; i++) {
+        var p1 = getCoordsFromAddress(stops[i].addr || stops[i].name);
+        var p2 = getCoordsFromAddress(stops[i + 1].addr || stops[i + 1].name);
+        totalStraight += calcHaversineDistanceKm(p1.lat, p1.lng, p2.lat, p2.lng);
+      }
+      var roadKm = totalStraight * 1.38; // winding road factor
+      var delivCount = stops.filter(function(s) { return s.type === 'delivery'; }).length;
+      return Math.max(roadKm, delivCount > 0 ? (delivCount * 7.5 + 15) : 0);
+    }
+
+    // Modal Stops State
+    var modalStops = [];
+
+    function renderModalStops() {
+      var container = document.getElementById('modalStopsContainer');
+      var badge = document.getElementById('modalStopsBadge');
+      if (!container) return;
+
+      var delivCount = modalStops.filter(function(s) { return s.type === 'delivery'; }).length;
+      if (badge) badge.innerText = `${modalStops.length}곳 (배송 ${delivCount}건)`;
+
+      if (modalStops.length === 0) {
+        container.innerHTML = '<div class="py-3 text-center text-slate-400 text-xs">등록된 경유지가 없습니다.</div>';
+        return;
+      }
+
+      container.innerHTML = modalStops.map(function(s, idx) {
+        var isOrigin = (s.type === 'origin');
+        var isReturn = (s.type === 'return');
+        var isDeliv = (s.type === 'delivery');
+
+        var badgeHtml = isOrigin
+          ? '<span class="px-1.5 py-0.5 rounded text-[9.5px] font-bold bg-indigo-100 text-indigo-700 shrink-0">출발</span>'
+          : isReturn
+          ? '<span class="px-1.5 py-0.5 rounded text-[9.5px] font-bold bg-teal-100 text-teal-800 shrink-0">도착</span>'
+          : `<span class="px-1.5 py-0.5 rounded text-[9.5px] font-bold bg-amber-100 text-amber-900 shrink-0">배송 #${s.order || idx}</span>`;
+
+        var canMoveUp = isDeliv && (idx > 1 && modalStops[idx - 1].type === 'delivery');
+        var canMoveDown = isDeliv && (idx < modalStops.length - 2 && modalStops[idx + 1].type === 'delivery');
+
+        return `
+          <div class="flex items-center justify-between p-2 rounded-xl bg-white border border-slate-200 shadow-2xs gap-2 text-xs hover:border-indigo-200 transition">
+            <div class="flex items-center gap-2 min-w-0 flex-1">
+              ${badgeHtml}
+              <div class="min-w-0 flex-1">
+                <p class="font-bold text-slate-900 text-[11px] truncate">${s.name || '배송지'}</p>
+                <p class="text-[10px] text-slate-500 truncate" title="${s.addr || ''}">${s.addr || '주소 미입력'}</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-1 shrink-0">
+              ${isDeliv ? `
+                <button type="button" onclick="moveModalStop(${idx}, -1)" class="w-6 h-6 rounded bg-slate-100 hover:bg-indigo-50 text-slate-600 hover:text-indigo-600 flex items-center justify-center text-[10px]" title="순서 위로" ${!canMoveUp ? 'disabled style="opacity:0.3; cursor:default;"' : ''}>
+                  <i class="fa-solid fa-chevron-up"></i>
+                </button>
+                <button type="button" onclick="moveModalStop(${idx}, 1)" class="w-6 h-6 rounded bg-slate-100 hover:bg-indigo-50 text-slate-600 hover:text-indigo-600 flex items-center justify-center text-[10px]" title="순서 아래로" ${!canMoveDown ? 'disabled style="opacity:0.3; cursor:default;"' : ''}>
+                  <i class="fa-solid fa-chevron-down"></i>
+                </button>
+                <button type="button" onclick="removeModalStop(${idx})" class="w-6 h-6 rounded bg-slate-100 hover:bg-rose-50 text-slate-400 hover:text-rose-600 flex items-center justify-center text-[10px]" title="배송지 삭제">
+                  <i class="fa-solid fa-trash-can"></i>
+                </button>
+              ` : ''}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function addManualStopToModal() {
+      var name = prompt('추가할 배송지(고객사) 이름을 입력하세요:', '신규 배송지');
+      if (!name) return;
+      var addr = prompt('배송지 주소를 입력하세요:', '서울시 ');
+      if (!addr) return;
+
+      var insertIdx = Math.max(1, modalStops.length - 1);
+      var newStop = {
+        id: 'stop_manual_' + Date.now(),
+        type: 'delivery',
+        order: insertIdx,
+        name: name.trim(),
+        addr: addr.trim(),
+        time: '',
+        memo: '관리자 수기 추가'
+      };
+
+      modalStops.splice(insertIdx, 0, newStop);
+      renumberModalStops();
+      renderModalStops();
+
+      var recDist = calcRouteDistanceForStops(modalStops);
+      if (recDist > 0) {
+        document.getElementById('modalSuggestedKm').innerText = recDist.toFixed(1) + ' km';
+      }
+      showToast(`📍 [${name}] 배송지가 추가되었습니다.`);
+    }
+
+    function moveModalStop(idx, delta) {
+      var targetIdx = idx + delta;
+      if (targetIdx < 1 || targetIdx >= modalStops.length - 1) return;
+      var tmp = modalStops[idx];
+      modalStops[idx] = modalStops[targetIdx];
+      modalStops[targetIdx] = tmp;
+      renumberModalStops();
+      renderModalStops();
+
+      var recDist = calcRouteDistanceForStops(modalStops);
+      if (recDist > 0) {
+        document.getElementById('modalSuggestedKm').innerText = recDist.toFixed(1) + ' km';
+      }
+    }
+
+    function removeModalStop(idx) {
+      if (modalStops[idx].type !== 'delivery') return;
+      var removedName = modalStops[idx].name;
+      modalStops.splice(idx, 1);
+      renumberModalStops();
+      renderModalStops();
+
+      var recDist = calcRouteDistanceForStops(modalStops);
+      if (recDist > 0) {
+        document.getElementById('modalSuggestedKm').innerText = recDist.toFixed(1) + ' km';
+      }
+      showToast(`🗑️ [${removedName}] 배송지가 삭제되었습니다.`);
+    }
+
+    function renumberModalStops() {
+      var delivOrder = 1;
+      modalStops.forEach(function(s) {
+        if (s.type === 'delivery') {
+          s.order = delivOrder++;
+        }
+      });
+    }
+
+    async function loadStopsForDate(dateStr) {
+      if (!supabaseClient || !dateStr) return;
+      try {
+        var res = await supabaseClient.from('delivery_schedules')
+          .select('*')
+          .eq('delivery_date', dateStr)
+          .neq('source_sheet', 'VEHICLE_TRIP_LOGS')
+          .neq('source_sheet', 'SYSTEM_CONFIG_VEHICLES')
+          .order('id', { ascending: true });
+
+        if (res.data && res.data.length > 0) {
+          if (modalStops.length <= 2) {
+            var dest = document.getElementById('modalDestAddr').value || '서울 금천구 벚꽃로 278 (가산 센터)';
+            var destName = document.getElementById('modalDestType').value === 'gasan' ? '가산 센터' : dest;
+
+            modalStops = [
+              { id: 'stop_origin', type: 'origin', name: '가산 센터', addr: '서울 금천구 벚꽃로 278 (가산 센터)', time: '08:30' }
+            ];
+
+            res.data.forEach(function(r, idx) {
+              modalStops.push({
+                id: 'stop_deliv_' + (r.id || idx),
+                type: 'delivery',
+                order: idx + 1,
+                name: r.customer_name || '고객사',
+                addr: r.customer_address || '',
+                time: r.delivery_time || r.visit_time || '',
+                memo: r.product_name || ''
+              });
+            });
+
+            modalStops.push({
+              id: 'stop_return',
+              type: 'return',
+              name: destName,
+              addr: dest,
+              time: '18:00'
+            });
+
+            renderModalStops();
+
+            var recDist = calcRouteDistanceForStops(modalStops);
+            if (recDist > 0) {
+              document.getElementById('modalSuggestedKm').innerText = recDist.toFixed(1) + ' km';
+            }
+          }
+        }
+      } catch(e) {
+        console.warn('Error loading stops for date:', e);
+      }
+    }
+
+    function onModalDateChanged(newDate) {
+      loadStopsForDate(newDate);
+    }
+
+    // ==========================================
+    // Modal Open & Submit Handlers
     // ==========================================
     function openNewLogModal() {
       document.getElementById('modalTitle').innerText = '신규 운행일지 등록';
       document.getElementById('editLogId').value = '';
       document.getElementById('modalVehicleNo').value = currentSelectedVehicleNo;
 
-      // Set default date to today or latest month date
       var todayStr = `${currentYear}-${String(currentMonth).padStart(2, '0')}-01`;
       document.getElementById('modalTripDate').value = todayStr;
       
@@ -961,6 +1335,13 @@
       document.getElementById('modalParkingFee').value = 0;
       document.getElementById('modalFuelFee').value = 0;
       document.getElementById('modalMemo').value = '';
+
+      modalStops = [
+        { id: 'stop_origin', type: 'origin', name: '가산 센터', addr: '서울 금천구 벚꽃로 278 (가산 센터)', time: '08:30' },
+        { id: 'stop_return', type: 'return', name: '가산 센터', addr: '서울 금천구 벚꽃로 278 (가산 센터)', time: '18:00' }
+      ];
+      renderModalStops();
+      loadStopsForDate(todayStr);
 
       calcModalMileage();
       document.getElementById('tripLogModal').classList.remove('hidden');
@@ -986,6 +1367,22 @@
       document.getElementById('modalFuelFee').value = log.fuel_fee;
       document.getElementById('modalMemo').value = log.memo;
 
+      if (log.stops && log.stops.length > 0) {
+        modalStops = JSON.parse(JSON.stringify(log.stops));
+      } else {
+        modalStops = [
+          { id: 'stop_origin', type: 'origin', name: '가산 센터', addr: '서울 금천구 벚꽃로 278 (가산 센터)', time: '08:30' },
+          { id: 'stop_return', type: 'return', name: log.destination_name || '가산 센터', addr: log.destination_addr || '서울 금천구 벚꽃로 278 (가산 센터)', time: '18:00' }
+        ];
+        loadStopsForDate(log.trip_date);
+      }
+      renderModalStops();
+
+      var recDist = calcRouteDistanceForStops(modalStops);
+      if (recDist > 0) {
+        document.getElementById('modalSuggestedKm').innerText = recDist.toFixed(1) + ' km';
+      }
+
       calcModalMileage();
       document.getElementById('tripLogModal').classList.remove('hidden');
     }
@@ -998,6 +1395,14 @@
       } else {
         if (addrInp.value.indexOf('벚꽃로 278') !== -1) addrInp.value = '';
         addrInp.focus();
+      }
+      if (modalStops.length > 0) {
+        var ret = modalStops[modalStops.length - 1];
+        if (ret && ret.type === 'return') {
+          ret.name = (val === 'gasan') ? '가산 센터' : '도착지';
+          ret.addr = addrInp.value;
+          renderModalStops();
+        }
       }
     }
 
@@ -1032,17 +1437,24 @@
     }
 
     async function applyNaviDistanceSuggestion() {
-      var tripDate = document.getElementById('modalTripDate').value;
       var startKm = Number(document.getElementById('modalStartKm').value || 0);
-      if (!tripDate || !startKm) return;
+      if (!startKm) {
+        alert('시작 Km를 먼저 입력해주세요.');
+        return;
+      }
 
-      showToast('🛰️ 당일 배송 스케줄 네비 경로 거리 조회 중...');
+      showToast('🛰️ 배송 경로 네비 거리 계산 중...');
 
-      var suggestedDist = 45.2;
+      var suggestedDist = calcRouteDistanceForStops(modalStops);
+      if (suggestedDist <= 0) {
+        suggestedDist = 45.0;
+      }
+      suggestedDist = Math.round(suggestedDist * 10) / 10;
+
       document.getElementById('modalEndKm').value = Math.round(startKm + suggestedDist);
       document.getElementById('modalSuggestedKm').innerText = suggestedDist + ' km';
       calcModalMileage();
-      showToast('✅ 네비 추천 주행거리(+' + suggestedDist + 'km)가 반영되었습니다!');
+      showToast('✅ 네비 경로 추천 주행거리(+' + suggestedDist + 'km)가 반영되었습니다!');
     }
 
     async function handleTripLogSubmit(e) {
@@ -1086,6 +1498,7 @@
         is_local_dismissal: false,
         destination_addr: destAddr || '서울 금천구 벚꽃로 278 (가산 센터)',
         destination_name: destName,
+        stops: modalStops,
         parking_fee: parkingFee,
         fuel_fee: fuelFee,
         is_unoperated: isUnoperated,
@@ -1162,21 +1575,97 @@
         return `
           <tr class="hover:bg-slate-50">
             <td class="py-2.5 px-3 font-bold text-slate-800">${v.vehicle_no}</td>
-            <td class="py-2.5 px-3 text-slate-600">${v.model_name}</td>
+            <td class="py-2.5 px-3 text-slate-600">${v.model_name || '스타리아'}</td>
             <td class="py-2.5 px-3 text-right font-mono font-bold text-indigo-700">${(v.current_km || v.initial_km || 0).toLocaleString()} km</td>
+            <td class="py-2.5 px-3 text-center text-slate-600 font-bold">${v.default_driver || '-'}</td>
             <td class="py-2.5 px-3 text-center">
-              <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${v.is_active ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-400'}">
-                ${v.is_active ? '운행중' : '비활성'}
+              <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${v.is_active !== false ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-400'}">
+                ${v.is_active !== false ? '운행중' : '비활성'}
               </span>
             </td>
             <td class="py-2.5 px-3 text-center">
-              <button onclick="removeVehicle(${idx})" class="text-slate-400 hover:text-rose-600 transition" title="삭제">
-                <i class="fa-solid fa-trash-can"></i>
-              </button>
+              <div class="flex items-center justify-center gap-1.5">
+                <button type="button" onclick="openEditVehicleSubModal(${idx})" class="p-1 text-slate-400 hover:text-indigo-600 transition" title="차량 정보 수정">
+                  <i class="fa-solid fa-pen-to-square"></i>
+                </button>
+                <button type="button" onclick="removeVehicle(${idx})" class="p-1 text-slate-400 hover:text-rose-600 transition" title="차량 삭제">
+                  <i class="fa-solid fa-trash-can"></i>
+                </button>
+              </div>
             </td>
           </tr>
         `;
       }).join('');
+    }
+
+    function openEditVehicleSubModal(idx) {
+      var v = vehiclesMaster[idx];
+      if (!v) return;
+      document.getElementById('editVehicleIdx').value = idx;
+      document.getElementById('editVehicleNo').value = v.vehicle_no;
+      document.getElementById('editVehicleModel').value = v.model_name || '스타리아';
+      document.getElementById('editVehicleKm').value = v.current_km || v.initial_km || 0;
+      document.getElementById('editVehicleDriver').value = v.default_driver || '';
+      document.getElementById('editVehicleActive').value = v.is_active !== false ? 'true' : 'false';
+      document.getElementById('editVehicleSubModal').classList.remove('hidden');
+    }
+
+    function closeEditVehicleSubModal() {
+      document.getElementById('editVehicleSubModal').classList.add('hidden');
+    }
+
+    async function saveEditedVehicle() {
+      var idx = Number(document.getElementById('editVehicleIdx').value);
+      var v = vehiclesMaster[idx];
+      if (!v) return;
+
+      var oldNo = v.vehicle_no;
+      var newNo = document.getElementById('editVehicleNo').value.trim();
+      var newModel = document.getElementById('editVehicleModel').value.trim() || '스타리아';
+      var newKm = Number(document.getElementById('editVehicleKm').value || 0);
+      var newDriver = document.getElementById('editVehicleDriver').value.trim();
+      var newActive = document.getElementById('editVehicleActive').value === 'true';
+
+      if (!newNo) {
+        alert('차량번호를 입력해주세요.');
+        return;
+      }
+
+      // Check duplicate
+      if (newNo !== oldNo && vehiclesMaster.some(function(other, oIdx) { return oIdx !== idx && other.vehicle_no === newNo; })) {
+        alert('이미 등록된 차량번호입니다.');
+        return;
+      }
+
+      v.vehicle_no = newNo;
+      v.model_name = newModel;
+      v.current_km = newKm;
+      v.initial_km = Math.min(v.initial_km || newKm, newKm);
+      v.default_driver = newDriver;
+      v.is_active = newActive;
+
+      if (currentSelectedVehicleNo === oldNo) {
+        currentSelectedVehicleNo = newNo;
+      }
+
+      // If vehicle_no changed, update existing logs in Supabase
+      if (newNo !== oldNo && supabaseClient) {
+        try {
+          await supabaseClient.from('delivery_schedules')
+            .update({ customer_name: newNo })
+            .eq('source_sheet', 'VEHICLE_TRIP_LOGS')
+            .eq('customer_name', oldNo);
+        } catch(e) {
+          console.warn('Failed to update trip logs vehicle_no:', e);
+        }
+      }
+
+      await saveVehiclesMaster();
+      renderVehicleTabs();
+      renderVehicleManageList();
+      loadVehicleData(false);
+      closeEditVehicleSubModal();
+      showToast(`✅ [${newNo}] 차량 정보가 성공적으로 수정되었습니다.`);
     }
 
     async function addNewVehicle() {
@@ -1398,21 +1887,17 @@
       badge.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold';
 
       var methodEl = document.querySelector('input[name="distributeMethod"]:checked');
-      var method = methodEl ? methodEl.value : 'delivery_weight';
+      var method = methodEl ? methodEl.value : 'navi_weight';
 
       var monthPrefix = `${currentYear}-${String(currentMonth).padStart(2, '0')}`;
       var daysInMonth = new Date(currentYear, currentMonth, 0).getDate();
 
-      // 1. Determine target dates & initial weights
-      var targetDayInfo = []; // { date, dayOfWeek, isWeekend, count, weight }
-      var dayNames = ['일', '월', '화', '수', '목', '금', '토'];
-
-      // Fetch actual delivery schedules count from Supabase
-      var deliveryCountMap = {};
-      if (supabaseClient && method === 'delivery_weight') {
+      // Fetch actual delivery schedules from Supabase for all days of the month
+      var daySchedulesMap = {};
+      if (supabaseClient) {
         try {
           var res = await supabaseClient.from('delivery_schedules')
-            .select('delivery_date')
+            .select('*')
             .gte('delivery_date', `${monthPrefix}-01`)
             .lte('delivery_date', `${monthPrefix}-${daysInMonth}`)
             .neq('source_sheet', 'VEHICLE_TRIP_LOGS')
@@ -1421,7 +1906,10 @@
           if (res.data && res.data.length > 0) {
             res.data.forEach(function(r) {
               if (r.delivery_date) {
-                deliveryCountMap[r.delivery_date] = (deliveryCountMap[r.delivery_date] || 0) + 1;
+                if (!daySchedulesMap[r.delivery_date]) {
+                  daySchedulesMap[r.delivery_date] = [];
+                }
+                daySchedulesMap[r.delivery_date].push(r);
               }
             });
           }
@@ -1430,31 +1918,109 @@
         }
       }
 
+      var targetDayInfo = []; // { date, dayOfWeek, isWeekend, count, naviDist, stops, weight }
+      var dayNames = ['일', '월', '화', '수', '목', '금', '토'];
+
       for (var day = 1; day <= daysInMonth; day++) {
         var dayStr = `${monthPrefix}-${String(day).padStart(2, '0')}`;
         var d = new Date(currentYear, currentMonth - 1, day);
         var dayIdx = d.getDay();
         var isWeekend = (dayIdx === 0 || dayIdx === 6);
-        var cnt = deliveryCountMap[dayStr] || 0;
+        var dayDeliveries = daySchedulesMap[dayStr] || [];
+        var cnt = dayDeliveries.length;
 
-        if (method === 'delivery_weight') {
-          var hasAnySchedules = Object.keys(deliveryCountMap).length > 0;
-          if (hasAnySchedules) {
+        // Build stops for this day (Origin -> Deliveries -> Return)
+        var dayStops = [
+          { type: 'origin', name: '가산 센터', addr: '서울 금천구 벚꽃로 278 (가산 센터)' }
+        ];
+        dayDeliveries.forEach(function(r, idx) {
+          dayStops.push({
+            type: 'delivery',
+            order: idx + 1,
+            name: r.customer_name || '고객사',
+            addr: r.customer_address || '',
+            memo: r.product_name || ''
+          });
+        });
+        dayStops.push({
+          type: 'return',
+          name: '가산 센터',
+          addr: '서울 금천구 벚꽃로 278 (가산 센터)'
+        });
+
+        var dayNaviDist = cnt > 0 ? calcRouteDistanceForStops(dayStops) : 0;
+        dayNaviDist = Math.round(dayNaviDist * 10) / 10;
+
+        if (method === 'navi_weight') {
+          var hasAny = Object.keys(daySchedulesMap).length > 0;
+          if (hasAny) {
+            if (cnt > 0) {
+              targetDayInfo.push({
+                date: dayStr,
+                dayOfWeek: dayNames[dayIdx],
+                isWeekend: isWeekend,
+                count: cnt,
+                naviDist: dayNaviDist,
+                stops: dayStops,
+                weight: Math.max(10, dayNaviDist)
+              });
+            }
+          } else {
+            if (!isWeekend) {
+              var pseudo = 60 + (((day * 13) % 7) * 5);
+              targetDayInfo.push({
+                date: dayStr,
+                dayOfWeek: dayNames[dayIdx],
+                isWeekend: isWeekend,
+                count: 0,
+                naviDist: pseudo,
+                stops: dayStops,
+                weight: pseudo
+              });
+            }
+          }
+        } else if (method === 'delivery_weight') {
+          var hasAny = Object.keys(daySchedulesMap).length > 0;
+          if (hasAny) {
             if (cnt > 0) {
               var w = 1.0 + (cnt * 0.35);
-              targetDayInfo.push({ date: dayStr, dayOfWeek: dayNames[dayIdx], isWeekend: isWeekend, count: cnt, weight: w });
+              targetDayInfo.push({
+                date: dayStr,
+                dayOfWeek: dayNames[dayIdx],
+                isWeekend: isWeekend,
+                count: cnt,
+                naviDist: dayNaviDist,
+                stops: dayStops,
+                weight: w
+              });
             }
           } else {
             if (!isWeekend) {
               var pseudo = 0.85 + (((day * 13) % 7) / 20);
-              targetDayInfo.push({ date: dayStr, dayOfWeek: dayNames[dayIdx], isWeekend: isWeekend, count: 0, weight: pseudo });
+              targetDayInfo.push({
+                date: dayStr,
+                dayOfWeek: dayNames[dayIdx],
+                isWeekend: isWeekend,
+                count: 0,
+                naviDist: 0,
+                stops: dayStops,
+                weight: pseudo
+              });
             }
           }
         } else {
           // weekday_even
           if (!isWeekend) {
             var pseudo = 0.85 + (((day * 13) % 7) / 20);
-            targetDayInfo.push({ date: dayStr, dayOfWeek: dayNames[dayIdx], isWeekend: isWeekend, count: cnt, weight: pseudo });
+            targetDayInfo.push({
+              date: dayStr,
+              dayOfWeek: dayNames[dayIdx],
+              isWeekend: isWeekend,
+              count: cnt,
+              naviDist: dayNaviDist,
+              stops: dayStops,
+              weight: pseudo
+            });
           }
         }
       }
@@ -1466,12 +2032,12 @@
           var dayIdx = d.getDay();
           if (dayIdx !== 0 && dayIdx !== 6) {
             var dayStr = `${monthPrefix}-${String(day).padStart(2, '0')}`;
-            targetDayInfo.push({ date: dayStr, dayOfWeek: dayNames[dayIdx], isWeekend: false, count: 0, weight: 1.0 });
+            targetDayInfo.push({ date: dayStr, dayOfWeek: dayNames[dayIdx], isWeekend: false, count: 0, naviDist: 0, stops: [], weight: 1.0 });
           }
         }
       }
 
-      // 2. Perform Weighted Exact Integer Allocation
+      // 2. Perform Weighted Exact Integer Allocation (Largest Remainder Method)
       var totalWeight = targetDayInfo.reduce(function(acc, item) { return acc + item.weight; }, 0);
       var allocated = targetDayInfo.map(function(item) {
         var rawDist = (totalDist * item.weight) / totalWeight;
@@ -1512,6 +2078,8 @@
           day_of_week: entry.item.dayOfWeek,
           driver_name: defaultDriver,
           delivery_count: entry.item.count,
+          navi_dist_km: entry.item.naviDist || 0,
+          stops: entry.item.stops || [],
           start_km: rowStart,
           end_km: rowEnd,
           distance_km: dayDist
@@ -1539,17 +2107,18 @@
 
       if (rowCountEl) rowCountEl.innerText = `(운행 ${distributedRows.length}일)`;
 
-      // Render rows
+      // Render 6-column rows
       tbody.innerHTML = distributedRows.map(function(r) {
         var dateParts = r.trip_date.split('-');
         var dateDisplay = `${Number(dateParts[1])}/${Number(dateParts[2])} (${r.day_of_week})`;
         return `
           <tr class="hover:bg-indigo-50/40 transition">
             <td class="py-1.5 px-2.5 text-center font-medium text-slate-800">${dateDisplay}</td>
-            <td class="py-1.5 px-2 text-center text-indigo-700 font-bold">${r.delivery_count > 0 ? r.delivery_count + '건' : '-'}</td>
-            <td class="py-1.5 px-2 text-right text-slate-600">${r.start_km.toLocaleString()}</td>
-            <td class="py-1.5 px-2 text-right text-slate-900 font-bold">${r.end_km.toLocaleString()}</td>
-            <td class="py-1.5 px-2.5 text-right font-black text-indigo-600">${r.distance_km.toLocaleString()} km</td>
+            <td class="py-1.5 px-2 text-center text-slate-600 font-bold">${r.delivery_count > 0 ? r.delivery_count + '건' : '-'}</td>
+            <td class="py-1.5 px-2 text-center text-indigo-700 font-mono font-bold">${r.navi_dist_km > 0 ? r.navi_dist_km + ' km' : '-'}</td>
+            <td class="py-1.5 px-2 text-right text-slate-600 font-mono">${r.start_km.toLocaleString()}</td>
+            <td class="py-1.5 px-2 text-right text-slate-900 font-mono font-bold">${r.end_km.toLocaleString()}</td>
+            <td class="py-1.5 px-2.5 text-right font-black font-mono text-indigo-600">${r.distance_km.toLocaleString()} km</td>
           </tr>
         `;
       }).join('');
@@ -1602,14 +2171,15 @@
               start_km: item.start_km,
               end_km: item.end_km,
               distance_km: item.distance_km,
-              suggested_distance_km: (item.distance_km * 0.98).toFixed(1),
+              suggested_distance_km: item.navi_dist_km || (item.distance_km * 0.98).toFixed(1),
               is_local_dismissal: false,
               destination_addr: '서울 금천구 벚꽃로 278 (가산 센터)',
               destination_name: '가산 센터',
               parking_fee: 0,
               fuel_fee: 0,
               is_unoperated: false,
-              memo: item.delivery_count > 0 ? `배송 ${item.delivery_count}건 운행` : '업무용 정기 운행'
+              stops: item.stops || [],
+              memo: item.delivery_count > 0 ? (item.navi_dist_km > 0 ? `배송 ${item.delivery_count}건 운행 (네비 ${item.navi_dist_km}km)` : `배송 ${item.delivery_count}건 운행`) : '업무용 정기 운행'
             };
 
             return {
