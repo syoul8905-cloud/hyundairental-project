@@ -429,17 +429,29 @@
             <p class="text-[11px] text-slate-400">운행할 차량을 선택해주세요</p>
           </div>
         </div>
-        <button onclick="closeMobileVehicleSelectModal()" class="w-7 h-7 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center hover:bg-slate-200">
+        <button id="mobileVehicleSelectCloseX" onclick="closeMobileVehicleSelectModal()" class="w-7 h-7 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center hover:bg-slate-200">
           <i class="fa-solid fa-xmark text-xs"></i>
         </button>
+      </div>
+
+      <div id="mobileVehicleNoticeBox" class="p-3 bg-amber-50 border border-amber-200 rounded-2xl text-xs text-amber-900 leading-snug">
+        <div class="flex items-start gap-2">
+          <i class="fa-solid fa-triangle-exclamation text-amber-600 mt-0.5 text-sm shrink-0"></i>
+          <div>
+            <p class="font-black text-amber-950">오늘 운행 차량 선택 필수</p>
+            <p class="text-[11px] text-amber-800 mt-0.5" id="mobileVehicleNoticeDesc">
+              운행할 차량을 선택해야 오늘의 배송 일정 및 방문 주소가 법인차량 운행일지에 실시간 연동됩니다.
+            </p>
+          </div>
+        </div>
       </div>
 
       <div class="space-y-2 max-h-60 overflow-y-auto pr-1" id="mobileVehicleOptionsContainer">
         <!-- Injected via JS -->
       </div>
 
-      <div class="flex justify-end pt-1">
-        <button onclick="closeMobileVehicleSelectModal()" class="px-4 py-2 bg-slate-100 text-slate-600 font-bold rounded-xl text-xs hover:bg-slate-200">
+      <div class="flex justify-end pt-1" id="mobileVehicleSelectFooter">
+        <button id="mobileVehicleSelectCloseBtn" onclick="closeMobileVehicleSelectModal()" class="px-4 py-2 bg-slate-100 text-slate-600 font-bold rounded-xl text-xs hover:bg-slate-200">
           닫기
         </button>
       </div>
@@ -1235,10 +1247,16 @@
     // Mobile Vehicle Master & Trip Closing Engine
     // ==========================================
     var mobileVehiclesMaster = [
-      { id: "veh_801부8744", vehicle_no: "801부8744", model_name: "스타리아", initial_km: 57045, current_km: 58751, is_active: true },
-      { id: "veh_826라8911", vehicle_no: "826라8911", model_name: "스타리아", initial_km: 32000, current_km: 32150, is_active: true }
+      { id: "veh_801부8744", vehicle_no: "801부8744", model_name: "스타리아", initial_km: 70532, current_km: 71269, is_active: true, default_driver: "조경찬" },
+      { id: "veh_826라8911", vehicle_no: "826라8911", model_name: "스타리아", initial_km: 32796, current_km: 33455, is_active: true, default_driver: "김승지" }
     ];
-    var currentMobileVehicleNo = localStorage.getItem('DELIVERY_TODAY_VEHICLE_NO_V1') || '801부8744';
+    var currentMobileVehicleNo = localStorage.getItem('DELIVERY_TODAY_VEHICLE_NO_V1') || '';
+
+    function isVehicleConfirmedForToday() {
+      var savedDate = localStorage.getItem('DELIVERY_TODAY_VEHICLE_DATE_V1');
+      var savedVehNo = localStorage.getItem('DELIVERY_TODAY_VEHICLE_NO_V1');
+      return Boolean(savedVehNo && savedDate === currentDate && currentMobileVehicleNo === savedVehNo);
+    }
 
     async function syncMobileVehiclesFromCloud() {
       var cached = localStorage.getItem('CORPORATE_VEHICLES_MASTER_V1');
@@ -1271,35 +1289,60 @@
     }
 
     function updateMobileVehicleWidgetUI() {
+      var nameEl = document.getElementById('mobileActiveVehicleName');
+      var odoEl = document.getElementById('mobileActiveVehicleOdo');
+
+      if (!isVehicleConfirmedForToday()) {
+        currentMobileVehicleNo = '';
+        if (nameEl) nameEl.innerHTML = '<span class="text-rose-600 font-black animate-pulse">⚠️ 차량 선택 필수</span>';
+        if (odoEl) odoEl.innerHTML = '<span class="text-rose-600 font-bold text-[10.5px]">오늘 운행할 차량을 먼저 선택해주세요</span>';
+        return;
+      }
+
       var veh = mobileVehiclesMaster.find(function(v) { return v.vehicle_no === currentMobileVehicleNo; }) || mobileVehiclesMaster[0];
       if (!veh) return;
       currentMobileVehicleNo = veh.vehicle_no;
-      localStorage.setItem('DELIVERY_TODAY_VEHICLE_NO_V1', currentMobileVehicleNo);
 
-      var nameEl = document.getElementById('mobileActiveVehicleName');
-      var odoEl = document.getElementById('mobileActiveVehicleOdo');
       if (nameEl) nameEl.innerText = `${veh.vehicle_no} (${veh.model_name})`;
       if (odoEl) odoEl.innerHTML = `시작 계기판: <b class="text-indigo-800 font-mono">${(veh.current_km || veh.initial_km || 0).toLocaleString()} km</b>`;
     }
 
-    function openMobileVehicleSelectModal() {
+    function openMobileVehicleSelectModal(isForced) {
+      if (typeof isForced !== 'boolean') {
+        isForced = !isVehicleConfirmedForToday();
+      }
+
+      var closeX = document.getElementById('mobileVehicleSelectCloseX');
+      var closeBtn = document.getElementById('mobileVehicleSelectCloseBtn');
+      var noticeDesc = document.getElementById('mobileVehicleNoticeDesc');
+
+      if (isForced) {
+        if (closeX) closeX.classList.add('hidden');
+        if (closeBtn) closeBtn.classList.add('hidden');
+        if (noticeDesc) noticeDesc.innerText = '오늘 운행할 법인차량을 반드시 먼저 선택해주세요. 선택 즉시 배송지 목록이 해당 차량의 운행일지에 연동됩니다.';
+      } else {
+        if (closeX) closeX.classList.remove('hidden');
+        if (closeBtn) closeBtn.classList.remove('hidden');
+        if (noticeDesc) noticeDesc.innerText = '운행 차량을 변경하면 오늘 배송 일정이 변경된 차량으로 동기화됩니다.';
+      }
+
       var container = document.getElementById('mobileVehicleOptionsContainer');
       if (!container) return;
 
       container.innerHTML = mobileVehiclesMaster.filter(function(v) { return v.is_active !== false; }).map(function(v) {
-        var isSelected = (v.vehicle_no === currentMobileVehicleNo);
+        var isSelected = (v.vehicle_no === currentMobileVehicleNo && isVehicleConfirmedForToday());
         return `
-          <div onclick="selectMobileVehicle('${v.vehicle_no}')" class="p-3 rounded-2xl border ${isSelected ? 'border-indigo-600 bg-indigo-50/70 shadow-xs' : 'border-slate-200 bg-white hover:bg-slate-50'} cursor-pointer flex items-center justify-between transition">
+          <div onclick="selectMobileVehicle('${v.vehicle_no}')" class="p-3 rounded-2xl border ${isSelected ? 'border-indigo-600 bg-indigo-50/70 shadow-xs' : 'border-slate-200 bg-white hover:bg-slate-50'} cursor-pointer flex items-center justify-between transition active:scale-98">
             <div class="flex items-center gap-2.5">
               <div class="w-8 h-8 rounded-xl ${isSelected ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500'} flex items-center justify-center text-xs">
                 <i class="fa-solid fa-car-side"></i>
               </div>
               <div>
                 <h4 class="font-black text-xs text-slate-900">${v.vehicle_no} (${v.model_name})</h4>
-                <p class="text-[10px] text-slate-500 font-mono">최신 계기판: ${(v.current_km || v.initial_km || 0).toLocaleString()} km</p>
+                <p class="text-[10px] text-slate-500 font-mono">최신 계기판: ${(v.current_km || v.initial_km || 0).toLocaleString()} km / 담당: ${v.default_driver || '-'}</p>
               </div>
             </div>
-            ${isSelected ? '<span class="text-indigo-600 text-sm font-bold"><i class="fa-solid fa-circle-check"></i></span>' : ''}
+            ${isSelected ? '<span class="text-indigo-600 text-sm font-bold"><i class="fa-solid fa-circle-check"></i></span>' : '<span class="text-xs text-indigo-600 font-bold px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 rounded-lg border border-indigo-200">선택</span>'}
           </div>
         `;
       }).join('');
@@ -1308,15 +1351,20 @@
     }
 
     function closeMobileVehicleSelectModal() {
+      if (!isVehicleConfirmedForToday()) {
+        alert('오늘 운행할 법인차량을 반드시 먼저 선택해주세요.');
+        return;
+      }
       document.getElementById('mobileVehicleSelectModal').classList.add('hidden');
     }
 
     function selectMobileVehicle(vNo) {
       currentMobileVehicleNo = vNo;
       localStorage.setItem('DELIVERY_TODAY_VEHICLE_NO_V1', vNo);
+      localStorage.setItem('DELIVERY_TODAY_VEHICLE_DATE_V1', currentDate);
       updateMobileVehicleWidgetUI();
-      closeMobileVehicleSelectModal();
-      showToast(`🚗 오늘 운행 차량이 [${vNo}]로 선택되었습니다.`);
+      document.getElementById('mobileVehicleSelectModal').classList.add('hidden');
+      showToast(`🚗 오늘 운행 차량이 [${vNo}]로 확정되었습니다. 배송지가 운행일지에 연동됩니다.`);
       syncTodayScheduleToVehicleLog(vNo);
     }
 
@@ -1772,7 +1820,7 @@
       cachedMobileRoadData = null;
       renderCards();
 
-      if (currentMobileVehicleNo && driverRecords.length > 0) {
+      if (currentMobileVehicleNo && isVehicleConfirmedForToday() && driverRecords.length > 0) {
         syncTodayScheduleToVehicleLog(currentMobileVehicleNo);
       }
 
@@ -1781,6 +1829,13 @@
           ? selectedViewingDriver + ' 기사'
           : currentUser.id + '님';
         showToast('👋 ' + label + ', 오늘의 배송 (' + driverRecords.length + '건) 목록입니다.');
+      }
+
+      // Check if vehicle has been confirmed for today
+      if (!isVehicleConfirmedForToday()) {
+        setTimeout(function() {
+          openMobileVehicleSelectModal(true);
+        }, 400);
       }
     }
 

@@ -96,7 +96,7 @@
           <i class="fa-solid fa-chevron-left"></i>
         </button>
         <span id="currentMonthDisplay" class="font-black text-slate-900 text-xs px-3 min-w-[95px] text-center">
-          2026년 3월
+          2026년 9월
         </span>
         <button onclick="shiftMonth(1)" title="다음 달" class="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-white text-slate-600 hover:text-indigo-600 text-xs">
           <i class="fa-solid fa-chevron-right"></i>
@@ -656,9 +656,10 @@
     const supabaseClient = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 
     // State Variables
+    var _initNow = new Date();
     var currentSelectedVehicleNo = "801부8744";
-    var currentYear = 2026;
-    var currentMonth = 3; // 1-12
+    var currentYear = _initNow.getFullYear();
+    var currentMonth = _initNow.getMonth() + 1; // 1-12
     var vehiclesMaster = [];
     var tripLogs = [];
     var schedulesCache = [];
@@ -667,9 +668,9 @@
     // Lifecycle & Initialization
     // ==========================================
     window.addEventListener('DOMContentLoaded', async function() {
-      // Set to current date if needed or 2026-03 default
-      currentYear = 2026;
-      currentMonth = 3;
+      var now = new Date();
+      currentYear = now.getFullYear();
+      currentMonth = now.getMonth() + 1;
 
       await loadVehiclesMaster();
       await loadVehicleData(true);
@@ -692,8 +693,8 @@
       // Default Seed if empty
       if (vehiclesMaster.length === 0) {
         vehiclesMaster = [
-          { id: "veh_801부8744", vehicle_no: "801부8744", model_name: "스타리아", initial_km: 57045, current_km: 58751, is_active: true, default_driver: "조경찬" },
-          { id: "veh_826라8911", vehicle_no: "826라8911", model_name: "스타리아", initial_km: 32000, current_km: 32150, is_active: true, default_driver: "김승지" }
+          { id: "veh_801부8744", vehicle_no: "801부8744", model_name: "스타리아", initial_km: 70532, current_km: 71269, is_active: true, default_driver: "조경찬" },
+          { id: "veh_826라8911", vehicle_no: "826라8911", model_name: "스타리아", initial_km: 32796, current_km: 33455, is_active: true, default_driver: "김승지" }
         ];
       }
 
@@ -1321,7 +1322,11 @@
       document.getElementById('editLogId').value = '';
       document.getElementById('modalVehicleNo').value = currentSelectedVehicleNo;
 
-      var todayStr = `${currentYear}-${String(currentMonth).padStart(2, '0')}-01`;
+      var n = new Date();
+      var isCurMonth = (currentYear === n.getFullYear() && currentMonth === (n.getMonth() + 1));
+      var todayStr = isCurMonth
+        ? `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-${String(n.getDate()).padStart(2, '0')}`
+        : `${currentYear}-${String(currentMonth).padStart(2, '0')}-01`;
       document.getElementById('modalTripDate').value = todayStr;
       
       var currentVeh = vehiclesMaster.find(function(v) { return v.vehicle_no === currentSelectedVehicleNo; }) || {};
