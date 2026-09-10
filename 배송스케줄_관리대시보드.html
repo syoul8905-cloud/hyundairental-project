@@ -848,21 +848,14 @@
       </div>
 
       <!-- Action Buttons -->
-      <div class="space-y-2 pt-2 border-t border-slate-100">
-        <button type="button" onclick="saveCustomDestination(true)" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs rounded-xl shadow-md transition flex items-center justify-center gap-1.5 active:scale-98">
-          <i class="fa-solid fa-check"></i>
-          <span>도착지 주소 저장 및 경로 갱신</span>
+      <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+        <button type="button" onclick="closeChangeDestinationModal()" class="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-xs rounded-xl transition">
+          취소
         </button>
-        <div class="grid grid-cols-2 gap-2">
-          <button type="button" onclick="saveCustomDestinationAndNavi('tmap')" class="py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl transition flex items-center justify-center gap-1 active:scale-98 shadow-xs">
-            <i class="fa-solid fa-location-arrow"></i>
-            <span>티맵 안내</span>
-          </button>
-          <button type="button" onclick="saveCustomDestinationAndNavi('kakao')" class="py-2 bg-amber-400 hover:bg-amber-500 text-slate-900 font-black text-xs rounded-xl transition flex items-center justify-center gap-1 active:scale-98 shadow-xs">
-            <i class="fa-solid fa-diamond-turn-right"></i>
-            <span>카카오내비</span>
-          </button>
-        </div>
+        <button type="button" onclick="saveCustomDestination(true)" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs rounded-xl shadow-sm transition flex items-center justify-center gap-1.5 active:scale-98">
+          <i class="fa-solid fa-check"></i>
+          <span>도착지 저장 및 경로 갱신</span>
+        </button>
       </div>
     </div>
   </div>
@@ -3448,6 +3441,7 @@
     }
 
     function openChangeDestinationModal() {
+      var currentDriver = getCurrentViewingDriver();
       var drvName = (currentDriver && currentDriver !== 'all') ? currentDriver.trim() : '전체';
       var targetDate = getCurrentViewingDate();
       var dest = getDriverDestination(currentDriver, targetDate);
@@ -3461,15 +3455,22 @@
       if (addrInp) addrInp.value = dest.addr || DEFAULT_GASAN_ORIGIN.addr;
 
       var modal = document.getElementById('changeDestinationModal');
-      if (modal) modal.classList.remove('hidden');
+      if (modal) {
+        modal.classList.remove('hidden');
+        modal.style.display = 'flex';
+      }
     }
 
     function closeChangeDestinationModal() {
       var modal = document.getElementById('changeDestinationModal');
-      if (modal) modal.classList.add('hidden');
+      if (modal) {
+        modal.classList.add('hidden');
+        modal.style.display = 'none';
+      }
     }
 
     async function saveCustomDestination(shouldClose) {
+      var currentDriver = getCurrentViewingDriver();
       var targetDate = getCurrentViewingDate();
       var drvName = (currentDriver && currentDriver !== 'all') ? currentDriver.trim() : 'common';
       var nameInp = document.getElementById('destCustomNameInput');
@@ -3510,6 +3511,7 @@
     }
 
     async function resetDestinationToGasan() {
+      var currentDriver = getCurrentViewingDriver();
       var targetDate = getCurrentViewingDate();
       var drvName = (currentDriver && currentDriver !== 'all') ? currentDriver.trim() : 'common';
       try {
@@ -3565,6 +3567,7 @@
     }
 
     function openDestinationTmap(customAddr, customName) {
+      var currentDriver = getCurrentViewingDriver();
       var targetDate = getCurrentViewingDate();
       var dest = getDriverDestination(currentDriver, targetDate);
       var targetAddr = customAddr || dest.addr || DEFAULT_GASAN_ORIGIN.addr;
@@ -4043,31 +4046,21 @@
                 </span>
               </div>
               <div class="flex items-center gap-1.5 shrink-0">
-                <button type="button" onclick="openDestinationTmap()" class="px-2.5 py-1 rounded-lg text-[11px] font-black bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1 shadow-xs transition active:scale-95" title="도착지 주소로 티맵 내비게이션 실행">
-                  <i class="fa-solid fa-location-arrow"></i>
-                  <span>티맵 안내</span>
-                </button>
-                <button type="button" onclick="openChangeDestinationModal()" class="px-2 py-1 rounded-lg text-[10.5px] font-bold bg-white hover:bg-indigo-50 text-indigo-700 border border-indigo-200 flex items-center gap-1 transition active:scale-95" title="도착지 주소 변경">
+                <button type="button" onclick="openChangeDestinationModal()" class="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-white hover:bg-indigo-50 text-indigo-700 border border-indigo-200 flex items-center gap-1.5 shadow-xs transition active:scale-95" title="도착지 주소 변경">
                   <i class="fa-solid fa-pen-to-square"></i>
                   <span>도착지 변경</span>
                 </button>
                 ${!isGasan ? `
-                  <button type="button" onclick="resetDestinationToGasan()" class="px-2 py-1 rounded-lg text-[10.5px] font-bold bg-slate-200 hover:bg-slate-300 text-slate-700 flex items-center gap-1 transition active:scale-95" title="가산 센터 기본 복귀로 초기화">
+                  <button type="button" onclick="resetDestinationToGasan()" class="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-slate-200 hover:bg-slate-300 text-slate-700 flex items-center gap-1.5 transition active:scale-95" title="가산 센터 기본 복귀로 초기화">
                     <i class="fa-solid fa-rotate-left"></i>
                     <span>가산센터 복귀</span>
                   </button>
                 ` : ''}
               </div>
             </div>
-            <div class="text-[11px] text-slate-600 bg-white/95 px-2.5 py-1.5 rounded-lg border border-slate-200 flex items-center justify-between gap-1.5">
-              <div class="flex items-center gap-1.5 truncate">
-                <i class="fa-solid fa-location-dot text-indigo-600 text-xs shrink-0"></i>
-                <span class="truncate font-semibold text-slate-800 text-[11px]">${dest.addr}</span>
-              </div>
-              <button type="button" onclick="openDestinationTmap()" class="shrink-0 text-[10.5px] text-emerald-700 font-bold hover:underline flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-emerald-50" title="티맵에서 이 주소 열기">
-                <i class="fa-solid fa-diamond-turn-right"></i>
-                <span>티맵</span>
-              </button>
+            <div class="text-[11px] text-slate-600 bg-white/95 px-2.5 py-1.5 rounded-lg border border-slate-200 flex items-center gap-1.5">
+              <i class="fa-solid fa-location-dot text-indigo-600 text-xs shrink-0"></i>
+              <span class="truncate font-semibold text-slate-800 text-[11px]">${dest.addr}</span>
             </div>
           </div>
         `;

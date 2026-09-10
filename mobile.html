@@ -978,6 +978,14 @@
     // ==========================================
     // Mobile Destination Management Engine
     // ==========================================
+    const DEFAULT_GASAN_ORIGIN = {
+      type: 'gasan',
+      name: '가산 센터',
+      addr: '서울특별시 금천구 벚꽃로 278',
+      lat: 37.476483,
+      lng: 126.883705
+    };
+
     function getMobileDriverDestination() {
       var drvName = getCurrentDriverName() || 'common';
       try {
@@ -1012,12 +1020,18 @@
       if (addrInp) addrInp.value = dest.addr || DEFAULT_GASAN_ORIGIN.addr;
 
       var modal = document.getElementById('mobileChangeDestinationModal');
-      if (modal) modal.classList.remove('hidden');
+      if (modal) {
+        modal.classList.remove('hidden');
+        modal.style.display = 'flex';
+      }
     }
 
     function closeMobileChangeDestinationModal() {
       var modal = document.getElementById('mobileChangeDestinationModal');
-      if (modal) modal.classList.add('hidden');
+      if (modal) {
+        modal.classList.add('hidden');
+        modal.style.display = 'none';
+      }
     }
 
     async function saveMobileCustomDestination(shouldClose) {
@@ -1964,28 +1978,19 @@
               </span>
             </div>
             <div class="flex items-center gap-1.5 shrink-0">
-              <button type="button" onclick="openMobileDestinationTmap()" class="px-2.5 py-1.5 rounded-xl text-xs font-black bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1 shadow-sm transition active:scale-95">
-                <i class="fa-solid fa-location-arrow"></i>
-                <span>티맵</span>
+              <button type="button" onclick="openMobileChangeDestinationModal()" class="px-2.5 py-1.5 rounded-xl text-xs font-bold bg-white hover:bg-indigo-50 text-indigo-700 border border-indigo-200 flex items-center gap-1 transition active:scale-95" title="도착지 변경">
+                <i class="fa-solid fa-pen-to-square text-[10px]"></i>
+                <span>도착지 변경</span>
               </button>
-              <button type="button" onclick="openMobileChangeDestinationModal()" class="px-2 py-1.5 rounded-xl text-[11px] font-bold bg-white hover:bg-indigo-50 text-indigo-700 border border-indigo-200 flex items-center gap-1 transition active:scale-95" title="도착지 변경">
-                <span>변경</span>
-              </button>
-              <button type="button" onclick="openMobileReturnModal(event)" class="px-2 py-1.5 rounded-xl text-[11px] font-bold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 flex items-center gap-1 transition active:scale-95" title="복귀지 선택 (센터/거점 티맵)">
+              <button type="button" onclick="openMobileReturnModal(event)" class="px-2.5 py-1.5 rounded-xl text-xs font-black bg-indigo-600 hover:bg-indigo-700 text-white flex items-center gap-1 shadow-sm transition active:scale-95" title="복귀지 선택 (센터/거점 티맵)">
                 <i class="fa-solid fa-house-chimney text-[10px]"></i>
                 <span>복귀</span>
               </button>
             </div>
           </div>
-          <div class="text-[11px] text-slate-600 bg-white/95 px-2.5 py-2 rounded-xl border border-slate-200 flex items-center justify-between gap-1.5">
-            <div class="flex items-center gap-1.5 truncate">
-              <i class="fa-solid fa-location-dot text-indigo-600 text-xs shrink-0"></i>
-              <span class="truncate font-semibold text-slate-800 text-[11px]">${dest.addr}</span>
-            </div>
-            <button type="button" onclick="openMobileDestinationTmap()" class="shrink-0 text-[11px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-lg font-bold flex items-center gap-1 active:scale-95" title="티맵에서 이 주소 열기">
-              <i class="fa-solid fa-diamond-turn-right"></i>
-              <span>티맵</span>
-            </button>
+          <div class="text-[11px] text-slate-600 bg-white/95 px-2.5 py-2 rounded-xl border border-slate-200 flex items-center gap-1.5">
+            <i class="fa-solid fa-location-dot text-indigo-600 text-xs shrink-0"></i>
+            <span class="truncate font-semibold text-slate-800 text-[11px]">${dest.addr}</span>
           </div>
         `;
         container.appendChild(arrivalCard);
