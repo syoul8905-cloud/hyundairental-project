@@ -396,7 +396,17 @@
 
     var currentUser = null;
     var currentDriverName = '';
-    var currentDate = new Date().toISOString().split('T')[0];
+
+    // 한국 로컬 오늘 날짜 (YYYY-MM-DD) 추출 함수 (UTC 오차 완전 방지)
+    function getTodayLocalDate() {
+      var now = new Date();
+      var year = now.getFullYear();
+      var month = String(now.getMonth() + 1).padStart(2, '0');
+      var day = String(now.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+
+    var currentDate = getTodayLocalDate();
     var driverRecords = [];
     var allMobileRows = [];
     var selectedViewingDriver = '__ALL__';
@@ -706,7 +716,7 @@
     }
 
     function dismissShortcutPromptToday() {
-      var today = new Date().toISOString().split('T')[0];
+      var today = getTodayLocalDate();
       localStorage.setItem('HIDE_SHORTCUT_PROMPT_DATE', today);
       var banner = document.getElementById('shortcutBanner');
       if (banner) banner.classList.add('hidden');
@@ -714,7 +724,7 @@
     }
 
     function checkAutoPromptShortcut() {
-      var today = new Date().toISOString().split('T')[0];
+      var today = getTodayLocalDate();
       var dismissed = localStorage.getItem('HIDE_SHORTCUT_PROMPT_DATE');
       if (dismissed === today) {
         var banner = document.getElementById('shortcutBanner');
@@ -1669,15 +1679,55 @@
     }
 
     function shiftDate(offset) {
-      var d = new Date(currentDate);
-      if (isNaN(d.getTime())) d = new Date();
+      if (!currentDate) currentDate = getTodayLocalDate();
+      var parts = currentDate.split('-');
+      var d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
       d.setDate(d.getDate() + offset);
-      setDate(d.toISOString().split('T')[0]);
+      var year = d.getFullYear();
+      var month = String(d.getMonth() + 1).padStart(2, '0');
+      var day = String(d.getDate()).padStart(2, '0');
+      setDate(`${year}-${month}-${day}`);
     }
 
     function goToToday() {
-      setDate(new Date().toISOString().split('T')[0]);
+      setDate(getTodayLocalDate());
     }
+
+    // ==========================================
+    // 자정(Midnight) 자동 날짜 롤오버 엔진 (모바일용)
+    // ==========================================
+    var midnightRolloverTimer = null;
+    function scheduleMidnightRollover() {
+      if (midnightRolloverTimer) clearTimeout(midnightRolloverTimer);
+      var now = new Date();
+      var midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 2);
+      var msUntilMidnight = midnight.getTime() - now.getTime();
+      if (msUntilMidnight <= 0) msUntilMidnight = 1000;
+
+      midnightRolloverTimer = setTimeout(function() {
+        console.log('⏰ [Mobile 자정 롤오버] 날짜가 변경되었습니다. 오늘 날짜로 자동 갱신합니다.');
+        checkAndApplyDateRollover();
+        scheduleMidnightRollover();
+      }, msUntilMidnight);
+    }
+
+    function checkAndApplyDateRollover() {
+      var newToday = getTodayLocalDate();
+      if (currentDate !== newToday) {
+        setDate(newToday);
+        showToast('🌅 자정이 경과하여 오늘 날짜(' + newToday + ')로 일정이 자동 갱신되었습니다.');
+      }
+    }
+
+    // 모바일 브라우저 백그라운드 -> 포그라운드 복귀 시 날짜 검사
+    document.addEventListener('visibilitychange', function() {
+      if (!document.hidden) {
+        checkAndApplyDateRollover();
+      }
+    });
+    window.addEventListener('focus', function() {
+      checkAndApplyDateRollover();
+    });
 
     function showToast(msg) {
       var toast = document.getElementById('toast');
@@ -1690,6 +1740,7 @@
 
     // Auto login check
     window.addEventListener('DOMContentLoaded', async function() {
+      scheduleMidnightRollover();
       await syncAuthUsersFromCloud();
       var savedId = localStorage.getItem('DELIVERY_SAVED_ID') || '';
       var savedPw = (localStorage.getItem('DELIVERY_SAVED_PW') || '').replace(/[^0-9]/g, '').slice(0, 4);

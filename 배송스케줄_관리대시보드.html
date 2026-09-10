@@ -94,13 +94,10 @@
           </select>
         </div>
 
-        <!-- Driver Filter -->
-        <div id="driverFilterContainer" class="flex items-center gap-1 bg-slate-50 px-2 py-1 rounded-lg border border-slate-200 text-xs whitespace-nowrap">
-          <i class="fa-solid fa-id-badge text-amber-600"></i>
-          <select id="driverFilterSelect" onchange="onDriverFilterChanged()" class="bg-transparent font-bold text-slate-800 text-xs focus:outline-none cursor-pointer max-w-[125px] truncate">
-            <option value="all">전체 기사</option>
-          </select>
-        </div>
+        <!-- Hidden Driver Filter Select (Managed via KPI Card Popover) -->
+        <select id="driverFilterSelect" class="hidden">
+          <option value="all">전체 기사</option>
+        </select>
 
 
 
@@ -296,13 +293,33 @@
         <i class="fa-solid fa-rotate-left"></i>
       </div>
     </div>
-    <div class="bg-white p-3 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
-      <div>
-        <p class="text-slate-400 font-medium">선택된 담당 기사</p>
-        <p id="kpiDriver" class="text-xl font-black text-amber-600 mt-0.5">-</p>
+    <div id="kpiDriverCard" onclick="toggleDriverSelectPopover(event)" class="bg-white p-3 rounded-xl shadow-sm border border-slate-200 hover:border-amber-400 hover:shadow-md transition cursor-pointer flex items-center justify-between relative group select-none" title="클릭하여 담당 기사 변경">
+      <div class="min-w-0 flex-1 pr-2">
+        <div class="flex items-center gap-1.5 flex-wrap">
+          <p class="text-slate-400 font-medium text-xs">선택된 담당 기사</p>
+          <span class="text-[10px] bg-amber-100 text-amber-800 font-black px-1.5 py-0.2 rounded group-hover:bg-amber-500 group-hover:text-white transition">변경 ▾</span>
+        </div>
+        <p id="kpiDriver" class="text-xl font-black text-amber-600 mt-0.5 truncate">전체 기사</p>
       </div>
-      <div class="w-9 h-9 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center text-base">
+      <div class="w-9 h-9 rounded-lg bg-amber-50 text-amber-600 group-hover:bg-amber-100 flex items-center justify-center text-base transition shrink-0">
         <i class="fa-solid fa-id-card"></i>
+      </div>
+
+      <!-- Driver Selection Popover Dropdown -->
+      <div id="driverSelectPopover" class="hidden absolute top-full right-0 mt-2 w-72 bg-white rounded-2xl shadow-2xl border border-slate-200 p-2.5 z-[9999] text-xs space-y-1.5 text-left" onclick="event.stopPropagation()">
+        <!-- Header -->
+        <div class="flex items-center justify-between px-2 py-1 border-b border-slate-100 mb-1">
+          <span class="font-black text-slate-800 text-xs flex items-center gap-1.5">
+            <i class="fa-solid fa-users-gear text-amber-500"></i> 배송 담당 기사 선택
+          </span>
+          <button type="button" onclick="closeDriverSelectPopover(event)" class="w-5 h-5 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 flex items-center justify-center text-[10px]">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+        <!-- Options List Container -->
+        <div id="driverSelectPopoverList" class="max-h-64 overflow-y-auto custom-scroll space-y-1 pr-0.5">
+          <!-- Populated dynamically via renderDriverSelectPopover() -->
+        </div>
       </div>
     </div>
   </div>
@@ -1965,6 +1982,9 @@
       document.head.appendChild(script);
     }
 
+    var isMapWheelZoomEnabled = false;
+    var wheelHintTimer = null;
+
     function setupKakaoMapInstance() {
       var container = document.getElementById('routeMapCanvas');
       container.innerHTML = '';
@@ -1976,10 +1996,125 @@
         level: 8
       };
       kakaoMap = new kakao.maps.Map(container, options);
+      kakaoMap.setZoomable(false); // 기본값: 마우스 휠 지도 확대/축소 비활성화 (페이지 스크롤 보호)
+
       if (window.kakao && kakao.maps.services) {
         kakaoGeocoder = new kakao.maps.services.Geocoder();
       }
+
+      initMapControlsAndGuards(container);
       renderRouteMap();
+    }
+
+    function initMapControlsAndGuards(container) {
+      if (!container) return;
+      var existingControls = document.getElementById('mapFloatingControls');
+      if (existingControls) existingControls.remove();
+      var existingHint = document.getElementById('mapWheelHintLayer');
+      if (existingHint) existingHint.remove();
+
+      var controlsDiv = document.createElement('div');
+      controlsDiv.id = 'mapFloatingControls';
+      controlsDiv.className = 'absolute top-3 right-3 z-20 flex flex-col gap-1.5 bg-white/95 backdrop-blur-xs p-1.5 rounded-xl border border-slate-200/90 shadow-lg';
+      controlsDiv.innerHTML = `
+        <button type="button" onclick="zoomMapIn()" class="w-8 h-8 rounded-lg bg-slate-50 hover:bg-indigo-50 hover:text-indigo-600 text-slate-700 flex items-center justify-center text-xs font-black shadow-xs transition" title="지도 확대 (+)">
+          <i class="fa-solid fa-plus"></i>
+        </button>
+        <button type="button" onclick="zoomMapOut()" class="w-8 h-8 rounded-lg bg-slate-50 hover:bg-indigo-50 hover:text-indigo-600 text-slate-700 flex items-center justify-center text-xs font-black shadow-xs transition" title="지도 축소 (-)">
+          <i class="fa-solid fa-minus"></i>
+        </button>
+        <div class="h-px bg-slate-200 my-0.5"></div>
+        <button type="button" id="toggleWheelZoomBtn" onclick="toggleMapWheelZoom()" class="w-8 h-8 rounded-lg ${isMapWheelZoomEnabled ? 'bg-amber-500 text-white' : 'bg-slate-50 hover:bg-amber-50 text-slate-500 hover:text-amber-700'} flex items-center justify-center text-xs shadow-xs transition" title="마우스 휠 확대 켜기/끄기">
+          <i class="fa-solid fa-mouse text-[11px]"></i>
+        </button>
+        <button type="button" onclick="fitMapBoundsToStops()" class="w-8 h-8 rounded-lg bg-slate-50 hover:bg-emerald-50 hover:text-emerald-700 text-slate-600 flex items-center justify-center text-xs shadow-xs transition" title="전체 배송 경로 한눈에 맞춤">
+          <i class="fa-solid fa-expand text-[11px]"></i>
+        </button>
+      `;
+      container.appendChild(controlsDiv);
+
+      var hintDiv = document.createElement('div');
+      hintDiv.id = 'mapWheelHintLayer';
+      hintDiv.className = 'hidden absolute inset-0 z-30 bg-black/40 backdrop-blur-2xs flex items-center justify-center pointer-events-none transition-opacity duration-300';
+      hintDiv.innerHTML = `
+        <div class="bg-slate-900/95 text-white px-4 py-2.5 rounded-2xl shadow-2xl flex items-center gap-2 text-xs font-bold border border-white/20">
+          <i class="fa-solid fa-circle-info text-amber-400 text-sm"></i>
+          <span>지도를 확대하려면 <b>Ctrl 키를 누른 채 휠을 굴리거나</b> 우측 <b>[+] [-]</b> 버튼을 이용하세요.</span>
+        </div>
+      `;
+      container.appendChild(hintDiv);
+
+      // 마우스 휠 이벤트 리스너 (passive: false로 e.preventDefault() 지원)
+      container.onwheel = function(e) {
+        if (isMapWheelZoomEnabled) return;
+        if (e.ctrlKey) {
+          e.preventDefault();
+          if (!kakaoMap) return;
+          var level = kakaoMap.getLevel();
+          if (e.deltaY < 0) {
+            kakaoMap.setLevel(level - 1, { animate: true });
+          } else if (e.deltaY > 0) {
+            kakaoMap.setLevel(level + 1, { animate: true });
+          }
+          return;
+        }
+
+        var hint = document.getElementById('mapWheelHintLayer');
+        if (hint) {
+          hint.classList.remove('hidden');
+          clearTimeout(wheelHintTimer);
+          wheelHintTimer = setTimeout(function() {
+            hint.classList.add('hidden');
+          }, 1200);
+        }
+      };
+    }
+
+    function toggleMapWheelZoom() {
+      if (!kakaoMap) return;
+      isMapWheelZoomEnabled = !isMapWheelZoomEnabled;
+      kakaoMap.setZoomable(isMapWheelZoomEnabled);
+      var btn = document.getElementById('toggleWheelZoomBtn');
+      if (btn) {
+        if (isMapWheelZoomEnabled) {
+          btn.className = 'w-8 h-8 rounded-lg bg-amber-500 text-white flex items-center justify-center text-xs shadow-xs transition';
+          btn.title = '마우스 휠 확대 켜짐 (클릭 시 끄기)';
+          showToast('🔓 지도 마우스 휠 확대가 켜졌습니다.');
+        } else {
+          btn.className = 'w-8 h-8 rounded-lg bg-slate-50 hover:bg-amber-50 text-slate-500 hover:text-amber-700 flex items-center justify-center text-xs shadow-xs transition';
+          btn.title = '마우스 휠 확대 꺼짐 (클릭 시 켜기)';
+          showToast('🔒 지도 마우스 휠 확대가 꺼졌습니다. (페이지 스크롤 보호)');
+        }
+      }
+    }
+
+    function zoomMapIn() {
+      if (!kakaoMap) return;
+      var level = kakaoMap.getLevel();
+      kakaoMap.setLevel(level - 1, { animate: true });
+    }
+
+    function zoomMapOut() {
+      if (!kakaoMap) return;
+      var level = kakaoMap.getLevel();
+      kakaoMap.setLevel(level + 1, { animate: true });
+    }
+
+    function fitMapBoundsToStops() {
+      if (!kakaoMap || !window.kakao) return;
+      var activeRecords = getFilteredRecords();
+      if (activeRecords.length === 0) return;
+      var bounds = new kakao.maps.LatLngBounds();
+      var currentDriver = getCurrentViewingDriver();
+      if (currentDriver && currentDriver !== 'all') {
+        var originCoord = getDriverOrigin(currentDriver, getCurrentViewingDate());
+        bounds.extend(new kakao.maps.LatLng(originCoord.lat, originCoord.lng));
+      }
+      activeRecords.forEach(function(r) {
+        var coord = getCoordForAddress(r.기본주소 || r.주소);
+        if (coord && coord.lat) bounds.extend(new kakao.maps.LatLng(coord.lat, coord.lng));
+      });
+      kakaoMap.setBounds(bounds);
     }
 
     // ==========================================
@@ -2035,13 +2170,21 @@
       } catch (e) {}
     }
 
+    function getTodayLocalDate() {
+      var now = new Date();
+      var y = now.getFullYear();
+      var m = String(now.getMonth() + 1).padStart(2, '0');
+      var d = String(now.getDate()).padStart(2, '0');
+      return y + '-' + m + '-' + d;
+    }
+
     // 현재 보고 있는 배송일자 (YYYY-MM-DD)
     function getCurrentViewingDate() {
       var dateInp = document.getElementById('calendarDateInput');
       if (dateInp && dateInp.value && dateInp.value !== 'all') return dateInp.value;
       var selectInp = document.getElementById('sheetDateSelect');
       if (selectInp && selectInp.value && selectInp.value !== 'all') return selectInp.value;
-      return new Date().toISOString().split('T')[0];
+      return getTodayLocalDate();
     }
 
     // 현재 상단 필터에서 보고 있는 기사명 추출
@@ -2480,16 +2623,21 @@
       var curr = select.value;
       select.innerHTML = '';
 
-      var todayStr = new Date().toISOString().split('T')[0];
+      var todayStr = getTodayLocalDate();
       var validDates = (availableDates || []).filter(function(d) {
-        return d && d !== '2099-12-31' && d !== '1970-01-01' && d !== 'SYSTEM_CONFIG';
+        return d && d !== '2099-12-31' && d !== '1970-01-01' && d !== 'SYSTEM_CONFIG' && d !== 'SYSTEM_CONFIG_USERS';
       });
 
-      var dates = validDates.length > 0 ? validDates : [todayStr];
-      dates.forEach(function(d) {
+      // 오늘 날짜가 목록에 없더라도 무조건 포함
+      if (validDates.indexOf(todayStr) === -1) {
+        validDates.unshift(todayStr);
+      }
+      validDates.sort().reverse();
+
+      validDates.forEach(function(d) {
         var opt = document.createElement('option');
         opt.value = d;
-        opt.innerText = '📅 ' + d;
+        opt.innerText = (d === todayStr ? '📅 ' + d + ' (오늘)' : '📅 ' + d);
         select.appendChild(opt);
       });
 
@@ -2498,14 +2646,47 @@
       allOpt.innerText = '전체 일정 보기';
       select.appendChild(allOpt);
 
-      // 기본 선택: 오늘 일정이 있으면 오늘 날짜, 없으면 가장 최근 등록 일자
-      var chosenDate = dates.indexOf(todayStr) !== -1 ? todayStr : dates[0];
-      if (curr && (dates.indexOf(curr) !== -1 || curr === 'all')) {
-        chosenDate = curr;
-      }
+      // 기본 선택: 사용자가 명시적으로 특정 일자를 보고 있던 게 아니라면 무조건 오늘 날짜(todayStr) 강제 선택!
+      var chosenDate = (curr && (validDates.indexOf(curr) !== -1 || curr === 'all')) ? curr : todayStr;
       select.value = chosenDate;
       setHeaderCalendarDate(chosenDate);
     }
+
+    // ==========================================
+    // Midnight Auto-Rollover Engine
+    // ==========================================
+    var currentActiveLocalDate = getTodayLocalDate();
+
+    function scheduleMidnightRollover() {
+      var now = new Date();
+      var midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 2); // 00:00:02
+      var diff = midnight.getTime() - now.getTime();
+      if (diff <= 0) diff = 1000;
+
+      setTimeout(function() {
+        checkAndApplyDateRollover();
+        scheduleMidnightRollover();
+      }, diff);
+    }
+
+    function checkAndApplyDateRollover() {
+      var newToday = getTodayLocalDate();
+      if (newToday !== currentActiveLocalDate) {
+        console.log('🌙 자정 경과 감지: 오늘 날짜 자동 갱신 (' + currentActiveLocalDate + ' -> ' + newToday + ')');
+        currentActiveLocalDate = newToday;
+        onCalendarDateChanged(newToday);
+        showToast('🌙 자정이 지나 오늘 날짜(' + newToday + ')로 일정이 자동 갱신되었습니다.');
+      }
+    }
+
+    document.addEventListener('visibilitychange', function() {
+      if (!document.hidden) {
+        checkAndApplyDateRollover();
+      }
+    });
+    window.addEventListener('focus', function() {
+      checkAndApplyDateRollover();
+    });
 
     async function loadAvailableDates() {
       if (!supabaseClient) return [];
@@ -2552,41 +2733,122 @@
       });
     }
 
-    function updateDriverFilterOptions(forceResetToAll) {
-      var container = document.getElementById('driverFilterContainer');
-
-      // 배송기사 모드일 때: 셀렉트박스를 숨기고 본인 전용 배지로 고정 표출
+    // ==========================================
+    // Driver Filter & KPI Popover Engine
+    // ==========================================
+    function toggleDriverSelectPopover(event) {
+      if (event) event.stopPropagation();
       if (currentUser && currentUser.role === 'driver') {
-        if (container) {
-          container.innerHTML = `
-            <i class="fa-solid fa-id-badge text-amber-600"></i>
-            <span class="font-bold text-slate-500 text-xs">배송 담당:</span>
-            <span class="font-black text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-lg border border-indigo-200 text-xs flex items-center gap-1">
-              🚗 ${currentUser.id} (나)
-            </span>
-            <select id="driverFilterSelect" class="hidden">
-              <option value="${currentUser.id}" selected>${currentUser.id}</option>
-            </select>
-          `;
-        }
+        showToast('ℹ️ 배송기사는 본인 배정 일정만 조회 가능합니다.');
         return;
       }
+      var popover = document.getElementById('driverSelectPopover');
+      if (!popover) return;
+      if (popover.classList.contains('hidden')) {
+        renderDriverSelectPopover();
+        popover.classList.remove('hidden');
+      } else {
+        popover.classList.add('hidden');
+      }
+    }
 
-      // 관리자 모드일 때: 전체 드라이버 필터 드롭다운 렌더링
-      if (container) {
-        var existingSelect = document.getElementById('driverFilterSelect');
-        // 기사 모드 잔재(hidden select 또는 뱃지)가 있거나 select가 없으면 관리자용 UI로 즉시 복원
-        if (!existingSelect || existingSelect.classList.contains('hidden')) {
-          container.innerHTML = `
-            <i class="fa-solid fa-id-badge text-amber-600"></i>
-            <select id="driverFilterSelect" onchange="onDriverFilterChanged()" class="bg-transparent font-bold text-slate-800 text-xs focus:outline-none cursor-pointer max-w-[125px] truncate">
-              <option value="all">전체 기사</option>
-            </select>
-          `;
-          forceResetToAll = true;
+    function closeDriverSelectPopover(event) {
+      if (event) event.stopPropagation();
+      var popover = document.getElementById('driverSelectPopover');
+      if (popover) popover.classList.add('hidden');
+    }
+
+    document.addEventListener('click', function(e) {
+      var popover = document.getElementById('driverSelectPopover');
+      var card = document.getElementById('kpiDriverCard');
+      if (popover && !popover.classList.contains('hidden')) {
+        if (card && !card.contains(e.target)) {
+          popover.classList.add('hidden');
         }
       }
+    });
 
+    function selectDriverFromPopover(driverName) {
+      var select = document.getElementById('driverFilterSelect');
+      if (select) select.value = driverName;
+      var mobileSelect = document.getElementById('driverFilterSelectMobile');
+      if (mobileSelect) mobileSelect.value = driverName;
+
+      closeDriverSelectPopover();
+      onDriverFilterChanged();
+    }
+
+    function renderDriverSelectPopover() {
+      var listEl = document.getElementById('driverSelectPopoverList');
+      if (!listEl) return;
+      var select = document.getElementById('driverFilterSelect');
+      var currentVal = select ? select.value : 'all';
+
+      var driverCounts = {};
+      var unassignedCount = 0;
+
+      records.forEach(function(r) {
+        var d = (r.담당기사 || '').trim();
+        if (d) {
+          driverCounts[d] = (driverCounts[d] || 0) + 1;
+        } else {
+          unassignedCount++;
+        }
+      });
+
+      var allDrivers = getAllAvailableDrivers();
+      var sortedDrivers = allDrivers.filter(function(d) {
+        return d && d !== 'all';
+      }).sort(function(a, b) {
+        return (driverCounts[b] || 0) - (driverCounts[a] || 0);
+      });
+
+      var isAllActive = (currentVal === 'all' || !currentVal);
+
+      var html = `
+        <button type="button" onclick="selectDriverFromPopover('all')" class="w-full text-left px-3 py-2 rounded-xl text-xs flex items-center justify-between transition ${isAllActive ? 'bg-amber-500 text-white font-black shadow-xs' : 'hover:bg-slate-100 text-slate-800 font-bold'}">
+          <div class="flex items-center gap-2">
+            <span class="${isAllActive ? 'text-white' : 'text-amber-500'} font-bold">👥</span>
+            <span>전체 기사 보기 (일괄 관제)</span>
+          </div>
+          <span class="text-[10px] px-2 py-0.5 rounded-full font-black ${isAllActive ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'}">${records.length}건</span>
+        </button>
+      `;
+
+      if (unassignedCount > 0) {
+        var isUnActive = (currentVal === '');
+        html += `
+          <button type="button" onclick="selectDriverFromPopover('')" class="w-full text-left px-3 py-2 rounded-xl text-xs flex items-center justify-between transition ${isUnActive ? 'bg-rose-500 text-white font-black shadow-xs' : 'hover:bg-rose-50 text-rose-700 font-bold'}">
+            <div class="flex items-center gap-2">
+              <span>⚠️</span>
+              <span>기사 미지정</span>
+            </div>
+            <span class="text-[10px] px-2 py-0.5 rounded-full font-black ${isUnActive ? 'bg-white/20 text-white' : 'bg-rose-100 text-rose-800'}">${unassignedCount}건</span>
+          </button>
+        `;
+      }
+
+      html += '<div class="border-t border-slate-100 my-1"></div>';
+
+      sortedDrivers.forEach(function(d) {
+        var cnt = driverCounts[d] || 0;
+        var isActive = (currentVal === d);
+        var icon = (d === '방문수령' ? '🏢' : d === '퀵' ? '⚡' : '🚗');
+        html += `
+          <button type="button" onclick="selectDriverFromPopover('${d.replace(/'/g, "\\'")}')" class="w-full text-left px-3 py-2 rounded-xl text-xs flex items-center justify-between transition ${isActive ? 'bg-indigo-600 text-white font-black shadow-xs' : 'hover:bg-indigo-50 text-slate-800 font-medium'}">
+            <div class="flex items-center gap-2 truncate">
+              <span>${icon}</span>
+              <span class="${isActive ? 'font-black' : 'font-semibold'} truncate">${d}</span>
+            </div>
+            <span class="text-[10px] px-2 py-0.5 rounded-full font-bold shrink-0 ml-1 ${isActive ? 'bg-white/20 text-white' : (cnt > 0 ? 'bg-indigo-100 text-indigo-700 font-black' : 'bg-slate-100 text-slate-400')}">${cnt}건</span>
+          </button>
+        `;
+      });
+
+      listEl.innerHTML = html;
+    }
+
+    function updateDriverFilterOptions(forceResetToAll) {
       var select = document.getElementById('driverFilterSelect');
       if (!select) return;
       var curr = forceResetToAll ? 'all' : (select.value || 'all');
@@ -2645,17 +2907,20 @@
 
       // 일괄 배정 드롭다운 동기화
       populateBatchDriverSelect();
+
+      // KPI 카드 팝오버 동기화
+      renderDriverSelectPopover();
     }
 
     function onDriverFilterChanged() {
       updateKPIs();
       renderRouteMap();
       renderTable();
-      var filterVal = document.getElementById('driverFilterSelect').value;
+      var filterVal = document.getElementById('driverFilterSelect') ? document.getElementById('driverFilterSelect').value : 'all';
       if (filterVal && filterVal !== 'all') {
         showToast('🚗 [' + filterVal + '] 기사 전용 동선으로 설정되었습니다.');
       } else {
-        showToast('🚗 전체 배송 동선으로 표시됩니다.');
+        showToast('👥 전체 배송 동선으로 표시됩니다.');
       }
     }
 
@@ -2664,18 +2929,21 @@
       document.getElementById('kpiTotal').innerText = active.length;
       var delCount = active.filter(function(r) { return (r.구분 || '').indexOf('회수') === -1; }).length;
       var recCount = active.filter(function(r) { return (r.구분 || '').indexOf('회수') !== -1; }).length;
-      var directCount = active.filter(function(r) { return (r.배송방법 || '직배송') === '직배송'; }).length;
-      var pickupCount = active.filter(function(r) { return (r.배송방법 || '') === '방문수령'; }).length;
 
       document.getElementById('kpiDelivery').innerText = delCount;
       document.getElementById('kpiRecovery').innerText = recCount;
 
-      var driverVal = document.getElementById('driverFilterSelect').value;
-      var driverText = (driverVal === 'all' || !driverVal) ? '전체' : driverVal;
-      if (pickupCount > 0) {
-        document.getElementById('kpiDriver').innerText = driverText + ' (직배 ' + directCount + ' · 방문 ' + pickupCount + ')';
-      } else {
-        document.getElementById('kpiDriver').innerText = driverText;
+      var driverSelect = document.getElementById('driverFilterSelect');
+      var driverVal = driverSelect ? driverSelect.value : 'all';
+      var kpiEl = document.getElementById('kpiDriver');
+      if (kpiEl) {
+        if (driverVal === 'all' || !driverVal) {
+          kpiEl.innerText = '전체 기사 (' + active.length + '건)';
+        } else if (driverVal === '') {
+          kpiEl.innerText = '기사 미지정 (' + active.length + '건)';
+        } else {
+          kpiEl.innerText = driverVal + ' (' + active.length + '건)';
+        }
       }
     }
 
@@ -3123,6 +3391,7 @@
 
       var currentDriver = getCurrentViewingDriver();
       var currentDate = getCurrentViewingDate();
+      var isAllDrivers = (!currentDriver || currentDriver === 'all');
       var originCoord = getDriverOrigin(currentDriver, currentDate);
 
       var isGasan = (originCoord.type === 'gasan' || (originCoord.addr && originCoord.addr.indexOf('벚꽃로 278') !== -1));
@@ -3138,62 +3407,101 @@
       var driverLabel = currentDriver ? (currentDriver + ' 기사') : '전체 기사';
 
       // 1. 타임라인 맨 윗단에 고정된 출발지 카드 렌더링
-      var originCardHtml = `
-        <div class="p-2.5 rounded-xl bg-gradient-to-r from-emerald-50 via-teal-50 to-slate-50 border-2 border-emerald-300 shadow-xs mb-2 space-y-2" id="timelineOriginCard">
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-1.5 font-black text-emerald-950 flex-wrap">
-              <span class="w-5 h-5 rounded-lg bg-emerald-600 text-white flex items-center justify-center text-[10px] shadow-xs">
-                <i class="fa-solid fa-flag"></i>
-              </span>
-              <span class="text-xs">출발지:</span>
-              <span class="text-xs font-black text-emerald-800 underline underline-offset-2">${originCoord.name || '가산 센터'}</span>
-              <span class="text-[9px] bg-indigo-100 text-indigo-900 px-1.5 py-0.2 rounded-full font-bold border border-indigo-200">
-                ${driverLabel}
-              </span>
-              <span class="text-[9px] bg-slate-100 text-slate-600 px-1.5 py-0.2 rounded font-mono">
-                ${currentDate}
-              </span>
-              ${originStatusBadge}
+      var originCardHtml = '';
+      if (isAllDrivers) {
+        originCardHtml = `
+          <div class="p-3 rounded-xl bg-gradient-to-r from-slate-50 via-amber-50/40 to-slate-50 border-2 border-slate-300 shadow-xs mb-2 space-y-2" id="timelineOriginCard">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-1.5 font-black text-slate-800 flex-wrap">
+                <span class="w-5 h-5 rounded-lg bg-slate-500 text-white flex items-center justify-center text-[10px] shadow-xs">
+                  <i class="fa-solid fa-flag"></i>
+                </span>
+                <span class="text-xs">출발지:</span>
+                <span class="text-xs font-black text-slate-700 bg-slate-200/90 px-2 py-0.5 rounded-md border border-slate-300">출발지 미지정</span>
+                <span class="text-[9px] bg-amber-100 text-amber-900 px-1.5 py-0.5 rounded-full font-black border border-amber-300">
+                  👥 전체 기사 관제 모드
+                </span>
+                <span class="text-[9px] bg-slate-100 text-slate-600 px-1.5 py-0.2 rounded font-mono">
+                  ${currentDate}
+                </span>
+              </div>
+              <button type="button" onclick="toggleDriverSelectPopover(event)" class="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[10px] font-black transition flex items-center gap-1 shadow-xs">
+                <i class="fa-solid fa-user-check"></i>
+                <span>담당 기사 선택</span>
+              </button>
             </div>
-            <button type="button" onclick="openDriverOriginModal('${currentDriver}')" class="px-2 py-0.5 bg-white hover:bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-md text-[10px] font-bold transition flex items-center gap-1 shadow-xs">
-              <i class="fa-solid fa-gear"></i>
-              <span>거점/출발지 관리</span>
-            </button>
-          </div>
 
-          <div class="flex items-center justify-between text-[11px] text-slate-600 bg-white/95 px-2.5 py-1.5 rounded-lg border border-emerald-200/60 shadow-xs">
-            <div class="flex items-center gap-1.5 truncate">
-              <i class="fa-solid fa-location-dot text-emerald-600 text-xs shrink-0"></i>
-              <span class="truncate font-semibold text-slate-800 text-[11px]" title="${originCoord.addr}">${originCoord.addr}</span>
+            <div class="p-2.5 rounded-lg bg-white/95 border border-amber-200/80 text-[11px] leading-relaxed text-slate-700 shadow-2xs">
+              <div class="flex items-start gap-2">
+                <i class="fa-solid fa-circle-info text-amber-600 text-xs mt-0.5 shrink-0"></i>
+                <div>
+                  <p class="font-bold text-slate-800">현재 <span class="text-amber-700 font-black">전체 기사 보기</span> 상태입니다.</p>
+                  <p class="text-slate-500 text-[10.5px] mt-0.5">
+                    상단 <span class="font-bold text-indigo-700 underline underline-offset-2">[담당 기사]</span>를 선택하시면 해당 기사의 출발지(등록 거점 또는 가산 센터)가 자동으로 확정되고 맞춤 동선이 계산됩니다.
+                  </p>
+                </div>
+              </div>
             </div>
-            <button type="button" onclick="zoomToStop(${originCoord.lat}, ${originCoord.lng})" class="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 shrink-0 ml-1">
-              지도 ↗
-            </button>
           </div>
+        `;
+      } else {
+        originCardHtml = `
+          <div class="p-2.5 rounded-xl bg-gradient-to-r from-emerald-50 via-teal-50 to-slate-50 border-2 border-emerald-300 shadow-xs mb-2 space-y-2" id="timelineOriginCard">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-1.5 font-black text-emerald-950 flex-wrap">
+                <span class="w-5 h-5 rounded-lg bg-emerald-600 text-white flex items-center justify-center text-[10px] shadow-xs">
+                  <i class="fa-solid fa-flag"></i>
+                </span>
+                <span class="text-xs">출발지:</span>
+                <span class="text-xs font-black text-emerald-800 underline underline-offset-2">${originCoord.name || '가산 센터'}</span>
+                <span class="text-[9px] bg-indigo-100 text-indigo-900 px-1.5 py-0.2 rounded-full font-bold border border-indigo-200">
+                  ${driverLabel}
+                </span>
+                <span class="text-[9px] bg-slate-100 text-slate-600 px-1.5 py-0.2 rounded font-mono">
+                  ${currentDate}
+                </span>
+                ${originStatusBadge}
+              </div>
+              <button type="button" onclick="openDriverOriginModal('${currentDriver}')" class="px-2 py-0.5 bg-white hover:bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-md text-[10px] font-bold transition flex items-center gap-1 shadow-xs">
+                <i class="fa-solid fa-gear"></i>
+                <span>거점/출발지 관리</span>
+              </button>
+            </div>
 
-          <!-- 2 Quick Preset Buttons for Daily Assignment -->
-          <div class="grid grid-cols-2 gap-1.5 pt-0.5">
-            <button type="button" onclick="setOriginToGasanQuick('${currentDriver}')" class="py-1 px-2 rounded-lg text-[11px] font-bold transition flex items-center justify-center gap-1 shadow-xs ${isGasan ? 'bg-emerald-600 text-white border border-emerald-700' : 'bg-white hover:bg-emerald-50 text-slate-700 border border-slate-200'}">
-              <i class="fa-solid fa-building text-[10px]"></i>
-              <span>🏢 가산 센터 ${isGasan ? '✓' : ''}</span>
-            </button>
-            <button type="button" onclick="setOriginToRegisteredBaseQuick('${currentDriver}')" class="py-1 px-2 rounded-lg text-[11px] font-bold transition flex items-center justify-center gap-1 shadow-xs ${isRegistered ? 'bg-teal-600 text-white border border-teal-700' : 'bg-white hover:bg-teal-50 text-slate-700 border border-slate-200'}">
-              <i class="fa-solid fa-house-user text-[10px]"></i>
-              <span>🏠 등록 거점 ${isRegistered ? '✓' : ''}</span>
-            </button>
+            <div class="flex items-center justify-between text-[11px] text-slate-600 bg-white/95 px-2.5 py-1.5 rounded-lg border border-emerald-200/60 shadow-xs">
+              <div class="flex items-center gap-1.5 truncate">
+                <i class="fa-solid fa-location-dot text-emerald-600 text-xs shrink-0"></i>
+                <span class="truncate font-semibold text-slate-800 text-[11px]" title="${originCoord.addr}">${originCoord.addr}</span>
+              </div>
+              <button type="button" onclick="zoomToStop(${originCoord.lat}, ${originCoord.lng})" class="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 shrink-0 ml-1">
+                지도 ↗
+              </button>
+            </div>
+
+            <!-- 2 Quick Preset Buttons for Daily Assignment -->
+            <div class="grid grid-cols-2 gap-1.5 pt-0.5">
+              <button type="button" onclick="setOriginToGasanQuick('${currentDriver}')" class="py-1 px-2 rounded-lg text-[11px] font-bold transition flex items-center justify-center gap-1 shadow-xs ${isGasan ? 'bg-emerald-600 text-white border border-emerald-700' : 'bg-white hover:bg-emerald-50 text-slate-700 border border-slate-200'}">
+                <i class="fa-solid fa-building text-[10px]"></i>
+                <span>🏢 가산 센터 ${isGasan ? '✓' : ''}</span>
+              </button>
+              <button type="button" onclick="setOriginToRegisteredBaseQuick('${currentDriver}')" class="py-1 px-2 rounded-lg text-[11px] font-bold transition flex items-center justify-center gap-1 shadow-xs ${isRegistered ? 'bg-teal-600 text-white border border-teal-700' : 'bg-white hover:bg-teal-50 text-slate-700 border border-slate-200'}">
+                <i class="fa-solid fa-house-user text-[10px]"></i>
+                <span>🏠 등록 거점 ${isRegistered ? '✓' : ''}</span>
+              </button>
+            </div>
+            <p class="text-[9.5px] text-slate-400 text-center leading-tight">
+              * 당일 미지정 및 익일(다음 날) 이동 시 <b>[가산 센터]</b>로 자동 복귀됩니다.
+            </p>
           </div>
-          <p class="text-[9.5px] text-slate-400 text-center leading-tight">
-            * 당일 미지정 및 익일(다음 날) 이동 시 <b>[가산 센터]</b>로 자동 복귀됩니다.
-          </p>
-        </div>
-      `;
+        `;
+      }
 
       timelineBox.innerHTML = originCardHtml;
 
       var linePath = [];
 
-      // Add Origin Marker on Kakao Map
-      if (kakaoMap && window.kakao && kakao.maps.CustomOverlay) {
+      // Add Origin Marker on Kakao Map (담당 기사가 선택된 경우에만 지도에 출발지 핀 표시)
+      if (!isAllDrivers && kakaoMap && window.kakao && kakao.maps.CustomOverlay) {
         var originPos = new kakao.maps.LatLng(originCoord.lat, originCoord.lng);
         linePath.push(originPos);
 
@@ -3223,7 +3531,7 @@
       }));
 
       var bounds = (kakaoMap && window.kakao) ? new kakao.maps.LatLngBounds() : null;
-      if (bounds) bounds.extend(new kakao.maps.LatLng(originCoord.lat, originCoord.lng));
+      if (!isAllDrivers && bounds) bounds.extend(new kakao.maps.LatLng(originCoord.lat, originCoord.lng));
 
       for (var subIdx = 0; subIdx < activeRecords.length; subIdx++) {
         var r = activeRecords[subIdx];
@@ -3380,7 +3688,7 @@
 
       if (!isRoadRouteMode) {
         // [기본 모드: 직선거리 배정]
-        if (kakaoMap && window.kakao && kakao.maps.Polyline && linePath.length > 1) {
+        if (!isAllDrivers && kakaoMap && window.kakao && kakao.maps.Polyline && linePath.length > 1) {
           var straightLine = new kakao.maps.Polyline({
             path: linePath,
             strokeWeight: 4,
@@ -3390,8 +3698,10 @@
           });
           straightLine.setMap(kakaoMap);
           kakaoPolylines.push(straightLine);
+        }
 
-          if (bounds) kakaoMap.setBounds(bounds);
+        if (kakaoMap && bounds) {
+          kakaoMap.setBounds(bounds);
         }
 
         if (distTimeBadge) distTimeBadge.classList.add('hidden');
@@ -3400,11 +3710,17 @@
         if (calcIcon) calcIcon.className = 'fa-solid fa-car-side';
         if (calcBtn) calcBtn.classList.replace('bg-emerald-600', 'bg-indigo-600');
 
-        document.getElementById('routeSummaryBadge').innerHTML = `
-          <i class="fa-solid fa-car text-indigo-600"></i> 총 <b>${activeRecords.length}</b>개소 배송 동선 (직선거리)
-        `;
+        document.getElementById('routeSummaryBadge').innerHTML = isAllDrivers
+          ? `<i class="fa-solid fa-layer-group text-indigo-600"></i> 총 <b>${activeRecords.length}</b>개소 배송 현황 (전체 관제)`
+          : `<i class="fa-solid fa-car text-indigo-600"></i> 총 <b>${activeRecords.length}</b>개소 배송 동선 (직선거리)`;
       } else {
         // [확장 모드: 실제 도로 경로 계산 (실시간 교통 반영)]
+        if (isAllDrivers) {
+          showToast('💡 전체 기사 보기 상태입니다. 담당 기사를 선택하시면 실제 도로 경로가 계산됩니다.');
+          switchToStraightRoute();
+          return;
+        }
+
         if (distTimeBadge) distTimeBadge.classList.remove('hidden');
         if (resetBtn) resetBtn.classList.remove('hidden');
         if (calcBtn) calcBtn.classList.replace('bg-indigo-600', 'bg-emerald-600');
