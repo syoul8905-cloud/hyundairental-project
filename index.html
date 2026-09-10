@@ -5110,7 +5110,7 @@
       document.getElementById('editStopModal').classList.add('hidden');
     }
 
-    function saveEditStopModal() {
+    async function saveEditStopModal() {
       var idx = parseInt(document.getElementById('editStopIndex').value, 10);
       if (idx < 0 || idx >= records.length) return;
 
