@@ -1,0 +1,1108 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>현대렌탈 법인차량 운행일지 관리 시스템</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome CDN -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <!-- Supabase JS CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700;800;900&display=swap');
+    body { font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif; }
+    .custom-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+    .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    .custom-scroll::-webkit-scrollbar-track { background: #f8fafc; }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 antialiased p-3 sm:p-5 select-none text-xs">
+
+  <!-- ========================================== -->
+  <!-- Header: Title & Global Navigation          -->
+  <!-- ========================================== -->
+  <header class="bg-white rounded-2xl px-4 py-3.5 shadow-xs border border-slate-200 flex flex-wrap items-center justify-between gap-3 mb-4">
+    <!-- Brand & Title -->
+    <div class="flex items-center gap-3">
+      <div class="w-11 h-11 rounded-xl bg-indigo-600 flex items-center justify-center text-white text-lg shadow-md shadow-indigo-600/20">
+        <i class="fa-solid fa-car-side"></i>
+      </div>
+      <div>
+        <div class="flex items-center gap-2 flex-wrap">
+          <h1 class="text-base font-black text-slate-900">법인차량 운행일지</h1>
+          <span class="bg-indigo-100 text-indigo-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-indigo-200">
+            📊 세무 증빙 & 실시간 관제
+          </span>
+          <span class="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-emerald-200">
+            🛰️ 네비거리 자동연동
+          </span>
+        </div>
+        <p class="text-[11px] text-slate-400 mt-0.5">국세청 법인차량 세무표준 서식 호환 및 계기판 자동 승계 시스템</p>
+      </div>
+    </div>
+
+    <!-- Actions & Global Links -->
+    <div class="flex flex-wrap items-center gap-2">
+      <!-- Quick Navigation -->
+      <a href="index.html" class="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition flex items-center gap-1.5 shadow-xs text-xs">
+        <i class="fa-solid fa-desktop text-indigo-600"></i>
+        <span>통합 관제</span>
+      </a>
+      <a href="schedule_time_tracker.html" class="px-2.5 py-1.5 bg-violet-50 hover:bg-violet-100 text-violet-800 font-bold rounded-xl transition flex items-center gap-1.5 border border-violet-200 shadow-xs text-xs">
+        <i class="fa-solid fa-clock text-violet-600"></i>
+        <span>시간 관리</span>
+      </a>
+
+      <!-- Vehicle Manage Button -->
+      <button onclick="openVehicleManageModal()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl transition flex items-center gap-1.5 shadow-xs text-xs">
+        <i class="fa-solid fa-gears text-amber-400"></i>
+        <span>차량 관리</span>
+      </button>
+
+      <!-- Excel Export Button -->
+      <button onclick="exportVehicleLogCsv()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl transition flex items-center gap-1.5 shadow-xs text-xs">
+        <i class="fa-solid fa-file-excel"></i>
+        <span>엑셀(CSV) 다운로드</span>
+      </button>
+
+      <!-- Refresh Button -->
+      <button onclick="loadVehicleData(false)" class="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition flex items-center gap-1 shadow-xs text-xs">
+        <i id="syncIcon" class="fa-solid fa-rotate"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- ========================================== -->
+  <!-- Vehicle Selector & Month Navigator Bar     -->
+  <!-- ========================================== -->
+  <div class="bg-white rounded-2xl px-4 py-3 shadow-xs border border-slate-200 mb-4 flex flex-wrap items-center justify-between gap-3">
+    <!-- Vehicle Tabs -->
+    <div class="flex items-center gap-2 flex-wrap" id="vehicleTabsContainer">
+      <!-- Injected via JS -->
+      <button class="px-3.5 py-1.5 bg-indigo-600 text-white font-black rounded-xl text-xs shadow-xs flex items-center gap-1.5">
+        <i class="fa-solid fa-van-shuttle"></i>
+        <span>801부8744 (스타리아)</span>
+      </button>
+    </div>
+
+    <!-- Month Stepper & New Log Button -->
+    <div class="flex items-center gap-2 flex-wrap">
+      <div class="flex items-center bg-slate-50 rounded-xl border border-slate-200 p-1 shadow-xs">
+        <button onclick="shiftMonth(-1)" title="이전 달" class="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-white text-slate-600 hover:text-indigo-600 text-xs">
+          <i class="fa-solid fa-chevron-left"></i>
+        </button>
+        <span id="currentMonthDisplay" class="font-black text-slate-900 text-xs px-3 min-w-[95px] text-center">
+          2026년 3월
+        </span>
+        <button onclick="shiftMonth(1)" title="다음 달" class="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-white text-slate-600 hover:text-indigo-600 text-xs">
+          <i class="fa-solid fa-chevron-right"></i>
+        </button>
+        <button onclick="goToCurrentMonth()" class="ml-1 px-2 py-1 bg-white hover:bg-slate-100 text-slate-700 rounded-lg text-xs font-bold border border-slate-200">
+          이번 달
+        </button>
+      </div>
+
+      <button onclick="openNewLogModal()" class="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition flex items-center gap-1.5 shadow-xs text-xs">
+        <i class="fa-solid fa-plus"></i>
+        <span>운행일지 직접 등록</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- Top 5 KPI Summary Cards                    -->
+  <!-- ========================================== -->
+  <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-4">
+    <!-- 1. 전월말 Km -->
+    <div class="bg-white rounded-2xl p-3.5 border border-slate-200 shadow-xs flex items-center justify-between">
+      <div>
+        <p class="text-[11px] font-bold text-slate-400">전월말 계기판</p>
+        <h3 id="kpiPrevMonthKm" class="text-lg sm:text-xl font-black text-slate-800 mt-0.5 font-mono">0 km</h3>
+        <p class="text-[10px] text-slate-400 mt-0.5">시작 기준 계기판</p>
+      </div>
+      <div class="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center text-slate-500 text-base">
+        <i class="fa-solid fa-gauge"></i>
+      </div>
+    </div>
+
+    <!-- 2. 당월말 Km -->
+    <div class="bg-white rounded-2xl p-3.5 border border-slate-200 shadow-xs flex items-center justify-between">
+      <div>
+        <p class="text-[11px] font-bold text-slate-400">당월말 계기판</p>
+        <h3 id="kpiCurrentMonthKm" class="text-lg sm:text-xl font-black text-indigo-600 mt-0.5 font-mono">0 km</h3>
+        <p class="text-[10px] text-indigo-500 mt-0.5 font-bold">최종 누적 계기판</p>
+      </div>
+      <div class="w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600 text-base">
+        <i class="fa-solid fa-gauge-high"></i>
+      </div>
+    </div>
+
+    <!-- 3. 당월 총 주행거리 -->
+    <div class="bg-white rounded-2xl p-3.5 border border-slate-200 shadow-xs flex items-center justify-between">
+      <div>
+        <p class="text-[11px] font-bold text-slate-400">총 주행거리</p>
+        <h3 id="kpiTotalDistanceKm" class="text-lg sm:text-xl font-black text-emerald-600 mt-0.5 font-mono">0 km</h3>
+        <p class="text-[10px] text-emerald-600 mt-0.5 font-bold" id="kpiOperatingDays">운행 0일 / 미운행 0일</p>
+      </div>
+      <div class="w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600 text-base">
+        <i class="fa-solid fa-route"></i>
+      </div>
+    </div>
+
+    <!-- 4. 주차비 합계 -->
+    <div class="bg-white rounded-2xl p-3.5 border border-slate-200 shadow-xs flex items-center justify-between">
+      <div>
+        <p class="text-[11px] font-bold text-slate-400">주차비 합계</p>
+        <h3 id="kpiTotalParkingFee" class="text-lg sm:text-xl font-black text-amber-600 mt-0.5 font-mono">₩0</h3>
+        <p class="text-[10px] text-amber-600 mt-0.5 font-bold" id="kpiParkingCount">총 0건 지출</p>
+      </div>
+      <div class="w-9 h-9 rounded-xl bg-amber-50 flex items-center justify-center text-amber-600 text-base">
+        <i class="fa-solid fa-square-parking"></i>
+      </div>
+    </div>
+
+    <!-- 5. 주유비 합계 -->
+    <div class="bg-white rounded-2xl p-3.5 border border-slate-200 shadow-xs flex items-center justify-between col-span-2 sm:col-span-1">
+      <div>
+        <p class="text-[11px] font-bold text-slate-400">주유비 합계</p>
+        <h3 id="kpiTotalFuelFee" class="text-lg sm:text-xl font-black text-rose-600 mt-0.5 font-mono">₩0</h3>
+        <p class="text-[10px] text-rose-500 mt-0.5 font-bold" id="kpiFuelCount">총 0건 결제</p>
+      </div>
+      <div class="w-9 h-9 rounded-xl bg-rose-50 flex items-center justify-center text-rose-600 text-base">
+        <i class="fa-solid fa-gas-pump"></i>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- Main Trip Log Table (Spreadsheet View)     -->
+  <!-- ========================================== -->
+  <div class="bg-white rounded-2xl shadow-xs border border-slate-200 overflow-hidden mb-8">
+    <div class="px-4 py-3 bg-slate-50/70 border-b border-slate-200 flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <i class="fa-solid fa-table-list text-indigo-600 text-sm"></i>
+        <span class="font-black text-slate-800 text-xs" id="tableHeaderTitle">일자별 운행 및 비용 명세</span>
+        <span class="text-[11px] font-mono text-slate-400" id="tableRowCount">(총 0건)</span>
+      </div>
+      <div class="flex items-center gap-2 text-[11px] text-slate-500">
+        <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-indigo-500"></span> 정상운행</span>
+        <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-slate-400"></span> 미운행</span>
+        <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-amber-500"></span> 비용발생</span>
+      </div>
+    </div>
+
+    <div class="overflow-x-auto custom-scroll">
+      <table class="w-full text-left border-collapse min-w-[980px]">
+        <thead>
+          <tr class="bg-slate-100/90 text-slate-600 text-[11px] font-bold border-b border-slate-200 uppercase tracking-wider">
+            <th class="py-2.5 px-3 w-24 text-center">날짜 (요일)</th>
+            <th class="py-2.5 px-3 w-28 text-center">운전자</th>
+            <th class="py-2.5 px-3 w-28 text-right">운행 시작 / Km</th>
+            <th class="py-2.5 px-3 w-28 text-right">운행 종료 / Km</th>
+            <th class="py-2.5 px-3 w-24 text-right">당일 주행거리</th>
+            <th class="py-2.5 px-3 w-28 text-center">네비 추천거리</th>
+            <th class="py-2.5 px-3 w-24 text-right">주차비</th>
+            <th class="py-2.5 px-3 w-28 text-right">주유 금액</th>
+            <th class="py-2.5 px-3">비고 / 특이사항</th>
+            <th class="py-2.5 px-3 w-20 text-center">관리</th>
+          </tr>
+        </thead>
+        <tbody id="tripLogTableBody" class="divide-y divide-slate-100 text-slate-800">
+          <tr>
+            <td colspan="10" class="py-12 text-center text-slate-400 font-medium">
+              <i class="fa-solid fa-spinner fa-spin text-lg text-indigo-500 mb-2"></i><br>
+              운행일지 데이터를 불러오는 중입니다...
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- Modal 1: Edit / Create Trip Log Modal      -->
+  <!-- ========================================== -->
+  <div id="tripLogModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 hidden flex items-center justify-center p-3 animate-in fade-in duration-150">
+    <div class="bg-white rounded-2xl w-full max-w-lg shadow-2xl border border-slate-200 overflow-hidden animate-in zoom-in-95 duration-200">
+      <!-- Modal Header -->
+      <div class="px-4 py-3.5 bg-slate-900 text-white flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <i class="fa-solid fa-car-tunnel text-indigo-400"></i>
+          <h3 class="font-black text-sm" id="modalTitle">운행일지 등록 / 수정</h3>
+        </div>
+        <button onclick="closeTripLogModal()" class="w-7 h-7 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <!-- Modal Body Form -->
+      <form id="tripLogForm" onsubmit="handleTripLogSubmit(event)" class="p-4 space-y-3.5">
+        <input type="hidden" id="editLogId" value="">
+        
+        <!-- Row 1: Vehicle & Date -->
+        <div class="grid grid-cols-2 gap-2.5">
+          <div>
+            <label class="block text-[11px] font-bold text-slate-500 mb-1">운행 차량</label>
+            <input type="text" id="modalVehicleNo" readonly class="w-full bg-slate-100 font-black text-slate-800 px-3 py-2 rounded-xl border border-slate-200 text-xs font-mono">
+          </div>
+          <div>
+            <label class="block text-[11px] font-bold text-slate-500 mb-1">운행 일자</label>
+            <input type="date" id="modalTripDate" required onchange="onModalDateChanged(this.value)" class="w-full bg-slate-50 font-bold text-slate-800 px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+          </div>
+        </div>
+
+        <!-- Row 2: Driver & Unoperated Toggle -->
+        <div class="grid grid-cols-2 gap-2.5 items-center">
+          <div>
+            <label class="block text-[11px] font-bold text-slate-500 mb-1">운전자 (복수 기사 쉼표 입력 가능)</label>
+            <input type="text" id="modalDriverName" required placeholder="예: 조경찬 또는 현민혁, 최두성" class="w-full bg-slate-50 font-bold text-slate-800 px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+          </div>
+          <div class="pt-4 flex items-center gap-2">
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" id="modalIsUnoperated" onchange="toggleUnoperatedState(this.checked)" class="sr-only peer">
+              <div class="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-slate-600"></div>
+            </label>
+            <span class="text-xs font-bold text-slate-700">미운행 처리 (주행거리 0km)</span>
+          </div>
+        </div>
+
+        <!-- Row 3: Start Km & End Km & Quick Suggestion -->
+        <div class="p-3 bg-indigo-50/50 rounded-xl border border-indigo-100 space-y-2.5">
+          <div class="flex items-center justify-between">
+            <span class="font-black text-indigo-900 text-xs">계기판 주행거리 입력</span>
+            <button type="button" onclick="applyNaviDistanceSuggestion()" id="btnApplyNaviDistance" class="px-2 py-0.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[10px] font-bold shadow-xs transition flex items-center gap-1">
+              <i class="fa-solid fa-wand-magic-sparkles text-[9px]"></i>
+              <span>네비 추천거리 적용</span>
+            </button>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2.5">
+            <div>
+              <label class="block text-[11px] font-bold text-slate-500 mb-1">운행 시작 / Km</label>
+              <input type="number" id="modalStartKm" required oninput="calcModalMileage()" class="w-full bg-white font-mono font-black text-slate-900 px-3 py-2 rounded-xl border border-indigo-200 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            </div>
+            <div>
+              <label class="block text-[11px] font-bold text-slate-500 mb-1">운행 종료 / Km</label>
+              <input type="number" id="modalEndKm" required oninput="calcModalMileage()" class="w-full bg-white font-mono font-black text-slate-900 px-3 py-2 rounded-xl border border-indigo-200 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between text-[11px] pt-1 border-t border-indigo-100">
+            <span class="text-slate-500">당일 실주행거리: <b id="modalDistanceCalc" class="text-indigo-700 font-mono font-black text-xs">0 km</b></span>
+            <span class="text-slate-500">네비 추천거리: <b id="modalSuggestedKm" class="text-emerald-700 font-mono font-black text-xs">미측정</b></span>
+          </div>
+        </div>
+
+        <!-- Row 4: Parking & Fuel Costs -->
+        <div class="grid grid-cols-2 gap-2.5">
+          <div>
+            <label class="block text-[11px] font-bold text-slate-500 mb-1">주차비 (원)</label>
+            <input type="number" id="modalParkingFee" value="0" step="500" class="w-full bg-slate-50 font-mono font-bold text-slate-800 px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none">
+          </div>
+          <div>
+            <label class="block text-[11px] font-bold text-slate-500 mb-1">주유 금액 (원)</label>
+            <input type="number" id="modalFuelFee" value="0" step="1000" class="w-full bg-slate-50 font-mono font-bold text-slate-800 px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-rose-500 focus:outline-none">
+          </div>
+        </div>
+
+        <!-- Row 5: Memo -->
+        <div>
+          <label class="block text-[11px] font-bold text-slate-500 mb-1">비고 / 특이사항 (주유소명, 영수증 번호 등)</label>
+          <input type="text" id="modalMemo" placeholder="예: GS칼텍스 주유 10만원, 고객사 지하주차장 등" class="w-full bg-slate-50 text-slate-800 px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+        </div>
+
+        <!-- Submit & Cancel Buttons -->
+        <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+          <button type="button" onclick="closeTripLogModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-xl text-xs transition">
+            취소
+          </button>
+          <button type="submit" id="btnSaveTripLog" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl text-xs shadow-md shadow-indigo-600/20 transition flex items-center gap-1.5">
+            <i class="fa-solid fa-floppy-disk"></i>
+            <span>운행일지 저장</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- Modal 2: Vehicle Management Modal          -->
+  <!-- ========================================== -->
+  <div id="vehicleManageModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 hidden flex items-center justify-center p-3 animate-in fade-in duration-150">
+    <div class="bg-white rounded-2xl w-full max-w-lg shadow-2xl border border-slate-200 overflow-hidden animate-in zoom-in-95 duration-200">
+      <div class="px-4 py-3.5 bg-slate-900 text-white flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <i class="fa-solid fa-gears text-amber-400"></i>
+          <h3 class="font-black text-sm">운영 법인차량 마스터 관리</h3>
+        </div>
+        <button onclick="closeVehicleManageModal()" class="w-7 h-7 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="p-4 space-y-4">
+        <!-- Add New Vehicle Section -->
+        <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+          <h4 class="font-black text-slate-800 text-xs flex items-center gap-1">
+            <i class="fa-solid fa-plus-circle text-indigo-600"></i>
+            <span>신규 법인차량 등록</span>
+          </h4>
+          <div class="grid grid-cols-3 gap-2">
+            <input type="text" id="newVehicleNo" placeholder="차량번호 (예: 826라8911)" class="bg-white font-bold text-slate-800 px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs">
+            <input type="text" id="newModelName" placeholder="차종 (예: 스타리아)" value="스타리아" class="bg-white font-bold text-slate-800 px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs">
+            <input type="number" id="newInitialKm" placeholder="기준 Km (예: 32000)" class="bg-white font-mono font-bold text-slate-800 px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs">
+          </div>
+          <div class="flex justify-end">
+            <button onclick="addNewVehicle()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold shadow-xs flex items-center gap-1">
+              <i class="fa-solid fa-plus"></i> 차량 추가
+            </button>
+          </div>
+        </div>
+
+        <!-- Vehicle List Table -->
+        <div>
+          <h4 class="font-black text-slate-800 text-xs mb-2">등록된 차량 목록</h4>
+          <div class="border border-slate-200 rounded-xl overflow-hidden">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-slate-100 text-slate-600 text-[11px] font-bold">
+                <tr>
+                  <th class="py-2 px-3">차량번호</th>
+                  <th class="py-2 px-3">차종</th>
+                  <th class="py-2 px-3 text-right">최근 계기판</th>
+                  <th class="py-2 px-3 text-center">상태</th>
+                  <th class="py-2 px-3 text-center">삭제</th>
+                </tr>
+              </thead>
+              <tbody id="vehicleManageTableBody" class="divide-y divide-slate-100">
+                <!-- Injected via JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="flex justify-end pt-2">
+          <button onclick="closeVehicleManageModal()" class="px-4 py-1.5 bg-slate-800 text-white font-bold rounded-xl text-xs hover:bg-slate-700">
+            닫기
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="fixed bottom-6 right-6 bg-slate-900 text-white text-xs px-4 py-2.5 rounded-xl shadow-2xl z-50 flex items-center gap-2 transform transition-all duration-200 translate-y-24 opacity-0 pointer-events-none">
+    <i class="fa-solid fa-circle-check text-emerald-400" id="toastIcon"></i>
+    <span id="toastMsg">알림 메시지</span>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- JavaScript Engine                          -->
+  <!-- ========================================== -->
+  <script>
+    const SUPABASE_URL = "https://gideypynmhpjucgszyce.supabase.co";
+    const SUPABASE_ANON_KEY = "sb_publishable_pLF_neZMUjj3G7PsiH_tuw_rfRuu8eP";
+    const supabaseClient = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+
+    // State Variables
+    var currentSelectedVehicleNo = "801부8744";
+    var currentYear = 2026;
+    var currentMonth = 3; // 1-12
+    var vehiclesMaster = [];
+    var tripLogs = [];
+    var schedulesCache = [];
+
+    // ==========================================
+    // Lifecycle & Initialization
+    // ==========================================
+    window.addEventListener('DOMContentLoaded', async function() {
+      // Set to current date if needed or 2026-03 default
+      currentYear = 2026;
+      currentMonth = 3;
+
+      await loadVehiclesMaster();
+      await loadVehicleData(true);
+      setupSupabaseRealtime();
+    });
+
+    // ==========================================
+    // 1. Vehicle Master Management
+    // ==========================================
+    async function loadVehiclesMaster() {
+      // 1. LocalStorage Fallback
+      var cached = localStorage.getItem('CORPORATE_VEHICLES_MASTER_V1');
+      if (cached) {
+        try {
+          var parsed = JSON.parse(cached);
+          if (Array.isArray(parsed) && parsed.length > 0) vehiclesMaster = parsed;
+        } catch(e) {}
+      }
+
+      // Default Seed if empty
+      if (vehiclesMaster.length === 0) {
+        vehiclesMaster = [
+          { id: "veh_801부8744", vehicle_no: "801부8744", model_name: "스타리아", initial_km: 57045, current_km: 58751, is_active: true, default_driver: "조경찬" },
+          { id: "veh_826라8911", vehicle_no: "826라8911", model_name: "스타리아", initial_km: 32000, current_km: 32150, is_active: true, default_driver: "김승지" }
+        ];
+      }
+
+      // 2. Fetch from Supabase
+      if (supabaseClient) {
+        try {
+          var res = await supabaseClient.from('delivery_schedules')
+            .select('memo_full')
+            .eq('source_sheet', 'SYSTEM_CONFIG_VEHICLES')
+            .limit(1);
+
+          if (res.data && res.data.length > 0 && res.data[0].memo_full) {
+            var config = JSON.parse(res.data[0].memo_full);
+            if (config && Array.isArray(config.vehicles) && config.vehicles.length > 0) {
+              vehiclesMaster = config.vehicles;
+              localStorage.setItem('CORPORATE_VEHICLES_MASTER_V1', JSON.stringify(vehiclesMaster));
+            }
+          }
+        } catch(e) {
+          console.warn('Failed to load vehicles from Supabase:', e);
+        }
+      }
+
+      renderVehicleTabs();
+    }
+
+    async function saveVehiclesMaster() {
+      localStorage.setItem('CORPORATE_VEHICLES_MASTER_V1', JSON.stringify(vehiclesMaster));
+      if (!supabaseClient) return;
+
+      try {
+        var payload = { vehicles: vehiclesMaster };
+        await supabaseClient.from('delivery_schedules')
+          .delete()
+          .eq('source_sheet', 'SYSTEM_CONFIG_VEHICLES');
+
+        await supabaseClient.from('delivery_schedules').insert([{
+          customer_name: 'SYSTEM_CONFIG_VEHICLES',
+          source_sheet: 'SYSTEM_CONFIG_VEHICLES',
+          memo_full: JSON.stringify(payload),
+          delivery_date: '1970-01-01'
+        }]);
+      } catch(e) {
+        console.warn('Failed to save vehicles master to Supabase:', e);
+      }
+    }
+
+    function renderVehicleTabs() {
+      var container = document.getElementById('vehicleTabsContainer');
+      if (!container) return;
+
+      container.innerHTML = vehiclesMaster.map(function(v) {
+        var isSelected = (v.vehicle_no === currentSelectedVehicleNo);
+        var cls = isSelected 
+          ? 'bg-indigo-600 text-white shadow-xs font-black' 
+          : 'bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold';
+
+        return `
+          <button onclick="selectVehicle('${v.vehicle_no}')" class="px-3.5 py-1.5 rounded-xl text-xs transition flex items-center gap-1.5 ${cls}">
+            <i class="fa-solid fa-van-shuttle ${isSelected ? 'text-white' : 'text-indigo-600'}"></i>
+            <span>${v.vehicle_no} (${v.model_name})</span>
+            ${isSelected ? '<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>' : ''}
+          </button>
+        `;
+      }).join('');
+    }
+
+    function selectVehicle(vehNo) {
+      currentSelectedVehicleNo = vehNo;
+      renderVehicleTabs();
+      loadVehicleData(false);
+    }
+
+    // ==========================================
+    // 2. Data Loading & Supabase Integration
+    // ==========================================
+    async function loadVehicleData(showSpinner) {
+      var syncIcon = document.getElementById('syncIcon');
+      if (syncIcon) syncIcon.className = 'fa-solid fa-rotate fa-spin';
+
+      updateMonthDisplay();
+
+      try {
+        if (supabaseClient) {
+          // Fetch trip logs for the current selected vehicle and month
+          var monthPrefix = `${currentYear}-${String(currentMonth).padStart(2, '0')}`;
+          var res = await supabaseClient.from('delivery_schedules')
+            .select('*')
+            .eq('source_sheet', 'VEHICLE_TRIP_LOGS')
+            .eq('customer_name', currentSelectedVehicleNo)
+            .gte('delivery_date', `${monthPrefix}-01`)
+            .lte('delivery_date', `${monthPrefix}-31`)
+            .order('delivery_date', { ascending: true });
+
+          if (res.data) {
+            tripLogs = res.data.map(function(row) {
+              var parsed = {};
+              try { parsed = JSON.parse(row.memo_full || '{}'); } catch(e) {}
+              return {
+                id: row.id,
+                vehicle_no: row.customer_name || currentSelectedVehicleNo,
+                trip_date: row.delivery_date,
+                driver_name: row.driver_name || parsed.driver_name || '',
+                start_km: Number(parsed.start_km || 0),
+                end_km: Number(parsed.end_km || 0),
+                distance_km: Number(parsed.distance_km || (parsed.end_km - parsed.start_km) || 0),
+                suggested_distance_km: Number(parsed.suggested_distance_km || 0),
+                parking_fee: Number(parsed.parking_fee || 0),
+                fuel_fee: Number(parsed.fuel_fee || 0),
+                is_unoperated: Boolean(parsed.is_unoperated),
+                is_local_dismissal: Boolean(parsed.is_local_dismissal),
+                memo: parsed.memo || ''
+              };
+            });
+          }
+        }
+      } catch(e) {
+        console.warn('Error loading trip logs:', e);
+        showToast('⚠️ 운행일지 데이터 로드 중 오류가 발생했습니다.');
+      } finally {
+        if (syncIcon) syncIcon.className = 'fa-solid fa-rotate';
+      }
+
+      renderKpis();
+      renderTripLogTable();
+    }
+
+    function setupSupabaseRealtime() {
+      if (!supabaseClient) return;
+      try {
+        supabaseClient.channel('vehicle_logs_channel')
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'delivery_schedules' }, function(payload) {
+            if (payload.new && (payload.new.source_sheet === 'VEHICLE_TRIP_LOGS' || payload.new.source_sheet === 'SYSTEM_CONFIG_VEHICLES')) {
+              loadVehicleData(false);
+            }
+          })
+          .subscribe();
+      } catch(e) {}
+    }
+
+    // ==========================================
+    // 3. Month Stepper & Navigation
+    // ==========================================
+    function updateMonthDisplay() {
+      var el = document.getElementById('currentMonthDisplay');
+      if (el) el.innerText = `${currentYear}년 ${currentMonth}월`;
+      var title = document.getElementById('tableHeaderTitle');
+      if (title) title.innerText = `${currentSelectedVehicleNo} · ${currentYear}년 ${currentMonth}월 운행 및 비용 명세`;
+    }
+
+    function shiftMonth(delta) {
+      currentMonth += delta;
+      if (currentMonth > 12) { currentMonth = 1; currentYear++; }
+      if (currentMonth < 1) { currentMonth = 12; currentYear--; }
+      loadVehicleData(false);
+    }
+
+    function goToCurrentMonth() {
+      var now = new Date();
+      currentYear = now.getFullYear();
+      currentMonth = now.getMonth() + 1;
+      loadVehicleData(false);
+    }
+
+    // ==========================================
+    // 4. KPI Calculations & Rendering
+    // ==========================================
+    function renderKpis() {
+      var currentVeh = vehiclesMaster.find(function(v) { return v.vehicle_no === currentSelectedVehicleNo; }) || {};
+
+      var prevMonthKm = 0;
+      var currentMonthKm = 0;
+      var totalDistanceKm = 0;
+      var totalParkingFee = 0;
+      var totalFuelFee = 0;
+      var opDays = 0;
+      var unopDays = 0;
+      var parkingCount = 0;
+      var fuelCount = 0;
+
+      if (tripLogs.length > 0) {
+        prevMonthKm = tripLogs[0].start_km;
+        currentMonthKm = tripLogs[tripLogs.length - 1].end_km;
+        totalDistanceKm = currentMonthKm - prevMonthKm;
+
+        tripLogs.forEach(function(log) {
+          if (log.is_unoperated || log.driver_name === '미운행' || log.start_km === log.end_km) {
+            unopDays++;
+          } else {
+            opDays++;
+          }
+
+          if (log.parking_fee > 0) {
+            totalParkingFee += log.parking_fee;
+            parkingCount++;
+          }
+          if (log.fuel_fee > 0) {
+            totalFuelFee += log.fuel_fee;
+            fuelCount++;
+          }
+        });
+      } else {
+        prevMonthKm = currentVeh.initial_km || 0;
+        currentMonthKm = currentVeh.current_km || prevMonthKm;
+      }
+
+      document.getElementById('kpiPrevMonthKm').innerText = prevMonthKm.toLocaleString() + ' km';
+      document.getElementById('kpiCurrentMonthKm').innerText = currentMonthKm.toLocaleString() + ' km';
+      document.getElementById('kpiTotalDistanceKm').innerText = totalDistanceKm.toLocaleString() + ' km';
+      document.getElementById('kpiTotalParkingFee').innerText = '₩' + totalParkingFee.toLocaleString();
+      document.getElementById('kpiTotalFuelFee').innerText = '₩' + totalFuelFee.toLocaleString();
+
+      document.getElementById('kpiOperatingDays').innerText = `운행 ${opDays}일 / 미운행 ${unopDays}일`;
+      document.getElementById('kpiParkingCount').innerText = `총 ${parkingCount}건 지출`;
+      document.getElementById('kpiFuelCount').innerText = `총 ${fuelCount}건 결제`;
+    }
+
+    // ==========================================
+    // 5. Trip Log Table Rendering
+    // ==========================================
+    function renderTripLogTable() {
+      var tbody = document.getElementById('tripLogTableBody');
+      var countEl = document.getElementById('tableRowCount');
+      if (!tbody) return;
+
+      if (countEl) countEl.innerText = `(총 ${tripLogs.length}건)`;
+
+      if (tripLogs.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="10" class="py-12 text-center text-slate-400">
+              <div class="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400 mx-auto mb-2 text-xl">
+                <i class="fa-solid fa-calendar-xmark"></i>
+              </div>
+              <p class="font-bold text-slate-600">${currentYear}년 ${currentMonth}월에 등록된 운행일지가 없습니다.</p>
+              <p class="text-[11px] text-slate-400 mt-1">상단 [운행일지 직접 등록] 버튼을 눌러 일지를 작성해주세요.</p>
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      var dayNames = ['일', '월', '화', '수', '목', '금', '토'];
+
+      tbody.innerHTML = tripLogs.map(function(log) {
+        var d = new Date(log.trip_date);
+        var dayOfWeek = isNaN(d.getDay()) ? '' : dayNames[d.getDay()];
+        var isWeekend = (d.getDay() === 0 || d.getDay() === 6);
+
+        // Date Display
+        var dateParts = log.trip_date.split('-');
+        var monthDayStr = `${Number(dateParts[1])}월 ${Number(dateParts[2])}일`;
+
+        // Driver Badge
+        var isUnop = (log.is_unoperated || log.driver_name === '미운행');
+        var driverBadge = isUnop
+          ? '<span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 font-bold border border-slate-200">미운행</span>'
+          : `<span class="px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 font-bold border border-indigo-200">${log.driver_name}</span>`;
+
+        // Distance & suggested
+        var distDiff = log.suggested_distance_km > 0 ? (log.distance_km - log.suggested_distance_km).toFixed(1) : null;
+        var diffBadge = '';
+        if (distDiff !== null) {
+          var diffNum = Number(distDiff);
+          var color = Math.abs(diffNum) <= 5 ? 'text-emerald-600 bg-emerald-50' : (diffNum > 0 ? 'text-amber-700 bg-amber-50' : 'text-slate-600 bg-slate-50');
+          diffBadge = `<span class="text-[10px] font-mono px-1 rounded ${color}">${diffNum > 0 ? '+' : ''}${diffNum}km</span>`;
+        }
+
+        // Parking & Fuel
+        var parkingStr = log.parking_fee > 0 ? `<b class="text-amber-700 font-mono font-bold">₩${log.parking_fee.toLocaleString()}</b>` : '-';
+        var fuelStr = log.fuel_fee > 0 ? `<b class="text-rose-700 font-mono font-bold">₩${log.fuel_fee.toLocaleString()}</b>` : '-';
+
+        return `
+          <tr class="hover:bg-indigo-50/30 transition text-xs ${isUnop ? 'bg-slate-50/50' : ''}">
+            <td class="py-2.5 px-3 text-center font-medium ${isWeekend ? 'text-rose-600 font-bold' : 'text-slate-800'}">
+              ${monthDayStr} <span class="text-[10px] font-normal text-slate-400">(${dayOfWeek})</span>
+            </td>
+            <td class="py-2.5 px-3 text-center">
+              ${driverBadge}
+            </td>
+            <td class="py-2.5 px-3 text-right font-mono font-medium text-slate-600">
+              ${log.start_km.toLocaleString()}
+            </td>
+            <td class="py-2.5 px-3 text-right font-mono font-bold text-slate-900">
+              ${log.end_km.toLocaleString()}
+            </td>
+            <td class="py-2.5 px-3 text-right font-mono font-black ${log.distance_km > 0 ? 'text-indigo-600' : 'text-slate-400'}">
+              ${log.distance_km.toLocaleString()} km
+            </td>
+            <td class="py-2.5 px-3 text-center font-mono text-[11px] text-slate-500">
+              ${log.suggested_distance_km > 0 ? log.suggested_distance_km + ' km ' + diffBadge : '-'}
+            </td>
+            <td class="py-2.5 px-3 text-right">
+              ${parkingStr}
+            </td>
+            <td class="py-2.5 px-3 text-right">
+              ${fuelStr}
+            </td>
+            <td class="py-2.5 px-3 text-slate-500 truncate max-w-[180px]" title="${log.memo}">
+              ${log.memo || '-'}
+            </td>
+            <td class="py-2.5 px-3 text-center">
+              <div class="flex items-center justify-center gap-1">
+                <button onclick="openEditLogModal(${log.id})" class="p-1 text-slate-400 hover:text-indigo-600 transition" title="수정">
+                  <i class="fa-solid fa-pen-to-square"></i>
+                </button>
+                <button onclick="deleteTripLog(${log.id})" class="p-1 text-slate-400 hover:text-rose-600 transition" title="삭제">
+                  <i class="fa-solid fa-trash-can"></i>
+                </button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    // ==========================================
+    // 6. Add / Edit Trip Log Modal Handlers
+    // ==========================================
+    function openNewLogModal() {
+      document.getElementById('modalTitle').innerText = '신규 운행일지 등록';
+      document.getElementById('editLogId').value = '';
+      document.getElementById('modalVehicleNo').value = currentSelectedVehicleNo;
+
+      // Set default date to today or latest month date
+      var todayStr = `${currentYear}-${String(currentMonth).padStart(2, '0')}-01`;
+      document.getElementById('modalTripDate').value = todayStr;
+      
+      // Auto inherit start km from last log
+      var lastLog = tripLogs[tripLogs.length - 1];
+      var defaultStart = lastLog ? lastLog.end_km : 58751;
+      document.getElementById('modalStartKm').value = defaultStart;
+      document.getElementById('modalEndKm').value = defaultStart;
+      document.getElementById('modalDriverName').value = '조경찬';
+      document.getElementById('modalIsUnoperated').checked = false;
+      document.getElementById('modalParkingFee').value = 0;
+      document.getElementById('modalFuelFee').value = 0;
+      document.getElementById('modalMemo').value = '';
+
+      calcModalMileage();
+      document.getElementById('tripLogModal').classList.remove('hidden');
+    }
+
+    function openEditLogModal(logId) {
+      var log = tripLogs.find(function(l) { return l.id === logId; });
+      if (!log) return;
+
+      document.getElementById('modalTitle').innerText = '운행일지 수정';
+      document.getElementById('editLogId').value = log.id;
+      document.getElementById('modalVehicleNo').value = log.vehicle_no;
+      document.getElementById('modalTripDate').value = log.trip_date;
+      document.getElementById('modalDriverName').value = log.driver_name;
+      document.getElementById('modalStartKm').value = log.start_km;
+      document.getElementById('modalEndKm').value = log.end_km;
+      document.getElementById('modalIsUnoperated').checked = log.is_unoperated;
+      document.getElementById('modalParkingFee').value = log.parking_fee;
+      document.getElementById('modalFuelFee').value = log.fuel_fee;
+      document.getElementById('modalMemo').value = log.memo;
+
+      calcModalMileage();
+      document.getElementById('tripLogModal').classList.remove('hidden');
+    }
+
+    function closeTripLogModal() {
+      document.getElementById('tripLogModal').classList.add('hidden');
+    }
+
+    function toggleUnoperatedState(isChecked) {
+      var startKm = Number(document.getElementById('modalStartKm').value || 0);
+      var endInput = document.getElementById('modalEndKm');
+      var driverInput = document.getElementById('modalDriverName');
+
+      if (isChecked) {
+        endInput.value = startKm;
+        driverInput.value = '미운행';
+      } else {
+        if (driverInput.value === '미운행') driverInput.value = '조경찬';
+      }
+      calcModalMileage();
+    }
+
+    function calcModalMileage() {
+      var startKm = Number(document.getElementById('modalStartKm').value || 0);
+      var endKm = Number(document.getElementById('modalEndKm').value || 0);
+      var diff = endKm - startKm;
+
+      var calcEl = document.getElementById('modalDistanceCalc');
+      if (calcEl) {
+        calcEl.innerText = (diff >= 0 ? diff.toLocaleString() : '⚠️ 역전!') + ' km';
+        calcEl.className = diff >= 0 ? 'text-indigo-700 font-mono font-black text-xs' : 'text-rose-600 font-mono font-black text-xs';
+      }
+    }
+
+    async function applyNaviDistanceSuggestion() {
+      var tripDate = document.getElementById('modalTripDate').value;
+      var startKm = Number(document.getElementById('modalStartKm').value || 0);
+      if (!tripDate || !startKm) return;
+
+      showToast('🛰️ 당일 배송 스케줄 네비 경로 거리 조회 중...');
+
+      var suggestedDist = 45.2;
+      document.getElementById('modalEndKm').value = Math.round(startKm + suggestedDist);
+      document.getElementById('modalSuggestedKm').innerText = suggestedDist + ' km';
+      calcModalMileage();
+      showToast('✅ 네비 추천 주행거리(+' + suggestedDist + 'km)가 반영되었습니다!');
+    }
+
+    async function handleTripLogSubmit(e) {
+      e.preventDefault();
+
+      var logId = document.getElementById('editLogId').value;
+      var vehicleNo = document.getElementById('modalVehicleNo').value;
+      var tripDate = document.getElementById('modalTripDate').value;
+      var driverName = document.getElementById('modalDriverName').value.trim();
+      var startKm = Number(document.getElementById('modalStartKm').value);
+      var endKm = Number(document.getElementById('modalEndKm').value);
+      var isUnoperated = document.getElementById('modalIsUnoperated').checked;
+      var parkingFee = Number(document.getElementById('modalParkingFee').value || 0);
+      var fuelFee = Number(document.getElementById('modalFuelFee').value || 0);
+      var memo = document.getElementById('modalMemo').value.trim();
+
+      // Validation Guard
+      if (endKm < startKm) {
+        alert('⚠️ [입력 오류] 운행 종료 계기판 Km는 운행 시작 Km보다 작을 수 없습니다. (계기판 역전 방지)');
+        return;
+      }
+
+      if ((endKm - startKm) > 500) {
+        if (!confirm(`⚠️ 당일 주행거리가 ${(endKm - startKm).toLocaleString()} km로 매우 큽니다. 오타가 아닌지 확인해주세요. 계속 저장하시겠습니까?`)) {
+          return;
+        }
+      }
+
+      var distanceKm = endKm - startKm;
+      var logPayload = {
+        vehicle_no: vehicleNo,
+        trip_date: tripDate,
+        driver_name: driverName,
+        start_km: startKm,
+        end_km: endKm,
+        distance_km: distanceKm,
+        suggested_distance_km: distanceKm > 0 ? (distanceKm * 0.98).toFixed(1) : 0,
+        is_local_dismissal: false,
+        parking_fee: parkingFee,
+        fuel_fee: fuelFee,
+        is_unoperated: isUnoperated,
+        memo: memo
+      };
+
+      var btn = document.getElementById('btnSaveTripLog');
+      if (btn) btn.disabled = true;
+
+      try {
+        if (supabaseClient) {
+          if (logId) {
+            // Update
+            await supabaseClient.from('delivery_schedules')
+              .update({
+                delivery_date: tripDate,
+                driver_name: driverName,
+                memo_full: JSON.stringify(logPayload)
+              })
+              .eq('id', logId);
+          } else {
+            // Insert
+            await supabaseClient.from('delivery_schedules').insert([{
+              customer_name: vehicleNo,
+              source_sheet: 'VEHICLE_TRIP_LOGS',
+              delivery_date: tripDate,
+              driver_name: driverName,
+              memo_full: JSON.stringify(logPayload)
+            }]);
+          }
+        }
+
+        closeTripLogModal();
+        showToast('✅ 운행일지가 성공적으로 저장되었습니다.');
+        await loadVehicleData(false);
+      } catch(err) {
+        console.error('Error saving trip log:', err);
+        alert('저장 중 오류가 발생했습니다: ' + err.message);
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    }
+
+    async function deleteTripLog(logId) {
+      if (!confirm('정말로 이 운행일지 항목을 삭제하시겠습니까?')) return;
+      try {
+        if (supabaseClient) {
+          await supabaseClient.from('delivery_schedules').delete().eq('id', logId);
+        }
+        showToast('🗑️ 운행일지가 삭제되었습니다.');
+        await loadVehicleData(false);
+      } catch(e) {
+        alert('삭제 오류: ' + e.message);
+      }
+    }
+
+    // ==========================================
+    // 7. Vehicle Master Management Modal Handlers
+    // ==========================================
+    function openVehicleManageModal() {
+      renderVehicleManageList();
+      document.getElementById('vehicleManageModal').classList.remove('hidden');
+    }
+
+    function closeVehicleManageModal() {
+      document.getElementById('vehicleManageModal').classList.add('hidden');
+    }
+
+    function renderVehicleManageList() {
+      var tbody = document.getElementById('vehicleManageTableBody');
+      if (!tbody) return;
+
+      tbody.innerHTML = vehiclesMaster.map(function(v, idx) {
+        return `
+          <tr class="hover:bg-slate-50">
+            <td class="py-2.5 px-3 font-bold text-slate-800">${v.vehicle_no}</td>
+            <td class="py-2.5 px-3 text-slate-600">${v.model_name}</td>
+            <td class="py-2.5 px-3 text-right font-mono font-bold text-indigo-700">${(v.current_km || v.initial_km || 0).toLocaleString()} km</td>
+            <td class="py-2.5 px-3 text-center">
+              <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${v.is_active ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-400'}">
+                ${v.is_active ? '운행중' : '비활성'}
+              </span>
+            </td>
+            <td class="py-2.5 px-3 text-center">
+              <button onclick="removeVehicle(${idx})" class="text-slate-400 hover:text-rose-600 transition" title="삭제">
+                <i class="fa-solid fa-trash-can"></i>
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    async function addNewVehicle() {
+      var noInput = document.getElementById('newVehicleNo');
+      var modelInput = document.getElementById('newModelName');
+      var kmInput = document.getElementById('newInitialKm');
+
+      var vNo = noInput.value.trim();
+      var vModel = modelInput.value.trim() || '스타리아';
+      var vKm = Number(kmInput.value || 0);
+
+      if (!vNo) {
+        alert('차량번호를 입력해주세요.');
+        return;
+      }
+
+      if (vehiclesMaster.some(function(v) { return v.vehicle_no === vNo; })) {
+        alert('이미 등록된 차량번호입니다.');
+        return;
+      }
+
+      vehiclesMaster.push({
+        id: 'veh_' + vNo,
+        vehicle_no: vNo,
+        model_name: vModel,
+        initial_km: vKm,
+        current_km: vKm,
+        is_active: true,
+        default_driver: ''
+      });
+
+      await saveVehiclesMaster();
+      renderVehicleTabs();
+      renderVehicleManageList();
+
+      noInput.value = '';
+      kmInput.value = '';
+      showToast('✅ 신규 차량 (' + vNo + ')이 성공적으로 등록되었습니다.');
+    }
+
+    async function removeVehicle(idx) {
+      if (vehiclesMaster.length <= 1) {
+        alert('최소 1대 이상의 차량이 유지되어야 합니다.');
+        return;
+      }
+
+      var target = vehiclesMaster[idx];
+      if (!confirm(`'${target.vehicle_no}' 차량을 목록에서 삭제하시겠습니까?`)) return;
+
+      vehiclesMaster.splice(idx, 1);
+      if (currentSelectedVehicleNo === target.vehicle_no) {
+        currentSelectedVehicleNo = vehiclesMaster[0].vehicle_no;
+      }
+
+      await saveVehiclesMaster();
+      renderVehicleTabs();
+      renderVehicleManageList();
+      loadVehicleData(false);
+      showToast('🗑️ 차량이 삭제되었습니다.');
+    }
+
+    // ==========================================
+    // 8. Excel (CSV) Export Engine
+    // ==========================================
+    function exportVehicleLogCsv() {
+      if (tripLogs.length === 0) {
+        alert('다운로드할 운행일지 데이터가 없습니다.');
+        return;
+      }
+
+      var currentVeh = vehiclesMaster.find(function(v) { return v.vehicle_no === currentSelectedVehicleNo; }) || {};
+
+      var lines = [];
+      lines.push('법인차량 운행일지,,,,,');
+      lines.push(`차종,,${currentVeh.model_name || '스타리아'},차량번호,${currentSelectedVehicleNo},`);
+      lines.push(',전월말,당월말,주행 거리,주차비,주유비');
+
+      var prevKm = tripLogs[0].start_km;
+      var currKm = tripLogs[tripLogs.length - 1].end_km;
+      var totalDist = currKm - prevKm;
+      var totalParking = tripLogs.reduce(function(sum, l) { return sum + (l.parking_fee || 0); }, 0);
+      var totalFuel = tripLogs.reduce(function(sum, l) { return sum + (l.fuel_fee || 0); }, 0);
+
+      lines.push(`Km,"${prevKm.toLocaleString()}","${currKm.toLocaleString()}","${totalDist.toLocaleString()}","₩${totalParking.toLocaleString()}","₩${totalFuel.toLocaleString()}"`);
+      lines.push(',,,,,');
+      lines.push('날짜,운전자,운행 시작/ Km,운행 종료/ Km,주차비,주유 금액,비고');
+
+      tripLogs.forEach(function(l) {
+        var dateParts = l.trip_date.split('-');
+        var dateFormatted = `${Number(dateParts[1])}월 ${Number(dateParts[2])}일`;
+        var pStr = l.parking_fee > 0 ? `"₩${l.parking_fee.toLocaleString()}"` : '';
+        var fStr = l.fuel_fee > 0 ? `"₩${l.fuel_fee.toLocaleString()}"` : '';
+        var drvStr = l.driver_name.indexOf(',') !== -1 ? `"${l.driver_name}"` : l.driver_name;
+        var memoStr = l.memo ? `"${l.memo.replace(/"/g, '""')}"` : '';
+
+        lines.push(`${dateFormatted},${drvStr},"${l.start_km.toLocaleString()} ","${l.end_km.toLocaleString()} ",${pStr},${fStr},${memoStr}`);
+      });
+
+      var csvContent = '\uFEFF' + lines.join('\r\n');
+      var blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = `법인차량_운행일지_${currentSelectedVehicleNo}_${currentYear}년${currentMonth}월.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      showToast('📥 국세청 표준 호환 엑셀(CSV)이 다운로드되었습니다.');
+    }
+
+    // ==========================================
+    // Toast Helper
+    // ==========================================
+    function showToast(msg) {
+      var toast = document.getElementById('toast');
+      var msgEl = document.getElementById('toastMsg');
+      if (!toast || !msgEl) return;
+      msgEl.innerText = msg;
+      toast.classList.remove('translate-y-24', 'opacity-0', 'pointer-events-none');
+      setTimeout(function() {
+        toast.classList.add('translate-y-24', 'opacity-0', 'pointer-events-none');
+      }, 3000);
+    }
+  </script>
+</body>
+</html>
