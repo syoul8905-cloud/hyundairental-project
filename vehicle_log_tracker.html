@@ -104,6 +104,11 @@
         </button>
       </div>
 
+      <button onclick="openAutoDistributeModal()" class="px-3.5 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-black rounded-xl transition flex items-center gap-1.5 shadow-sm text-xs active:scale-95">
+        <i class="fa-solid fa-wand-magic-sparkles text-amber-300"></i>
+        <span>운행종료 Km 자동 분배</span>
+      </button>
+
       <button onclick="openNewLogModal()" class="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition flex items-center gap-1.5 shadow-xs text-xs">
         <i class="fa-solid fa-plus"></i>
         <span>운행일지 직접 등록</span>
@@ -308,18 +313,18 @@
           </div>
         </div>
 
-        <!-- Row 4.5: Destination / Dismissal -->
+        <!-- Row 4.5: Destination -->
         <div class="grid grid-cols-3 gap-2.5">
           <div>
-            <label class="block text-[11px] font-bold text-slate-500 mb-1">도착지 유형</label>
-            <select id="modalDismissalType" class="w-full bg-slate-50 font-bold text-slate-800 px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-teal-500 focus:outline-none">
-              <option value="center">🏢 센터 복귀</option>
-              <option value="dismissal">🏠 현지 퇴근</option>
+            <label class="block text-[11px] font-bold text-slate-500 mb-1">도착지 선택</label>
+            <select id="modalDestType" onchange="onModalDestTypeChange(this.value)" class="w-full bg-slate-50 font-bold text-slate-800 px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-teal-500 focus:outline-none">
+              <option value="gasan">🏢 가산 센터 복귀</option>
+              <option value="custom">📍 도착지 직접 입력</option>
             </select>
           </div>
           <div class="col-span-2">
-            <label class="block text-[11px] font-bold text-slate-500 mb-1">도착지 주소 / 거점명</label>
-            <input type="text" id="modalDestAddr" placeholder="예: 서울 금천구 벚꽃로 278 (가산 센터) 또는 자택" class="w-full bg-slate-50 text-slate-800 px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-teal-500 focus:outline-none">
+            <label class="block text-[11px] font-bold text-slate-500 mb-1">도착지 주소</label>
+            <input type="text" id="modalDestAddr" value="서울 금천구 벚꽃로 278 (가산 센터)" placeholder="도착지 주소 입력" class="w-full bg-slate-50 text-slate-800 px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-teal-500 focus:outline-none">
           </div>
         </div>
 
@@ -403,6 +408,144 @@
             닫기
           </button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- Modal 3: Auto Distribute Mileage Modal     -->
+  <!-- ========================================== -->
+  <div id="autoDistributeModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 hidden flex items-center justify-center p-3 animate-in fade-in duration-150">
+    <div class="bg-white rounded-2xl w-full max-w-xl shadow-2xl border border-slate-200 overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[92vh]">
+      <!-- Header -->
+      <div class="px-5 py-3.5 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white flex items-center justify-between shrink-0">
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center text-sm">
+            <i class="fa-solid fa-wand-magic-sparkles"></i>
+          </div>
+          <div>
+            <h3 class="font-black text-sm">운행종료 Km 기반 일자별 자동 분배</h3>
+            <p class="text-[10px] text-slate-300">최종 계기판 입력 한 번으로 당월 운행일지를 오차 없이 자동 계산·생성합니다.</p>
+          </div>
+        </div>
+        <button onclick="closeAutoDistributeModal()" class="w-7 h-7 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <!-- Body Form -->
+      <div class="p-5 space-y-4 overflow-y-auto custom-scroll flex-1 text-slate-800">
+        <!-- Info Cards -->
+        <div class="grid grid-cols-3 gap-2.5 p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs">
+          <div>
+            <span class="block text-[10px] font-bold text-slate-400">적용 차량</span>
+            <span class="font-black text-slate-900 text-xs" id="autoDistributeVehicleText">-</span>
+          </div>
+          <div>
+            <span class="block text-[10px] font-bold text-slate-400">대상 연월</span>
+            <span class="font-black text-indigo-700 text-xs" id="autoDistributeMonthText">-</span>
+          </div>
+          <div>
+            <span class="block text-[10px] font-bold text-slate-400">담당 운전자</span>
+            <span class="font-black text-slate-900 text-xs" id="autoDistributeDriverText">조경찬</span>
+          </div>
+        </div>
+
+        <!-- Start & End Odometer Input -->
+        <div class="p-4 bg-indigo-50/50 rounded-2xl border-2 border-indigo-100 space-y-3">
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-black text-slate-700 mb-1">
+                <i class="fa-solid fa-gauge text-slate-400 mr-1"></i>전월(시작) 계기판 Km
+              </label>
+              <input type="number" id="autoStartKm" oninput="calculateAutoDistributePreview()" class="w-full bg-white font-mono font-black text-slate-900 px-3 py-2 rounded-xl border border-indigo-200 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+              <span class="text-[10px] text-slate-400 mt-0.5 block">전월 마감 또는 기초 주행거리</span>
+            </div>
+            <div>
+              <label class="block text-xs font-black text-indigo-900 mb-1">
+                <i class="fa-solid fa-flag-checkered text-emerald-600 mr-1"></i>당월 최종 운행종료 Km
+              </label>
+              <input type="number" id="autoEndKm" placeholder="예: 58751" oninput="calculateAutoDistributePreview()" class="w-full bg-white font-mono font-black text-indigo-700 px-3 py-2 rounded-xl border-2 border-indigo-400 text-sm focus:ring-2 focus:ring-indigo-600 focus:outline-none shadow-xs">
+              <span class="text-[10px] text-indigo-600 mt-0.5 block font-medium">당월 마지막 날 계기판 숫자 입력</span>
+            </div>
+          </div>
+
+          <!-- Total Calculation Result Callout -->
+          <div class="p-2.5 bg-white rounded-xl border border-indigo-100 flex items-center justify-between">
+            <span class="text-xs font-bold text-slate-600">당월 총 주행거리 배분 대상:</span>
+            <div class="flex items-center gap-2">
+              <span id="autoTotalDistText" class="text-base font-mono font-black text-indigo-600">0 km</span>
+              <span id="autoTotalDistBadge" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">입력 대기</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Distribution Method Selection -->
+        <div>
+          <label class="block text-xs font-black text-slate-800 mb-1.5">분배 알고리즘 기준</label>
+          <div class="grid grid-cols-2 gap-2">
+            <label class="cursor-pointer flex items-start gap-2.5 p-3 rounded-xl border border-indigo-200 bg-indigo-50/30 hover:bg-indigo-50 transition">
+              <input type="radio" name="distributeMethod" value="delivery_weight" checked onchange="calculateAutoDistributePreview()" class="mt-0.5 text-indigo-600 focus:ring-indigo-500">
+              <div>
+                <span class="block text-xs font-black text-slate-900">배송 건수 비례 분배 (추천)</span>
+                <span class="text-[10px] text-slate-500 leading-tight block mt-0.5">클라우드 배송 스케줄 건수에 비례하여 가중 배분합니다. 배송 없는 날 0km.</span>
+              </div>
+            </label>
+            <label class="cursor-pointer flex items-start gap-2.5 p-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 transition">
+              <input type="radio" name="distributeMethod" value="weekday_even" onchange="calculateAutoDistributePreview()" class="mt-0.5 text-indigo-600 focus:ring-indigo-500">
+              <div>
+                <span class="block text-xs font-black text-slate-900">평일(월~금) 자연 분배</span>
+                <span class="text-[10px] text-slate-500 leading-tight block mt-0.5">평일 근무일에 자연스러운 편차(70~95km)를 두어 균등하게 분배합니다.</span>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <!-- Live Preview Table -->
+        <div class="space-y-1.5">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-black text-slate-800 flex items-center gap-1.5">
+              <i class="fa-solid fa-list-check text-indigo-600"></i>
+              <span>일자별 자동 분배 미리보기</span>
+              <span id="autoPreviewRowCount" class="text-[10px] font-mono text-slate-400 font-normal"></span>
+            </span>
+            <span id="autoPreviewStatusBadge" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200 hidden">
+              ✓ 계기판 연속성 100% 일치
+            </span>
+          </div>
+          
+          <div class="border border-slate-200 rounded-xl overflow-hidden max-h-52 overflow-y-auto custom-scroll">
+            <table class="w-full text-left text-xs border-collapse">
+              <thead class="bg-slate-100 text-slate-600 font-bold sticky top-0 text-[10px] uppercase border-b border-slate-200">
+                <tr>
+                  <th class="py-1.5 px-2.5 text-center">날짜 (요일)</th>
+                  <th class="py-1.5 px-2 text-center">배송건수</th>
+                  <th class="py-1.5 px-2 text-right">출발 Km</th>
+                  <th class="py-1.5 px-2 text-right">종료 Km</th>
+                  <th class="py-1.5 px-2.5 text-right font-black">당일거리</th>
+                </tr>
+              </thead>
+              <tbody id="autoPreviewTableBody" class="divide-y divide-slate-100 text-slate-800 font-mono text-[11px]">
+                <tr>
+                  <td colspan="5" class="py-8 text-center text-slate-400 font-sans">
+                    운행종료 Km를 입력하시면 일자별 주행거리가 자동으로 계산됩니다.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer Action -->
+      <div class="px-5 py-3.5 bg-slate-50 border-t border-slate-200 flex items-center justify-between shrink-0">
+        <button type="button" onclick="closeAutoDistributeModal()" class="px-4 py-2 bg-white hover:bg-slate-100 text-slate-700 font-bold text-xs rounded-xl border border-slate-200 transition">
+          취소
+        </button>
+        <button type="button" id="btnExecuteAutoDistribute" onclick="executeAutoDistributeMileage()" disabled class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-black text-xs rounded-xl shadow-md transition flex items-center gap-2 active:scale-98">
+          <i class="fa-solid fa-cloud-arrow-up"></i>
+          <span>당월 운행일지 일괄 자동 저장</span>
+        </button>
       </div>
     </div>
   </div>
@@ -761,8 +904,8 @@
             <td class="py-2.5 px-3 text-left">
               ${isUnop ? '<span class="text-slate-400 font-mono text-[11px]">-</span>' : `
                 <div class="flex items-center gap-1.5">
-                  <span class="text-[9.5px] px-1.5 py-0.5 rounded font-black ${log.is_local_dismissal ? 'bg-teal-100 text-teal-800 border border-teal-200' : 'bg-indigo-50 text-indigo-700 border border-indigo-200'} shrink-0">
-                    ${log.is_local_dismissal ? '현지퇴근' : '센터복귀'}
+                  <span class="text-[9.5px] px-1.5 py-0.5 rounded font-black ${(destFullAddr && destFullAddr.indexOf('벚꽃로 278') === -1) ? 'bg-teal-100 text-teal-800 border border-teal-200' : 'bg-indigo-50 text-indigo-700 border border-indigo-200'} shrink-0">
+                    ${(destFullAddr && destFullAddr.indexOf('벚꽃로 278') === -1) ? '도착지지정' : '가산센터'}
                   </span>
                   <span class="truncate text-[11px] text-slate-700 font-medium max-w-[130px]" title="${destFullAddr || destText}">
                     ${destText}
@@ -806,15 +949,15 @@
       var todayStr = `${currentYear}-${String(currentMonth).padStart(2, '0')}-01`;
       document.getElementById('modalTripDate').value = todayStr;
       
-      // Auto inherit start km from last log
+      var currentVeh = vehiclesMaster.find(function(v) { return v.vehicle_no === currentSelectedVehicleNo; }) || {};
       var lastLog = tripLogs[tripLogs.length - 1];
-      var defaultStart = lastLog ? lastLog.end_km : 58751;
+      var defaultStart = lastLog ? lastLog.end_km : (currentVeh.initial_km || 57045);
       document.getElementById('modalStartKm').value = defaultStart;
       document.getElementById('modalEndKm').value = defaultStart;
-      document.getElementById('modalDriverName').value = '조경찬';
+      document.getElementById('modalDriverName').value = currentVeh.default_driver || '조경찬';
       document.getElementById('modalIsUnoperated').checked = false;
-      document.getElementById('modalDismissalType').value = 'center';
-      document.getElementById('modalDestAddr').value = '가산 센터 (서울 금천구 벚꽃로 278)';
+      document.getElementById('modalDestType').value = 'gasan';
+      document.getElementById('modalDestAddr').value = '서울 금천구 벚꽃로 278 (가산 센터)';
       document.getElementById('modalParkingFee').value = 0;
       document.getElementById('modalFuelFee').value = 0;
       document.getElementById('modalMemo').value = '';
@@ -835,14 +978,27 @@
       document.getElementById('modalStartKm').value = log.start_km;
       document.getElementById('modalEndKm').value = log.end_km;
       document.getElementById('modalIsUnoperated').checked = log.is_unoperated;
-      document.getElementById('modalDismissalType').value = log.is_local_dismissal ? 'dismissal' : 'center';
-      document.getElementById('modalDestAddr').value = log.destination_addr || log.destination_name || (log.is_local_dismissal ? '현지 퇴근' : '가산 센터');
+
+      var isCustom = (log.destination_addr && log.destination_addr.indexOf('벚꽃로 278') === -1);
+      document.getElementById('modalDestType').value = isCustom ? 'custom' : 'gasan';
+      document.getElementById('modalDestAddr').value = log.destination_addr || log.destination_name || '서울 금천구 벚꽃로 278 (가산 센터)';
       document.getElementById('modalParkingFee').value = log.parking_fee;
       document.getElementById('modalFuelFee').value = log.fuel_fee;
       document.getElementById('modalMemo').value = log.memo;
 
       calcModalMileage();
       document.getElementById('tripLogModal').classList.remove('hidden');
+    }
+
+    function onModalDestTypeChange(val) {
+      var addrInp = document.getElementById('modalDestAddr');
+      if (!addrInp) return;
+      if (val === 'gasan') {
+        addrInp.value = '서울 금천구 벚꽃로 278 (가산 센터)';
+      } else {
+        if (addrInp.value.indexOf('벚꽃로 278') !== -1) addrInp.value = '';
+        addrInp.focus();
+      }
     }
 
     function closeTripLogModal() {
@@ -899,10 +1055,9 @@
       var startKm = Number(document.getElementById('modalStartKm').value);
       var endKm = Number(document.getElementById('modalEndKm').value);
       var isUnoperated = document.getElementById('modalIsUnoperated').checked;
-      var dismissalType = document.getElementById('modalDismissalType').value;
-      var isLocalDismissal = (dismissalType === 'dismissal');
+      var destType = document.getElementById('modalDestType').value;
       var destAddr = document.getElementById('modalDestAddr').value.trim();
-      var destName = isLocalDismissal ? (destAddr || '현지 퇴근') : (destAddr || '가산 센터');
+      var destName = (destType === 'gasan' || !destAddr) ? '가산 센터' : destAddr;
       var parkingFee = Number(document.getElementById('modalParkingFee').value || 0);
       var fuelFee = Number(document.getElementById('modalFuelFee').value || 0);
       var memo = document.getElementById('modalMemo').value.trim();
@@ -928,8 +1083,8 @@
         end_km: endKm,
         distance_km: distanceKm,
         suggested_distance_km: distanceKm > 0 ? (distanceKm * 0.98).toFixed(1) : 0,
-        is_local_dismissal: isLocalDismissal,
-        destination_addr: destAddr,
+        is_local_dismissal: false,
+        destination_addr: destAddr || '서울 금천구 벚꽃로 278 (가산 센터)',
         destination_name: destName,
         parking_fee: parkingFee,
         fuel_fee: fuelFee,
@@ -1115,7 +1270,7 @@
         var pStr = l.parking_fee > 0 ? `"₩${l.parking_fee.toLocaleString()}"` : '';
         var fStr = l.fuel_fee > 0 ? `"₩${l.fuel_fee.toLocaleString()}"` : '';
         var drvStr = l.driver_name.indexOf(',') !== -1 ? `"${l.driver_name}"` : l.driver_name;
-        var destStr = l.is_unoperated ? '미운행' : `"${(l.is_local_dismissal ? '[현지퇴근] ' : '[센터복귀] ') + (l.destination_name || l.destination_addr || '')}"`;
+        var destStr = l.is_unoperated ? '미운행' : `"${(l.destination_name || l.destination_addr || '가산 센터')}"`;
         var memoStr = l.memo ? `"${l.memo.replace(/"/g, '""')}"` : '';
 
         lines.push(`${dateFormatted},${drvStr},"${l.start_km.toLocaleString()} ","${l.end_km.toLocaleString()} ","${l.distance_km.toLocaleString()} ",${destStr},${pStr},${fStr},${memoStr}`);
@@ -1133,6 +1288,362 @@
       URL.revokeObjectURL(url);
 
       showToast('📥 국세청 표준 호환 엑셀(CSV)이 다운로드되었습니다.');
+    }
+
+    // ==========================================
+    // Smart Mileage Auto-Distribute Engine
+    // (운행종료 Km 기반 일자별 자동 분배 시스템)
+    // ==========================================
+    var cachedAutoDistributedLogs = [];
+
+    async function openAutoDistributeModal() {
+      var currentVeh = vehiclesMaster.find(function(v) { return v.vehicle_no === currentSelectedVehicleNo; }) || {};
+      var vehText = `${currentSelectedVehicleNo} (${currentVeh.model_name || '차량'})`;
+      var monthText = `${currentYear}년 ${String(currentMonth).padStart(2, '0')}월`;
+      var driverText = currentVeh.default_driver || '조경찬';
+
+      document.getElementById('autoDistributeVehicleText').innerText = vehText;
+      document.getElementById('autoDistributeMonthText').innerText = monthText;
+      document.getElementById('autoDistributeDriverText').innerText = driverText;
+
+      // 1. Determine Start Km:
+      // Check previous month from Supabase or initial_km
+      var prevMonthNum = currentMonth === 1 ? 12 : currentMonth - 1;
+      var prevYearNum = currentMonth === 1 ? currentYear - 1 : currentYear;
+      var prevMonthPrefix = `${prevYearNum}-${String(prevMonthNum).padStart(2, '0')}`;
+
+      var startKmVal = null;
+
+      if (supabaseClient) {
+        try {
+          var prevRes = await supabaseClient.from('delivery_schedules')
+            .select('memo_full')
+            .eq('source_sheet', 'VEHICLE_TRIP_LOGS')
+            .eq('customer_name', currentSelectedVehicleNo)
+            .gte('delivery_date', `${prevMonthPrefix}-01`)
+            .lte('delivery_date', `${prevMonthPrefix}-31`)
+            .order('delivery_date', { ascending: false })
+            .limit(1);
+
+          if (prevRes.data && prevRes.data.length > 0 && prevRes.data[0].memo_full) {
+            var prevObj = JSON.parse(prevRes.data[0].memo_full);
+            if (prevObj.end_km) startKmVal = Number(prevObj.end_km);
+          }
+        } catch(e) {
+          console.warn('Error fetching prev month end km:', e);
+        }
+      }
+
+      // If no prev month log found, check if current month has trip logs
+      if (!startKmVal && tripLogs.length > 0) {
+        startKmVal = tripLogs[0].start_km;
+      }
+      if (!startKmVal) {
+        startKmVal = currentVeh.initial_km || 57045;
+      }
+
+      document.getElementById('autoStartKm').value = startKmVal;
+
+      // 2. Pre-fill End Km if exists in current logs
+      var endKmVal = '';
+      if (tripLogs.length > 0) {
+        var lastLog = tripLogs[tripLogs.length - 1];
+        if (lastLog.end_km > startKmVal) {
+          endKmVal = lastLog.end_km;
+        }
+      }
+      document.getElementById('autoEndKm').value = endKmVal;
+
+      document.getElementById('autoDistributeModal').classList.remove('hidden');
+
+      await calculateAutoDistributePreview();
+    }
+
+    function closeAutoDistributeModal() {
+      document.getElementById('autoDistributeModal').classList.add('hidden');
+    }
+
+    async function calculateAutoDistributePreview() {
+      var startKm = Number(document.getElementById('autoStartKm').value || 0);
+      var endKm = Number(document.getElementById('autoEndKm').value || 0);
+      var totalText = document.getElementById('autoTotalDistText');
+      var badge = document.getElementById('autoTotalDistBadge');
+      var btnSave = document.getElementById('btnExecuteAutoDistribute');
+      var tbody = document.getElementById('autoPreviewTableBody');
+      var statusBadge = document.getElementById('autoPreviewStatusBadge');
+      var rowCountEl = document.getElementById('autoPreviewRowCount');
+
+      cachedAutoDistributedLogs = [];
+
+      if (!endKm || endKm <= startKm) {
+        totalText.innerText = '0 km';
+        badge.innerText = '종료 Km 입력 필요';
+        badge.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500';
+        btnSave.disabled = true;
+        statusBadge.classList.add('hidden');
+        if (rowCountEl) rowCountEl.innerText = '';
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="5" class="py-8 text-center text-slate-400 font-sans">
+              ${endKm && endKm <= startKm ? '⚠️ 운행종료 Km는 시작 Km보다 커야 합니다.' : '당월 최종 운행종료 Km를 입력해주세요.'}
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      var totalDist = endKm - startKm;
+      totalText.innerText = totalDist.toLocaleString() + ' km';
+      badge.innerText = '총 ' + totalDist.toLocaleString() + ' km 분배 대상';
+      badge.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold';
+
+      var methodEl = document.querySelector('input[name="distributeMethod"]:checked');
+      var method = methodEl ? methodEl.value : 'delivery_weight';
+
+      var monthPrefix = `${currentYear}-${String(currentMonth).padStart(2, '0')}`;
+      var daysInMonth = new Date(currentYear, currentMonth, 0).getDate();
+
+      // 1. Determine target dates & initial weights
+      var targetDayInfo = []; // { date, dayOfWeek, isWeekend, count, weight }
+      var dayNames = ['일', '월', '화', '수', '목', '금', '토'];
+
+      // Fetch actual delivery schedules count from Supabase
+      var deliveryCountMap = {};
+      if (supabaseClient && method === 'delivery_weight') {
+        try {
+          var res = await supabaseClient.from('delivery_schedules')
+            .select('delivery_date')
+            .gte('delivery_date', `${monthPrefix}-01`)
+            .lte('delivery_date', `${monthPrefix}-${daysInMonth}`)
+            .neq('source_sheet', 'VEHICLE_TRIP_LOGS')
+            .neq('source_sheet', 'SYSTEM_CONFIG_VEHICLES');
+
+          if (res.data && res.data.length > 0) {
+            res.data.forEach(function(r) {
+              if (r.delivery_date) {
+                deliveryCountMap[r.delivery_date] = (deliveryCountMap[r.delivery_date] || 0) + 1;
+              }
+            });
+          }
+        } catch(e) {
+          console.warn('Error querying delivery schedules for distribution:', e);
+        }
+      }
+
+      for (var day = 1; day <= daysInMonth; day++) {
+        var dayStr = `${monthPrefix}-${String(day).padStart(2, '0')}`;
+        var d = new Date(currentYear, currentMonth - 1, day);
+        var dayIdx = d.getDay();
+        var isWeekend = (dayIdx === 0 || dayIdx === 6);
+        var cnt = deliveryCountMap[dayStr] || 0;
+
+        if (method === 'delivery_weight') {
+          var hasAnySchedules = Object.keys(deliveryCountMap).length > 0;
+          if (hasAnySchedules) {
+            if (cnt > 0) {
+              var w = 1.0 + (cnt * 0.35);
+              targetDayInfo.push({ date: dayStr, dayOfWeek: dayNames[dayIdx], isWeekend: isWeekend, count: cnt, weight: w });
+            }
+          } else {
+            if (!isWeekend) {
+              var pseudo = 0.85 + (((day * 13) % 7) / 20);
+              targetDayInfo.push({ date: dayStr, dayOfWeek: dayNames[dayIdx], isWeekend: isWeekend, count: 0, weight: pseudo });
+            }
+          }
+        } else {
+          // weekday_even
+          if (!isWeekend) {
+            var pseudo = 0.85 + (((day * 13) % 7) / 20);
+            targetDayInfo.push({ date: dayStr, dayOfWeek: dayNames[dayIdx], isWeekend: isWeekend, count: cnt, weight: pseudo });
+          }
+        }
+      }
+
+      if (targetDayInfo.length === 0) {
+        // Fallback: all weekdays
+        for (var day = 1; day <= daysInMonth; day++) {
+          var d = new Date(currentYear, currentMonth - 1, day);
+          var dayIdx = d.getDay();
+          if (dayIdx !== 0 && dayIdx !== 6) {
+            var dayStr = `${monthPrefix}-${String(day).padStart(2, '0')}`;
+            targetDayInfo.push({ date: dayStr, dayOfWeek: dayNames[dayIdx], isWeekend: false, count: 0, weight: 1.0 });
+          }
+        }
+      }
+
+      // 2. Perform Weighted Exact Integer Allocation
+      var totalWeight = targetDayInfo.reduce(function(acc, item) { return acc + item.weight; }, 0);
+      var allocated = targetDayInfo.map(function(item) {
+        var rawDist = (totalDist * item.weight) / totalWeight;
+        var intDist = Math.floor(rawDist);
+        return {
+          item: item,
+          rawDist: rawDist,
+          intDist: intDist,
+          frac: rawDist - intDist
+        };
+      });
+
+      var currentSum = allocated.reduce(function(acc, a) { return acc + a.intDist; }, 0);
+      var diffKm = totalDist - currentSum;
+
+      // Distribute remainder 1 km at a time to largest fractions
+      allocated.sort(function(a, b) { return b.frac - a.frac; });
+      for (var i = 0; i < diffKm; i++) {
+        allocated[i % allocated.length].intDist += 1;
+      }
+
+      // Re-sort chronologically by date
+      allocated.sort(function(a, b) { return a.item.date.localeCompare(b.item.date); });
+
+      // 3. Build Continuous Odometer Chain
+      var currOdometer = startKm;
+      var defaultDriver = document.getElementById('autoDistributeDriverText').innerText.trim() || '조경찬';
+
+      var distributedRows = allocated.map(function(entry) {
+        var dayDist = entry.intDist;
+        var rowStart = currOdometer;
+        var rowEnd = currOdometer + dayDist;
+        currOdometer = rowEnd;
+
+        return {
+          vehicle_no: currentSelectedVehicleNo,
+          trip_date: entry.item.date,
+          day_of_week: entry.item.dayOfWeek,
+          driver_name: defaultDriver,
+          delivery_count: entry.item.count,
+          start_km: rowStart,
+          end_km: rowEnd,
+          distance_km: dayDist
+        };
+      });
+
+      cachedAutoDistributedLogs = distributedRows;
+
+      // Verify chain integrity
+      var isExactMatch = (currOdometer === endKm);
+      var sumDist = distributedRows.reduce(function(acc, r) { return acc + r.distance_km; }, 0);
+      var isDistMatch = (sumDist === totalDist);
+
+      if (isExactMatch && isDistMatch) {
+        statusBadge.innerText = `✓ 계기판 연속성 100% 일치 (오차 0km)`;
+        statusBadge.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200';
+        statusBadge.classList.remove('hidden');
+        btnSave.disabled = false;
+      } else {
+        statusBadge.innerText = `⚠️ 오차 발생 (끝값: ${currOdometer} vs 목표: ${endKm})`;
+        statusBadge.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 border border-rose-200';
+        statusBadge.classList.remove('hidden');
+        btnSave.disabled = true;
+      }
+
+      if (rowCountEl) rowCountEl.innerText = `(운행 ${distributedRows.length}일)`;
+
+      // Render rows
+      tbody.innerHTML = distributedRows.map(function(r) {
+        var dateParts = r.trip_date.split('-');
+        var dateDisplay = `${Number(dateParts[1])}/${Number(dateParts[2])} (${r.day_of_week})`;
+        return `
+          <tr class="hover:bg-indigo-50/40 transition">
+            <td class="py-1.5 px-2.5 text-center font-medium text-slate-800">${dateDisplay}</td>
+            <td class="py-1.5 px-2 text-center text-indigo-700 font-bold">${r.delivery_count > 0 ? r.delivery_count + '건' : '-'}</td>
+            <td class="py-1.5 px-2 text-right text-slate-600">${r.start_km.toLocaleString()}</td>
+            <td class="py-1.5 px-2 text-right text-slate-900 font-bold">${r.end_km.toLocaleString()}</td>
+            <td class="py-1.5 px-2.5 text-right font-black text-indigo-600">${r.distance_km.toLocaleString()} km</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    async function executeAutoDistributeMileage() {
+      if (cachedAutoDistributedLogs.length === 0) {
+        alert('분배할 운행일지 데이터가 없습니다.');
+        return;
+      }
+
+      var startKm = Number(document.getElementById('autoStartKm').value || 0);
+      var endKm = Number(document.getElementById('autoEndKm').value || 0);
+      var totalDist = endKm - startKm;
+
+      var confirmMsg = `[${currentSelectedVehicleNo}] 차량의 ${currentYear}년 ${currentMonth}월 운행일지 ${cachedAutoDistributedLogs.length}건을 일괄 등록하시겠습니까?\n\n` +
+        `• 시작 계기판: ${startKm.toLocaleString()} km\n` +
+        `• 종료 계기판: ${endKm.toLocaleString()} km\n` +
+        `• 총 주행거리: ${totalDist.toLocaleString()} km\n\n` +
+        `※ 기존 해당 월의 일지는 최신 배분 내역으로 자동 교체됩니다.`;
+
+      if (!confirm(confirmMsg)) return;
+
+      var btn = document.getElementById('btnExecuteAutoDistribute');
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>클라우드 일괄 저장 중...</span>';
+      }
+
+      var monthPrefix = `${currentYear}-${String(currentMonth).padStart(2, '0')}`;
+      var daysInMonth = new Date(currentYear, currentMonth, 0).getDate();
+
+      try {
+        if (supabaseClient) {
+          // 1. Delete existing VEHICLE_TRIP_LOGS for this vehicle and month
+          await supabaseClient.from('delivery_schedules')
+            .delete()
+            .eq('source_sheet', 'VEHICLE_TRIP_LOGS')
+            .eq('customer_name', currentSelectedVehicleNo)
+            .gte('delivery_date', `${monthPrefix}-01`)
+            .lte('delivery_date', `${monthPrefix}-${daysInMonth}`);
+
+          // 2. Insert new batch
+          var defaultDriver = document.getElementById('autoDistributeDriverText').innerText.trim() || '조경찬';
+          var rowsToInsert = cachedAutoDistributedLogs.map(function(item) {
+            var logPayload = {
+              vehicle_no: currentSelectedVehicleNo,
+              trip_date: item.trip_date,
+              driver_name: item.driver_name || defaultDriver,
+              start_km: item.start_km,
+              end_km: item.end_km,
+              distance_km: item.distance_km,
+              suggested_distance_km: (item.distance_km * 0.98).toFixed(1),
+              is_local_dismissal: false,
+              destination_addr: '서울 금천구 벚꽃로 278 (가산 센터)',
+              destination_name: '가산 센터',
+              parking_fee: 0,
+              fuel_fee: 0,
+              is_unoperated: false,
+              memo: item.delivery_count > 0 ? `배송 ${item.delivery_count}건 운행` : '업무용 정기 운행'
+            };
+
+            return {
+              customer_name: currentSelectedVehicleNo,
+              source_sheet: 'VEHICLE_TRIP_LOGS',
+              delivery_date: item.trip_date,
+              driver_name: item.driver_name || defaultDriver,
+              memo_full: JSON.stringify(logPayload)
+            };
+          });
+
+          var insRes = await supabaseClient.from('delivery_schedules').insert(rowsToInsert);
+          if (insRes.error) throw insRes.error;
+
+          // 3. Update vehiclesMaster current_km if needed
+          var vIdx = vehiclesMaster.findIndex(function(v) { return v.vehicle_no === currentSelectedVehicleNo; });
+          if (vIdx !== -1 && endKm > (vehiclesMaster[vIdx].current_km || 0)) {
+            vehiclesMaster[vIdx].current_km = endKm;
+            await saveVehiclesMaster();
+          }
+        }
+
+        closeAutoDistributeModal();
+        showToast(`🎉 운행종료 ${endKm.toLocaleString()}km 기준 총 ${totalDist.toLocaleString()}km가 ${cachedAutoDistributedLogs.length}일간 완벽하게 자동 분배되었습니다!`);
+        await loadVehicleData(false);
+      } catch(err) {
+        console.error('Auto distribute save error:', err);
+        alert('자동 분배 저장 중 오류가 발생했습니다: ' + (err.message || err));
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> <span>당월 운행일지 일괄 자동 저장</span>';
+        }
+      }
     }
 
     // ==========================================

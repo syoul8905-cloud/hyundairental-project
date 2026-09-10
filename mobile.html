@@ -528,68 +528,58 @@
   </div>
 
   <!-- ========================================== -->
-  <!-- 9. Mobile Local Dismissal Modal            -->
+  <!-- 9. Mobile Change Destination Modal         -->
   <!-- ========================================== -->
-  <div id="mobileLocalDismissalModal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 hidden flex flex-col justify-end sm:justify-center p-0 sm:p-4" onclick="if(event.target===this)closeMobileLocalDismissalModal()">
+  <div id="mobileChangeDestinationModal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 hidden flex flex-col justify-end sm:justify-center p-0 sm:p-4" onclick="if(event.target===this)closeMobileChangeDestinationModal()">
     <div class="bg-white rounded-t-3xl sm:rounded-2xl max-w-sm w-full mx-auto p-5 shadow-2xl border border-slate-200 space-y-4 animate-in slide-in-from-bottom duration-200">
       <div class="flex items-center justify-between border-b border-slate-100 pb-3">
         <div class="flex items-center gap-2">
-          <div class="w-8 h-8 rounded-xl bg-teal-600 text-white flex items-center justify-center text-sm shadow-xs">
-            <i class="fa-solid fa-house-user"></i>
+          <div class="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center text-sm shadow-xs">
+            <i class="fa-solid fa-flag-checkered"></i>
           </div>
           <div>
-            <h3 class="font-black text-sm text-slate-900">현지 퇴근 도착지 선택</h3>
-            <p class="text-[11px] text-slate-400" id="mobileDismissalDriverText">기사 도착지 지정</p>
+            <h3 class="font-black text-sm text-slate-900">도착지 주소 변경</h3>
+            <p class="text-[11px] text-slate-400" id="mobileChangeDestDriverText">도착지 직접 수정</p>
           </div>
         </div>
-        <button type="button" onclick="closeMobileLocalDismissalModal()" class="w-7 h-7 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center hover:bg-slate-200">
+        <button type="button" onclick="closeMobileChangeDestinationModal()" class="w-7 h-7 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center hover:bg-slate-200">
           <i class="fa-solid fa-xmark text-xs"></i>
         </button>
       </div>
 
-      <input type="hidden" id="mobileDismissalStopIdx" value="-1">
+      <div class="space-y-3">
+        <div>
+          <label class="block text-[11px] font-bold text-slate-700 mb-1">도착지 명칭 (선택)</label>
+          <input type="text" id="mobileDestCustomName" placeholder="예: 가산 센터, 자택, 고객사 등" class="w-full bg-slate-50 text-slate-800 px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500 font-semibold focus:outline-none">
+        </div>
+        <div>
+          <label class="block text-[11px] font-bold text-slate-700 mb-1">도착지 주소 (도로명/지번) *</label>
+          <input type="text" id="mobileDestCustomAddr" placeholder="예: 서울 금천구 벚꽃로 278" class="w-full bg-white text-slate-800 px-3 py-2 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-indigo-500 font-medium focus:outline-none">
+          <p class="text-[10px] text-slate-400 mt-1">* 주소 변경 시 지도 경로와 추천 거리가 해당 도착지로 재계산됩니다.</p>
+        </div>
 
-      <!-- Options -->
-      <div class="space-y-2.5">
-        <!-- Option 1: Registered Base -->
-        <label class="flex items-start gap-3 p-3 rounded-xl border-2 border-teal-500 bg-teal-50/50 cursor-pointer transition" id="mobileDismissalOptBaseLabel" onclick="toggleMobileDismissalDestInput('registered')">
-          <input type="radio" name="mobileDismissalDestOpt" id="mobileDismissalOptRegistered" value="registered" checked class="mt-0.5 text-teal-600 focus:ring-teal-500">
-          <div class="flex-1 min-w-0">
-            <div class="flex items-center justify-between">
-              <span class="text-xs font-black text-slate-900" id="mobileDismissalBaseTitle">지점 거점 (기사 등록 거점)</span>
-              <span class="text-[9px] bg-teal-100 text-teal-800 font-bold px-1.5 py-0.5 rounded">등록됨</span>
-            </div>
-            <p class="text-[11px] text-slate-600 font-semibold mt-0.5 break-words" id="mobileDismissalBaseAddr">주소 불러오는 중...</p>
-          </div>
-        </label>
-
-        <!-- Option 2: Custom Address -->
-        <label class="flex items-start gap-3 p-3 rounded-xl border-2 border-slate-200 bg-slate-50/50 cursor-pointer transition" id="mobileDismissalOptCustomLabel" onclick="toggleMobileDismissalDestInput('custom')">
-          <input type="radio" name="mobileDismissalDestOpt" id="mobileDismissalOptCustom" value="custom" class="mt-0.5 text-teal-600 focus:ring-teal-500">
-          <div class="flex-1 min-w-0">
-            <span class="text-xs font-black text-slate-900">다른 주소 직접 입력</span>
-            <div id="mobileDismissalCustomBox" class="hidden mt-2 space-y-1.5">
-              <input type="text" id="mobileDismissalCustomAddrInput" placeholder="예: 서울 강남구 테헤란로 123" class="w-full bg-white text-slate-800 px-3 py-2 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-teal-500 focus:border-teal-500" onclick="event.stopPropagation()">
-              <p class="text-[10px] text-slate-400">* 입력하신 주소로 도착지 경로가 계산되고 내비게이션이 실행됩니다.</p>
-            </div>
-          </div>
-        </label>
+        <div class="pt-1 flex items-center justify-between">
+          <button type="button" onclick="resetMobileDestinationToGasan()" class="text-xs font-bold text-slate-500 hover:text-indigo-600 flex items-center gap-1 transition">
+            <i class="fa-solid fa-rotate-left text-[11px]"></i>
+            <span>🏢 가산 센터 기본값 복원</span>
+          </button>
+        </div>
       </div>
 
       <!-- Action Buttons -->
-      <div class="space-y-2 pt-1">
-        <button type="button" onclick="confirmMobileLocalDismissalAndNavi('tmap')" class="w-full py-3 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white font-black text-xs rounded-xl shadow-md transition flex items-center justify-center gap-1.5 active:scale-98">
-          <i class="fa-solid fa-location-arrow"></i>
-          <span>티맵 실행 및 현지퇴근 확정</span>
+      <div class="space-y-2 pt-1 border-t border-slate-100">
+        <button type="button" onclick="saveMobileCustomDestination(true)" class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs rounded-xl shadow-md transition flex items-center justify-center gap-1.5 active:scale-98">
+          <i class="fa-solid fa-check"></i>
+          <span>도착지 주소 저장 및 경로 갱신</span>
         </button>
         <div class="grid grid-cols-2 gap-2">
-          <button type="button" onclick="confirmMobileLocalDismissalAndNavi('kakao')" class="py-2.5 bg-amber-400 hover:bg-amber-500 text-slate-900 font-black text-xs rounded-xl transition flex items-center justify-center gap-1 active:scale-98 shadow-xs">
+          <button type="button" onclick="saveMobileCustomDestinationAndNavi('tmap')" class="py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl transition flex items-center justify-center gap-1 active:scale-98 shadow-xs">
+            <i class="fa-solid fa-location-arrow"></i>
+            <span>티맵 안내</span>
+          </button>
+          <button type="button" onclick="saveMobileCustomDestinationAndNavi('kakao')" class="py-2.5 bg-amber-400 hover:bg-amber-500 text-slate-900 font-black text-xs rounded-xl transition flex items-center justify-center gap-1 active:scale-98 shadow-xs">
             <i class="fa-solid fa-diamond-turn-right"></i>
             <span>카카오내비</span>
-          </button>
-          <button type="button" onclick="confirmMobileLocalDismissalAndNavi('none')" class="py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition flex items-center justify-center gap-1 active:scale-98">
-            <i class="fa-solid fa-check"></i>
-            <span>도착지만 변경</span>
           </button>
         </div>
       </div>
@@ -901,203 +891,99 @@
       };
     }
 
-    function checkIsMobileDriverLocalDismissal() {
-      return driverRecords.some(function(r) {
-        var t = getStopTimes(r);
-        return !!t.local_dismissal;
-      });
-    }
-
-    function getMobileDriverRegisteredBase() {
-      var drvName = getCurrentDriverName();
-      if (!drvName) return null;
-      var bases = getRegisteredBases();
-      return bases[drvName.trim()] || null;
-    }
-
-    function getMobileDriverDismissalInfo() {
-      for (var i = 0; i < driverRecords.length; i++) {
-        var r = driverRecords[i];
-        var t = getStopTimes(r);
-        if (t.local_dismissal) {
-          return {
-            isDismissal: true,
-            addr: t.dismissal_addr || '',
-            name: t.dismissal_name || '',
-            type: t.dismissal_type || 'registered',
-            stopIdx: i
-          };
+    // ==========================================
+    // Mobile Destination Management Engine
+    // ==========================================
+    function getMobileDriverDestination() {
+      var drvName = getCurrentDriverName() || 'common';
+      try {
+        var key = 'DELIVERY_DEST_' + currentDate + '_' + drvName;
+        var saved = localStorage.getItem(key);
+        if (saved) {
+          var parsed = JSON.parse(saved);
+          if (parsed && parsed.addr) return parsed;
         }
-      }
-      return { isDismissal: false, addr: '', name: '', type: 'registered' };
+      } catch(e) {}
+      return Object.assign({}, DEFAULT_GASAN_ORIGIN);
     }
 
-    function openMobileLocalDismissalModal(targetStopIdx) {
-      var drvName = getCurrentDriverName();
-      if (!drvName) {
-        alert('로그인한 기사 정보가 없습니다.');
-        return;
-      }
-      var regBase = getMobileDriverRegisteredBase();
-
-      document.getElementById('mobileDismissalStopIdx').value = (targetStopIdx !== undefined ? targetStopIdx : -1);
-      document.getElementById('mobileDismissalDriverText').innerText = `[${drvName} 기사님] 도착지 지정`;
-
-      var baseAddrEl = document.getElementById('mobileDismissalBaseAddr');
-      if (regBase && regBase.addr) {
-        baseAddrEl.innerText = `${regBase.addr} (${regBase.name || '자택 거점'})`;
-      } else {
-        baseAddrEl.innerText = '등록된 거점 주소가 없습니다. (다른 주소 직접 입력을 이용하세요)';
-      }
-
-      var disInfo = getMobileDriverDismissalInfo();
-      if (disInfo.isDismissal && disInfo.type === 'custom') {
-        toggleMobileDismissalDestInput('custom');
-        document.getElementById('mobileDismissalCustomAddrInput').value = disInfo.addr || '';
-      } else {
-        toggleMobileDismissalDestInput('registered');
-        document.getElementById('mobileDismissalCustomAddrInput').value = '';
-      }
-
-      document.getElementById('mobileLocalDismissalModal').classList.remove('hidden');
+    async function setMobileDriverDestination(destObj) {
+      var drvName = getCurrentDriverName() || 'common';
+      try {
+        var key = 'DELIVERY_DEST_' + currentDate + '_' + drvName;
+        localStorage.setItem(key, JSON.stringify(destObj));
+      } catch(e) {}
     }
 
-    function closeMobileLocalDismissalModal() {
-      document.getElementById('mobileLocalDismissalModal').classList.add('hidden');
+    function openMobileChangeDestinationModal() {
+      var drvName = getCurrentDriverName() || '기사';
+      var dest = getMobileDriverDestination();
+
+      var driverText = document.getElementById('mobileChangeDestDriverText');
+      if (driverText) driverText.innerText = `[${drvName} 기사님] ${currentDate} 도착지 지정`;
+
+      var nameInp = document.getElementById('mobileDestCustomName');
+      var addrInp = document.getElementById('mobileDestCustomAddr');
+      if (nameInp) nameInp.value = dest.name || '가산 센터';
+      if (addrInp) addrInp.value = dest.addr || DEFAULT_GASAN_ORIGIN.addr;
+
+      var modal = document.getElementById('mobileChangeDestinationModal');
+      if (modal) modal.classList.remove('hidden');
     }
 
-    function toggleMobileDismissalDestInput(type) {
-      var isCustom = (type === 'custom');
-      document.getElementById('mobileDismissalOptRegistered').checked = !isCustom;
-      document.getElementById('mobileDismissalOptCustom').checked = isCustom;
+    function closeMobileChangeDestinationModal() {
+      var modal = document.getElementById('mobileChangeDestinationModal');
+      if (modal) modal.classList.add('hidden');
+    }
 
-      var baseLabel = document.getElementById('mobileDismissalOptBaseLabel');
-      var customLabel = document.getElementById('mobileDismissalOptCustomLabel');
-      var inputBox = document.getElementById('mobileDismissalCustomBox');
+    async function saveMobileCustomDestination(shouldClose) {
+      var nameInp = document.getElementById('mobileDestCustomName');
+      var addrInp = document.getElementById('mobileDestCustomAddr');
+      var addr = (addrInp ? addrInp.value : '').trim();
+      var name = (nameInp ? nameInp.value : '').trim() || (addr ? '도착지' : '가산 센터');
 
-      if (isCustom) {
-        baseLabel.className = 'flex items-start gap-3 p-3 rounded-xl border-2 border-slate-200 bg-slate-50/50 cursor-pointer transition';
-        customLabel.className = 'flex items-start gap-3 p-3 rounded-xl border-2 border-teal-500 bg-teal-50/50 cursor-pointer transition';
-        inputBox.classList.remove('hidden');
-        document.getElementById('mobileDismissalCustomAddrInput').focus();
-      } else {
-        baseLabel.className = 'flex items-start gap-3 p-3 rounded-xl border-2 border-teal-500 bg-teal-50/50 cursor-pointer transition';
-        customLabel.className = 'flex items-start gap-3 p-3 rounded-xl border-2 border-slate-200 bg-slate-50/50 cursor-pointer transition';
-        inputBox.classList.add('hidden');
+      if (!addr) {
+        alert('도착지 주소를 입력해주세요.');
+        return null;
+      }
+
+      var coord = await resolveMobileAddressCoord(addr);
+      var isGasan = (addr.indexOf('벚꽃로 278') !== -1);
+      var destObj = {
+        type: isGasan ? 'gasan' : 'custom',
+        name: name,
+        addr: addr,
+        lat: coord.lat,
+        lng: coord.lng
+      };
+
+      await setMobileDriverDestination(destObj);
+      cachedMobileRoadData = null;
+      if (shouldClose) closeMobileChangeDestinationModal();
+      filterAndRenderSchedule(false);
+      showToast(`📍 [${name}] 도착지 주소가 성공적으로 변경되었습니다!`);
+      return destObj;
+    }
+
+    async function saveMobileCustomDestinationAndNavi(naviType) {
+      var destObj = await saveMobileCustomDestination(false);
+      if (destObj) {
+        launchMobileNaviApp(destObj.addr, destObj.name, naviType);
+        closeMobileChangeDestinationModal();
       }
     }
 
-    async function confirmMobileLocalDismissalAndNavi(naviType) {
-      var drvName = getCurrentDriverName();
-      if (!drvName) return;
-      var regBase = getMobileDriverRegisteredBase();
-      var isCustom = document.getElementById('mobileDismissalOptCustom').checked;
-
-      var targetAddr = '';
-      var targetName = '';
-
-      if (isCustom) {
-        targetAddr = document.getElementById('mobileDismissalCustomAddrInput').value.trim();
-        targetName = '현지 퇴근지';
-        if (!targetAddr) {
-          alert('도착지 주소를 입력해주세요.');
-          return;
-        }
-      } else {
-        if (!regBase || !regBase.addr) {
-          alert(`[${drvName}] 기사님의 등록 거점 주소가 없습니다.\n[다른 주소 직접 입력]을 이용해주세요.`);
-          return;
-        }
-        targetAddr = regBase.addr;
-        targetName = regBase.name || (drvName + ' 자택');
-      }
-
-      // 1. SYNCHRONOUS APP LAUNCH (모바일 브라우저 팝업/인텐트 차단 방지를 위해 최우선 동기 실행)
-      if (naviType && naviType !== 'none') {
-        launchMobileNaviApp(targetAddr, targetName, naviType);
-      }
-
-      // 2. 비동기 스케줄 레코드 상태 기록
-      if (driverRecords.length === 0) {
-        closeMobileLocalDismissalModal();
-        return;
-      }
-
-      var targetIdx = Number(document.getElementById('mobileDismissalStopIdx').value);
-      var targetStop = (targetIdx >= 0 && targetIdx < driverRecords.length)
-        ? driverRecords[targetIdx]
-        : driverRecords[driverRecords.length - 1];
-
-      driverRecords.forEach(function(other) {
-        if (other !== targetStop) {
-          var ot = getStopTimes(other);
-          if (ot.local_dismissal) {
-            ot.local_dismissal = false;
-            var oj = JSON.stringify(ot);
-            other.memo_special = oj;
-            if (supabaseClient && other.id) {
-              supabaseClient.from('delivery_schedules').update({ memo_special: oj }).eq('id', other.id).then();
-            }
-          }
-        }
-      });
-
-      var times = getStopTimes(targetStop);
-      times.local_dismissal = true;
-      times.dismissal_type = isCustom ? 'custom' : 'registered';
-      times.dismissal_addr = targetAddr;
-      times.dismissal_name = targetName;
-      var jsonStr = JSON.stringify(times);
-      targetStop.memo_special = jsonStr;
-
-      if (supabaseClient && targetStop.id) {
-        await supabaseClient.from('delivery_schedules').update({ memo_special: jsonStr }).eq('id', targetStop.id);
-      }
+    async function resetMobileDestinationToGasan() {
+      var drvName = getCurrentDriverName() || 'common';
+      try {
+        var key = 'DELIVERY_DEST_' + currentDate + '_' + drvName;
+        localStorage.removeItem(key);
+      } catch(e) {}
 
       cachedMobileRoadData = null;
+      closeMobileChangeDestinationModal();
       filterAndRenderSchedule(false);
-      closeMobileLocalDismissalModal();
-      showToast(`🏠 [${targetName}] 도착지로 현지 퇴근이 지정되었습니다!`);
-    }
-
-    async function toggleMobileStopLocalDismissal(idx) {
-      if (idx < 0 || idx >= driverRecords.length) return;
-      var r = driverRecords[idx];
-      var times = getStopTimes(r);
-      if (times.local_dismissal) {
-        handleMobileArrivalLocalDismissalAction(false);
-      } else {
-        openMobileLocalDismissalModal(idx);
-      }
-    }
-
-    async function handleMobileArrivalLocalDismissalAction(isDismissal) {
-      var drvName = getCurrentDriverName();
-      if (!drvName) {
-        alert('로그인한 기사 정보가 없습니다.');
-        return;
-      }
-
-      if (isDismissal) {
-        openMobileLocalDismissalModal(-1);
-      } else {
-        // 현지 퇴근 해제 (센터 복귀)
-        driverRecords.forEach(function(r) {
-          var t = getStopTimes(r);
-          if (t.local_dismissal) {
-            t.local_dismissal = false;
-            var js = JSON.stringify(t);
-            r.memo_special = js;
-            if (supabaseClient && r.id) {
-              supabaseClient.from('delivery_schedules').update({ memo_special: js }).eq('id', r.id).then();
-            }
-          }
-        });
-
-        cachedMobileRoadData = null;
-        filterAndRenderSchedule(false);
-        showToast('🏢 가산 센터 복귀 왕복 경로로 변경되었습니다.');
-      }
+      showToast('🏢 도착지가 기본값(가산 센터)으로 복원되었습니다.');
     }
 
     function launchMobileNaviApp(targetAddr, targetName, naviType) {
@@ -1143,12 +1029,9 @@
     }
 
     function openMobileDestinationTmap(customAddr, customName) {
-      var isDismissal = checkIsMobileDriverLocalDismissal();
-      var drvName = getCurrentDriverName();
-      var regBase = getMobileDriverRegisteredBase();
-      var disInfo = getMobileDriverDismissalInfo();
-      var targetAddr = customAddr || (isDismissal ? (disInfo.addr || (regBase && regBase.addr ? regBase.addr : '')) : DEFAULT_GASAN_ORIGIN.addr);
-      var targetName = customName || (isDismissal ? (disInfo.name || (regBase && regBase.name ? regBase.name : (drvName + ' 자택'))) : DEFAULT_GASAN_ORIGIN.name);
+      var dest = getMobileDriverDestination();
+      var targetAddr = customAddr || dest.addr || DEFAULT_GASAN_ORIGIN.addr;
+      var targetName = customName || dest.name || DEFAULT_GASAN_ORIGIN.name;
 
       if (!targetAddr) {
         alert('안내할 도착지 주소가 등록되어 있지 않습니다.');
@@ -1254,24 +1137,16 @@
       document.getElementById('closingModalVehicleName').innerText = `${veh.vehicle_no} (${veh.model_name})`;
       document.getElementById('closingStartKm').value = startKm;
 
-      var isLocalDismissal = checkIsMobileDriverLocalDismissal();
-      var regBase = getMobileDriverRegisteredBase();
-      var disInfo = getMobileDriverDismissalInfo();
-      var destAddr = isLocalDismissal 
-        ? (disInfo.addr || (regBase && regBase.addr) || '현지 배송지에서 운행 마감')
-        : DEFAULT_GASAN_ORIGIN.addr;
-      var destName = isLocalDismissal 
-        ? (disInfo.name || (regBase && regBase.name) || '현지 퇴근')
-        : DEFAULT_GASAN_ORIGIN.name;
+      var dest = getMobileDriverDestination();
+      var destAddr = dest.addr || DEFAULT_GASAN_ORIGIN.addr;
+      var destName = dest.name || DEFAULT_GASAN_ORIGIN.name;
 
       var destTextEl = document.getElementById('closingModalDestText');
       var badgeEl = document.getElementById('closingModalDismissalBadge');
       if (destTextEl) destTextEl.innerText = `${destName} (${destAddr})`;
       if (badgeEl) {
-        badgeEl.innerText = isLocalDismissal ? '현지 퇴근' : '센터 복귀';
-        badgeEl.className = isLocalDismissal 
-          ? 'text-[9.5px] px-1.5 py-0.5 rounded font-bold bg-teal-100 text-teal-800 shrink-0'
-          : 'text-[9.5px] px-1.5 py-0.5 rounded font-bold bg-indigo-100 text-indigo-800 shrink-0';
+        badgeEl.innerText = '도착지';
+        badgeEl.className = 'text-[9.5px] px-1.5 py-0.5 rounded font-bold bg-indigo-100 text-indigo-800 shrink-0';
       }
 
       var suggestedDist = 0;
@@ -1323,15 +1198,9 @@
 
       var drvName = getCurrentDriverName() || '조경찬';
       var distKm = endKm - startKm;
-      var isLocalDismissal = checkIsMobileDriverLocalDismissal();
-      var regBase = getMobileDriverRegisteredBase();
-      var disInfo = getMobileDriverDismissalInfo();
-      var destAddr = isLocalDismissal 
-        ? (disInfo.addr || (regBase && regBase.addr) || '현지 배송지에서 운행 마감')
-        : DEFAULT_GASAN_ORIGIN.addr;
-      var destName = isLocalDismissal 
-        ? (disInfo.name || (regBase && regBase.name) || '현지 퇴근')
-        : DEFAULT_GASAN_ORIGIN.name;
+      var dest = getMobileDriverDestination();
+      var destAddr = dest.addr || DEFAULT_GASAN_ORIGIN.addr;
+      var destName = dest.name || DEFAULT_GASAN_ORIGIN.name;
 
       var logPayload = {
         vehicle_no: veh.vehicle_no,
@@ -1341,7 +1210,7 @@
         end_km: endKm,
         distance_km: distKm,
         suggested_distance_km: cachedMobileRoadData ? cachedMobileRoadData.distKm : distKm,
-        is_local_dismissal: isLocalDismissal,
+        is_local_dismissal: false,
         destination_addr: destAddr,
         destination_name: destName,
         parking_fee: parkingFee,
@@ -1866,10 +1735,6 @@
               ${durMin !== null ? `<span class="px-2 py-0.5 bg-indigo-50 text-indigo-700 text-[11px] font-bold rounded-md border border-indigo-200">⏱️ ${durMin}분 소요</span>` : ''}
               ${!times.depart && !times.arrive ? `<span class="text-slate-400 text-[11px]">대기중</span>` : ''}
             </div>
-            <button type="button" onclick="toggleMobileStopLocalDismissal(${idx})" class="px-2 py-1 rounded-lg text-[10px] font-black flex items-center gap-1 shadow-2xs transition ${times.local_dismissal ? 'bg-teal-600 text-white' : 'bg-slate-100 hover:bg-teal-50 text-slate-600 hover:text-teal-700 border border-slate-200'}">
-              <i class="fa-solid fa-house-user"></i>
-              <span>${times.local_dismissal ? '현지퇴근✓' : '현지퇴근'}</span>
-            </button>
           </div>
 
           <!-- Big Touch Action Buttons -->
@@ -1905,61 +1770,48 @@
 
       // Render Arrival Card in mobile
       if (driverRecords.length > 0) {
-        var isMobileDismissal = checkIsMobileDriverLocalDismissal();
-        var regBase = getMobileDriverRegisteredBase();
-        var disInfo = getMobileDriverDismissalInfo();
-        var destName = isMobileDismissal
-          ? ('🏠 ' + (disInfo.name || (regBase && regBase.name) || '현지 퇴근'))
-          : '🏢 가산 센터 (복귀)';
-        var destAddr = isMobileDismissal
-          ? (disInfo.addr || (regBase && regBase.addr) || '현지 배송지에서 운행 마감')
-          : DEFAULT_GASAN_ORIGIN.addr;
+        var dest = getMobileDriverDestination();
+        var isGasan = (dest.type === 'gasan' || (dest.addr && dest.addr.indexOf('벚꽃로 278') !== -1));
 
         var arrivalCard = document.createElement('div');
-        arrivalCard.className = `p-3.5 rounded-2xl bg-gradient-to-r ${isMobileDismissal ? 'from-teal-50 via-emerald-50' : 'from-slate-50 via-indigo-50/50'} to-slate-50 border-2 ${isMobileDismissal ? 'border-teal-300' : 'border-indigo-200'} shadow-xs mt-2 space-y-2`;
+        arrivalCard.className = `p-3.5 rounded-2xl bg-gradient-to-r from-slate-50 via-indigo-50/40 to-slate-50 border-2 border-indigo-200 shadow-xs mt-2 space-y-2`;
         arrivalCard.innerHTML = `
           <div class="flex items-center justify-between gap-2">
             <div class="flex items-center gap-1.5 font-black text-slate-900">
-              <span class="w-5 h-5 rounded-lg ${isMobileDismissal ? 'bg-teal-600' : 'bg-indigo-600'} text-white flex items-center justify-center text-[10px] shadow-xs">
+              <span class="w-5 h-5 rounded-lg bg-indigo-600 text-white flex items-center justify-center text-[10px] shadow-xs">
                 <i class="fa-solid fa-flag-checkered"></i>
               </span>
               <span class="text-xs">도착지:</span>
-              <span class="text-xs font-black ${isMobileDismissal ? 'text-teal-800' : 'text-indigo-900'}">${destName}</span>
+              <span class="text-xs font-black text-indigo-900">${dest.name || '가산 센터'}</span>
+              <span class="text-[9px] ${isGasan ? 'bg-indigo-100 text-indigo-800 border-indigo-200' : 'bg-emerald-100 text-emerald-800 border-emerald-200'} px-1.5 py-0.5 rounded-full font-bold border">
+                ${isGasan ? '🏢 가산 센터' : '📍 변경된 도착지'}
+              </span>
             </div>
             <div class="flex items-center gap-1.5 shrink-0">
-              ${!isMobileDismissal ? `
-                <button type="button" onclick="openMobileLocalDismissalModal(-1)" class="px-3 py-1.5 rounded-xl text-xs font-black bg-teal-600 hover:bg-teal-700 text-white flex items-center gap-1.5 shadow-sm transition active:scale-95">
-                  <i class="fa-solid fa-house-user"></i>
-                  <span>현지퇴근</span>
-                </button>
-              ` : `
-                <button type="button" onclick="openMobileDestinationTmap()" class="px-2.5 py-1.5 rounded-xl text-xs font-black bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1 shadow-sm transition active:scale-95">
-                  <i class="fa-solid fa-location-arrow"></i>
-                  <span>티맵 안내</span>
-                </button>
-                <button type="button" onclick="openMobileLocalDismissalModal(-1)" class="px-2 py-1.5 rounded-xl text-[11px] font-bold bg-teal-100 hover:bg-teal-200 text-teal-800 flex items-center gap-1 transition active:scale-95" title="도착지 변경">
-                  <span>변경</span>
-                </button>
-                <button type="button" onclick="handleMobileArrivalLocalDismissalAction(false)" class="px-2 py-1.5 rounded-xl text-[11px] font-bold bg-slate-200 hover:bg-slate-300 text-slate-700 flex items-center gap-1 transition active:scale-95" title="가산 센터 복귀로 전환">
-                  <i class="fa-solid fa-rotate-left"></i>
+              <button type="button" onclick="openMobileDestinationTmap()" class="px-2.5 py-1.5 rounded-xl text-xs font-black bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1 shadow-sm transition active:scale-95">
+                <i class="fa-solid fa-location-arrow"></i>
+                <span>티맵</span>
+              </button>
+              <button type="button" onclick="openMobileChangeDestinationModal()" class="px-2 py-1.5 rounded-xl text-[11px] font-bold bg-white hover:bg-indigo-50 text-indigo-700 border border-indigo-200 flex items-center gap-1 transition active:scale-95" title="도착지 변경">
+                <span>변경</span>
+              </button>
+              ${!isGasan ? `
+                <button type="button" onclick="resetMobileDestinationToGasan()" class="px-2 py-1.5 rounded-xl text-[11px] font-bold bg-slate-200 hover:bg-slate-300 text-slate-700 flex items-center gap-1 transition active:scale-95" title="가산 센터 복귀로 초기화">
                   <span>복귀</span>
                 </button>
-              `}
+              ` : ''}
             </div>
           </div>
           <div class="text-[11px] text-slate-600 bg-white/95 px-2.5 py-2 rounded-xl border border-slate-200 flex items-center justify-between gap-1.5">
             <div class="flex items-center gap-1.5 truncate">
-              <i class="fa-solid fa-location-dot ${isMobileDismissal ? 'text-teal-600' : 'text-indigo-600'} text-xs shrink-0"></i>
-              <span class="truncate font-semibold text-slate-800 text-[11px]">${destAddr}</span>
+              <i class="fa-solid fa-location-dot text-indigo-600 text-xs shrink-0"></i>
+              <span class="truncate font-semibold text-slate-800 text-[11px]">${dest.addr}</span>
             </div>
             <button type="button" onclick="openMobileDestinationTmap()" class="shrink-0 text-[11px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-lg font-bold flex items-center gap-1 active:scale-95" title="티맵에서 이 주소 열기">
               <i class="fa-solid fa-diamond-turn-right"></i>
               <span>티맵</span>
             </button>
           </div>
-          <p class="text-[10px] text-slate-400 text-center leading-tight">
-            ${isMobileDismissal ? '* 현지 퇴근이 지정되어 센터 복귀 거리가 제외되고 지정된 도착지로 안내됩니다.' : '* 배송 완료 후 센터 복귀가 기본입니다. [현지퇴근]을 누르면 거점 선택 팝업이 표시됩니다.'}
-          </p>
         `;
         container.appendChild(arrivalCard);
       }
@@ -2345,6 +2197,24 @@
         mobileMapOverlays.push(stopOverlay);
       });
 
+      if (driverRecords.length > 0) {
+        var dest = getMobileDriverDestination();
+        var destPos = new kakao.maps.LatLng(dest.lat || DEFAULT_GASAN_ORIGIN.lat, dest.lng || DEFAULT_GASAN_ORIGIN.lng);
+        linePath.push(destPos);
+        bounds.extend(destPos);
+
+        var destContent = document.createElement('div');
+        destContent.className = 'kakao-pin px-2.5 py-1 bg-indigo-700 border-2 border-white text-[11px] font-bold rounded-xl flex items-center gap-1 shadow-md text-white';
+        destContent.innerHTML = '<i class="fa-solid fa-flag-checkered"></i> ' + (dest.name || '도착지');
+        var destOverlay = new kakao.maps.CustomOverlay({
+          position: destPos,
+          content: destContent,
+          yAnchor: 1.2
+        });
+        destOverlay.setMap(mobileKakaoMap);
+        mobileMapOverlays.push(destOverlay);
+      }
+
       if (!isMobileRoadMode || !cachedMobileRoadData) {
         if (linePath.length > 1) {
           var straightLine = new kakao.maps.Polyline({
@@ -2378,6 +2248,10 @@
         var coord = getCoordForAddress(r.address);
         bounds.extend(new kakao.maps.LatLng(coord.lat, coord.lng));
       });
+      if (driverRecords.length > 0) {
+        var dest = getMobileDriverDestination();
+        bounds.extend(new kakao.maps.LatLng(dest.lat || DEFAULT_GASAN_ORIGIN.lat, dest.lng || DEFAULT_GASAN_ORIGIN.lng));
+      }
       mobileKakaoMap.setBounds(bounds);
     }
 
@@ -2396,9 +2270,8 @@
         if (!cachedMobileRoadData) {
           var drvName = getCurrentDriverName();
           var originCoord = getDriverOrigin(drvName, currentDate);
-          var isLocalDismissal = checkIsMobileDriverLocalDismissal();
-          var regBase = getMobileDriverRegisteredBase();
-          var destPoint = (isLocalDismissal && regBase && regBase.lat) ? regBase : DEFAULT_GASAN_ORIGIN;
+          var dest = getMobileDriverDestination();
+          var destPoint = { lat: dest.lat || DEFAULT_GASAN_ORIGIN.lat, lng: dest.lng || DEFAULT_GASAN_ORIGIN.lng };
           var points = [originCoord].concat(driverRecords.map(function(r) { return getCoordForAddress(r.address); }));
           points.push(destPoint);
           var coordsParam = points.map(function(p) { return p.lng + ',' + p.lat; }).join(';');
