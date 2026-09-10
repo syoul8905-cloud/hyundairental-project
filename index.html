@@ -3400,6 +3400,113 @@
         : `🏢 [${r.고객사}] 현지 퇴근이 해제되었습니다. (기본 가산 센터 복귀 왕복)`);
     }
 
+    async function handleArrivalLocalDismissalAction(isDismissal) {
+      if (!currentDriver || currentDriver === 'all') {
+        alert('담당 기사를 먼저 선택해주세요.');
+        return;
+      }
+
+      var drvName = currentDriver.trim();
+      var regBase = getDriverRegisteredBase(drvName);
+      if (isDismissal && (!regBase || !regBase.addr)) {
+        alert(`[${drvName}] 기사님의 등록 거점이 없습니다.\n상단 거점 설정에서 자택 거점 주소를 먼저 등록해주세요.`);
+        if (typeof openDriverOriginSettingsModal === 'function') openDriverOriginSettingsModal();
+        return;
+      }
+
+      var dateStr = getCurrentViewingDate();
+      var driverStops = records.filter(function(r) {
+        return r.배송일자 === dateStr && (r.담당기사 || '').trim() === drvName;
+      });
+
+      if (driverStops.length === 0) {
+        alert(`[${drvName}] 기사님의 오늘 배송 스케줄이 없습니다.`);
+        return;
+      }
+
+      if (isDismissal) {
+        // 마지막 배송지에 현지 퇴근 플래그 설정
+        var lastStop = driverStops[driverStops.length - 1];
+
+        driverStops.forEach(function(other) {
+          if (other !== lastStop) {
+            var ot = getStopTimes(other);
+            if (ot.local_dismissal) {
+              ot.local_dismissal = false;
+              var oj = JSON.stringify(ot);
+              other.추후일정_특이사항 = oj;
+              if (supabaseClient && other.ID) {
+                supabaseClient.from('delivery_schedules').update({ memo_special: oj }).eq('id', other.ID).then();
+              }
+            }
+          }
+        });
+
+        var times = getStopTimes(lastStop);
+        times.local_dismissal = true;
+        var jsonStr = JSON.stringify(times);
+        lastStop.추후일정_특이사항 = jsonStr;
+
+        if (supabaseClient && lastStop.ID) {
+          await supabaseClient.from('delivery_schedules').update({ memo_special: jsonStr }).eq('id', lastStop.ID);
+        }
+
+        cachedRoadRouteData = null;
+        renderRouteMap({ fitBounds: false });
+        showToast(`🏠 [${regBase.name || drvName + ' 자택'}] 등록 거점으로 현지 퇴근 전환되었습니다.`);
+
+        // 티맵 실행
+        openDestinationTmap();
+      } else {
+        // 현지 퇴근 해제 (센터 복귀)
+        driverStops.forEach(function(r) {
+          var t = getStopTimes(r);
+          if (t.local_dismissal) {
+            t.local_dismissal = false;
+            var js = JSON.stringify(t);
+            r.추후일정_특이사항 = js;
+            if (supabaseClient && r.ID) {
+              supabaseClient.from('delivery_schedules').update({ memo_special: js }).eq('id', r.ID).then();
+            }
+          }
+        });
+
+        cachedRoadRouteData = null;
+        renderRouteMap({ fitBounds: false });
+        showToast('🏢 가산 센터 복귀 왕복 경로로 변경되었습니다.');
+      }
+    }
+
+    function openDestinationTmap(customAddr, customName) {
+      var isDismissal = checkIsLocalDismissalForDriver(currentDriver, currentDate);
+      var regBase = getDriverRegisteredBase(currentDriver);
+      var targetAddr = customAddr || (isDismissal ? (regBase && regBase.addr ? regBase.addr : '') : DEFAULT_GASAN_ORIGIN.addr);
+      var targetName = customName || (isDismissal ? (regBase && regBase.name ? regBase.name : (currentDriver + ' 자택')) : DEFAULT_GASAN_ORIGIN.name);
+
+      if (!targetAddr) {
+        alert('안내할 도착지 주소가 등록되어 있지 않습니다.');
+        return;
+      }
+
+      var clean = targetAddr.replace(/\([^)]*\)/g, '').trim();
+      var tmapAppUrl = 'tmap://search?name=' + encodeURIComponent(clean || targetName);
+      var tmapWebUrl = 'https://surl.tmap.co.kr/search?name=' + encodeURIComponent(clean || targetName);
+      var kakaoWebUrl = 'https://map.kakao.com/link/search/' + encodeURIComponent(clean || targetName);
+
+      var isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+      if (isMobile) {
+        window.location.href = tmapAppUrl;
+        setTimeout(function() {
+          window.open(tmapWebUrl, '_blank');
+        }, 1200);
+      } else {
+        try {
+          window.location.href = tmapAppUrl;
+        } catch(e) {}
+        window.open(kakaoWebUrl, '_blank');
+      }
+    }
+
     function copyNotifyMessage() {
       var text = currentNotifyData.text;
       if (!text) return;
@@ -3865,25 +3972,48 @@
           : DEFAULT_GASAN_ORIGIN.addr;
 
         var arrivalCardHtml = `
-          <div class="p-2.5 rounded-xl bg-gradient-to-r ${isLocalDismissal ? 'from-teal-50 via-emerald-50' : 'from-slate-50 via-indigo-50/50'} to-slate-50 border-2 ${isLocalDismissal ? 'border-teal-300' : 'border-indigo-200'} shadow-xs mt-2 space-y-1.5" id="timelineArrivalCard">
-            <div class="flex items-center justify-between">
-              <div class="flex items-center gap-1.5 font-black text-slate-900 flex-wrap">
+          <div class="p-3 rounded-xl bg-gradient-to-r ${isLocalDismissal ? 'from-teal-50 via-emerald-50' : 'from-slate-50 via-indigo-50/50'} to-slate-50 border-2 ${isLocalDismissal ? 'border-teal-300' : 'border-indigo-200'} shadow-xs mt-2 space-y-2" id="timelineArrivalCard">
+            <div class="flex items-center justify-between gap-2 flex-wrap">
+              <div class="flex items-center gap-1.5 font-black text-slate-900">
                 <span class="w-5 h-5 rounded-lg ${isLocalDismissal ? 'bg-teal-600' : 'bg-indigo-600'} text-white flex items-center justify-center text-[10px] shadow-xs">
                   <i class="fa-solid fa-flag-checkered"></i>
                 </span>
                 <span class="text-xs">최종 도착지:</span>
                 <span class="text-xs font-black ${isLocalDismissal ? 'text-teal-800' : 'text-indigo-900'}">${destName}</span>
-                <span class="text-[9px] ${isLocalDismissal ? 'bg-teal-100 text-teal-800 border-teal-300' : 'bg-indigo-100 text-indigo-800 border-indigo-200'} px-1.5 py-0.2 rounded-full font-bold border">
+                <span class="text-[9px] ${isLocalDismissal ? 'bg-teal-100 text-teal-800 border-teal-300' : 'bg-indigo-100 text-indigo-800 border-indigo-200'} px-1.5 py-0.5 rounded-full font-bold border">
                   ${isLocalDismissal ? '현지 퇴근 적용됨' : '기본 왕복 복귀'}
                 </span>
               </div>
+              <div class="flex items-center gap-1.5 shrink-0">
+                ${!isLocalDismissal ? `
+                  <button type="button" onclick="handleArrivalLocalDismissalAction(true)" class="px-2.5 py-1 rounded-lg text-[11px] font-black bg-teal-600 hover:bg-teal-700 text-white flex items-center gap-1 shadow-xs transition active:scale-95" title="현지 퇴근으로 전환하고 등록거점으로 티맵을 실행합니다">
+                    <i class="fa-solid fa-house-user"></i>
+                    <span>현지퇴근 (티맵)</span>
+                  </button>
+                ` : `
+                  <button type="button" onclick="openDestinationTmap()" class="px-2.5 py-1 rounded-lg text-[11px] font-black bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1 shadow-xs transition active:scale-95" title="등록거점 주소로 티맵 내비게이션 실행">
+                    <i class="fa-solid fa-location-arrow"></i>
+                    <span>티맵 안내</span>
+                  </button>
+                  <button type="button" onclick="handleArrivalLocalDismissalAction(false)" class="px-2 py-1 rounded-lg text-[10.5px] font-bold bg-slate-200 hover:bg-slate-300 text-slate-700 flex items-center gap-1 transition active:scale-95" title="가산 센터 기본 복귀로 전환">
+                    <i class="fa-solid fa-rotate-left"></i>
+                    <span>복귀 전환</span>
+                  </button>
+                `}
+              </div>
             </div>
-            <div class="text-[11px] text-slate-600 bg-white/95 px-2.5 py-1.5 rounded-lg border border-slate-200 flex items-center gap-1.5 truncate">
-              <i class="fa-solid fa-location-dot ${isLocalDismissal ? 'text-teal-600' : 'text-indigo-600'} text-xs shrink-0"></i>
-              <span class="truncate font-semibold text-slate-800 text-[11px]">${destAddr}</span>
+            <div class="text-[11px] text-slate-600 bg-white/95 px-2.5 py-1.5 rounded-lg border border-slate-200 flex items-center justify-between gap-1.5">
+              <div class="flex items-center gap-1.5 truncate">
+                <i class="fa-solid fa-location-dot ${isLocalDismissal ? 'text-teal-600' : 'text-indigo-600'} text-xs shrink-0"></i>
+                <span class="truncate font-semibold text-slate-800 text-[11px]">${destAddr}</span>
+              </div>
+              <button type="button" onclick="openDestinationTmap()" class="shrink-0 text-[10.5px] text-emerald-700 font-bold hover:underline flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-emerald-50" title="티맵에서 이 주소 열기">
+                <i class="fa-solid fa-diamond-turn-right"></i>
+                <span>티맵</span>
+              </button>
             </div>
             <p class="text-[9.5px] text-slate-400 text-center leading-tight">
-              ${isLocalDismissal ? '* 배송 건에서 현지 퇴근이 선택되어 센터 복귀 왕복 거리가 제외됩니다.' : '* 배송 완료 후 센터로 복귀하는 왕복 경로가 기본 적용됩니다. 배송건별 [현지 퇴근] 버튼으로 전환 가능합니다.'}
+              ${isLocalDismissal ? '* 배송 건에서 현지 퇴근이 선택되어 센터 복귀 거리가 제외되고 등록 거점으로 안내됩니다.' : '* 배송 완료 후 센터로 복귀하는 왕복 경로가 기본 적용됩니다. [현지퇴근] 버튼을 누르면 등록 거점으로 티맵이 실행됩니다.'}
             </p>
           </div>
         `;
