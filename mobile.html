@@ -518,12 +518,25 @@
         <!-- Costs -->
         <div class="grid grid-cols-2 gap-2">
           <div>
-            <label class="block text-[10.5px] font-bold text-slate-500 mb-1">주차비 (원)</label>
+            <label class="block text-[10.5px] font-bold text-slate-500 mb-1">주차비 총액 (원)</label>
             <input type="number" id="closingParkingFee" value="0" step="500" class="w-full bg-white font-mono font-bold text-slate-800 px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-amber-500">
           </div>
           <div>
-            <label class="block text-[10.5px] font-bold text-slate-500 mb-1">주유 금액 (원)</label>
+            <label class="block text-[10.5px] font-bold text-slate-500 mb-1">주유 금액 총액 (원)</label>
             <input type="number" id="closingFuelFee" value="0" step="1000" class="w-full bg-white font-mono font-bold text-slate-800 px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-rose-500">
+          </div>
+        </div>
+
+        <!-- Per-stop Granular Fees Section -->
+        <div class="border border-slate-200 rounded-xl overflow-hidden bg-slate-50 text-xs">
+          <div class="px-3 py-2 bg-slate-100 flex items-center justify-between cursor-pointer select-none" onclick="toggleMobileClosingStopFees()">
+            <span class="text-[11px] font-black text-slate-700 flex items-center gap-1.5">
+              <i class="fa-solid fa-receipt text-indigo-600"></i> 배송지별 개별 비용 입력 (선택)
+            </span>
+            <i id="mobileClosingStopFeesIcon" class="fa-solid fa-chevron-down text-slate-400 text-[10px] transition-transform"></i>
+          </div>
+          <div id="mobileClosingStopFeesContainer" class="p-2 space-y-2 hidden max-h-48 overflow-y-auto">
+            <!-- Dynamically rendered -->
           </div>
         </div>
 
@@ -1498,8 +1511,159 @@
       document.getElementById('closingFuelFee').value = 0;
       document.getElementById('closingMemo').value = '';
 
+      // Initialize cachedClosingStops from today's delivery schedule or existing log
+      await prepareClosingStops(veh.vehicle_no, destName, destAddr);
+
       calcClosingMileageDiff();
       document.getElementById('mobileVehicleClosingModal').classList.remove('hidden');
+    }
+
+    var cachedClosingStops = [];
+
+    async function prepareClosingStops(vNo, destName, destAddr) {
+      cachedClosingStops = [];
+
+      // Check if existing log exists today
+      var existingStops = null;
+      if (supabaseClient) {
+        try {
+          var res = await supabaseClient.from('delivery_schedules')
+            .select('memo_full')
+            .eq('source_sheet', 'VEHICLE_TRIP_LOGS')
+            .eq('customer_name', vNo)
+            .eq('delivery_date', currentDate)
+            .limit(1);
+          if (res.data && res.data.length > 0 && res.data[0].memo_full) {
+            var parsed = JSON.parse(res.data[0].memo_full);
+            if (parsed.stops && parsed.stops.length > 0) existingStops = parsed.stops;
+            if (parsed.parking_fee) document.getElementById('closingParkingFee').value = parsed.parking_fee;
+            if (parsed.fuel_fee) document.getElementById('closingFuelFee').value = parsed.fuel_fee;
+            if (parsed.memo) document.getElementById('closingMemo').value = parsed.memo;
+            if (parsed.end_km) document.getElementById('closingEndKm').value = parsed.end_km;
+          }
+        } catch(e) {
+          console.warn('Error fetching existing stops for closing modal:', e);
+        }
+      }
+
+      if (existingStops && existingStops.length > 0) {
+        cachedClosingStops = existingStops;
+      } else {
+        // Build stops from today's driverRecords
+        cachedClosingStops.push({
+          id: 'stop_origin',
+          type: 'origin',
+          name: '가산 센터',
+          addr: DEFAULT_GASAN_ORIGIN.addr,
+          time: '08:30',
+          memo: '출고 및 상차',
+          parking_fee: 0,
+          fuel_fee: 0
+        });
+
+        if (driverRecords && driverRecords.length > 0) {
+          driverRecords.forEach(function(r, idx) {
+            cachedClosingStops.push({
+              id: 'stop_deliv_' + (r.id || (idx + 1)),
+              type: 'delivery',
+              order: idx + 1,
+              name: r.customer_name || '고객사',
+              addr: r.delivery_address || '',
+              time: r.delivery_time || '',
+              memo: (r.product_name || '') + (r.order_memo ? ` (${r.order_memo})` : ''),
+              parking_fee: 0,
+              fuel_fee: 0
+            });
+          });
+        }
+
+        cachedClosingStops.push({
+          id: 'stop_return',
+          type: 'return',
+          name: destName,
+          addr: destAddr,
+          time: '18:00',
+          memo: '운행 복귀 및 마감',
+          parking_fee: 0,
+          fuel_fee: 0
+        });
+      }
+
+      renderMobileClosingStopFees();
+    }
+
+    function toggleMobileClosingStopFees() {
+      var container = document.getElementById('mobileClosingStopFeesContainer');
+      var icon = document.getElementById('mobileClosingStopFeesIcon');
+      if (!container) return;
+      var isHidden = container.classList.contains('hidden');
+      if (isHidden) {
+        container.classList.remove('hidden');
+        if (icon) icon.classList.add('rotate-180');
+      } else {
+        container.classList.add('hidden');
+        if (icon) icon.classList.remove('rotate-180');
+      }
+    }
+
+    function renderMobileClosingStopFees() {
+      var container = document.getElementById('mobileClosingStopFeesContainer');
+      if (!container) return;
+
+      if (!cachedClosingStops || cachedClosingStops.length === 0) {
+        container.innerHTML = '<p class="text-center text-slate-400 py-2">등록된 방문지가 없습니다.</p>';
+        return;
+      }
+
+      container.innerHTML = cachedClosingStops.map(function(s, idx) {
+        var badge = (s.type === 'origin')
+          ? '<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-indigo-100 text-indigo-700 shrink-0">출발</span>'
+          : (s.type === 'return')
+          ? '<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-teal-100 text-teal-800 shrink-0">도착</span>'
+          : `<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-100 text-amber-900 shrink-0">#${s.order || idx}</span>`;
+
+        var curParking = Number(s.parking_fee || 0);
+        var curFuel = Number(s.fuel_fee || 0);
+
+        return `
+          <div class="p-2 rounded-lg bg-white border border-slate-200 shadow-2xs space-y-1.5">
+            <div class="flex items-center gap-1.5 min-w-0">
+              ${badge}
+              <div class="min-w-0 flex-1">
+                <p class="font-bold text-slate-800 truncate text-[11px]">${s.name || '배송지'}</p>
+                <p class="text-[9.5px] text-slate-400 truncate">${s.addr || ''}</p>
+              </div>
+            </div>
+            <div class="flex items-center justify-end gap-2 text-[10px] pt-1 border-t border-slate-50">
+              <div class="flex items-center gap-1">
+                <span class="text-amber-700 font-bold">주차:</span>
+                <input type="number" step="500" min="0" value="${curParking}" oninput="updateMobileClosingStopFee(${idx}, 'parking_fee', this.value)" class="w-16 px-1.5 py-0.5 border border-slate-200 rounded text-right font-mono font-bold text-amber-800 focus:ring-1 focus:ring-amber-500">
+                <span class="text-slate-400">원</span>
+              </div>
+              <div class="flex items-center gap-1">
+                <span class="text-rose-700 font-bold">주유:</span>
+                <input type="number" step="1000" min="0" value="${curFuel}" oninput="updateMobileClosingStopFee(${idx}, 'fuel_fee', this.value)" class="w-16 px-1.5 py-0.5 border border-slate-200 rounded text-right font-mono font-bold text-rose-800 focus:ring-1 focus:ring-rose-500">
+                <span class="text-slate-400">원</span>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function updateMobileClosingStopFee(idx, field, val) {
+      if (!cachedClosingStops[idx]) return;
+      cachedClosingStops[idx][field] = Math.max(0, Number(val) || 0);
+      syncMobileClosingTotalFees();
+    }
+
+    function syncMobileClosingTotalFees() {
+      var totParking = cachedClosingStops.reduce(function(sum, s) { return sum + (Number(s.parking_fee) || 0); }, 0);
+      var totFuel = cachedClosingStops.reduce(function(sum, s) { return sum + (Number(s.fuel_fee) || 0); }, 0);
+      var pEl = document.getElementById('closingParkingFee');
+      var fEl = document.getElementById('closingFuelFee');
+      if (pEl) pEl.value = totParking;
+      if (fEl) fEl.value = totFuel;
     }
 
     function closeMobileVehicleClosingModal() {
@@ -1538,6 +1702,21 @@
       var destAddr = dest.addr || DEFAULT_GASAN_ORIGIN.addr;
       var destName = dest.name || DEFAULT_GASAN_ORIGIN.name;
 
+      // Ensure stops have continuous start/end km calculated
+      if (cachedClosingStops && cachedClosingStops.length > 0) {
+        var legCount = cachedClosingStops.length;
+        var curK = startKm;
+        var dPerLeg = Math.floor(distKm / legCount);
+        var remD = distKm % legCount;
+        cachedClosingStops.forEach(function(st, sIdx) {
+          var legD = dPerLeg + (sIdx < remD ? 1 : 0);
+          st.start_km = curK;
+          st.end_km = curK + legD;
+          st.distance_km = legD;
+          curK += legD;
+        });
+      }
+
       var logPayload = {
         vehicle_no: veh.vehicle_no,
         trip_date: currentDate,
@@ -1549,6 +1728,7 @@
         is_local_dismissal: false,
         destination_addr: destAddr,
         destination_name: destName,
+        stops: cachedClosingStops,
         parking_fee: parkingFee,
         fuel_fee: fuelFee,
         is_unoperated: (distKm === 0),
