@@ -5158,6 +5158,10 @@
     // ==========================================
     // Supabase Cloud Sync Engine (단독 운영)
     // ==========================================
+    var isAutoSyncEnabled = true;
+    var realtimeChannel = null;
+    var syncPollingInterval = null;
+
     async function triggerSync(isSilent) {
       if (isSilent && !isAutoSyncEnabled) return;
       var syncIcon = document.getElementById('syncIcon');
@@ -5263,6 +5267,53 @@
         if (!isSilent) showToast('❌ DB 연동 오류: ' + (err.message || err));
       }
     }
+
+    // ==========================================
+    // Supabase Realtime WebSocket & Auto Polling Engine
+    // ==========================================
+    function initSupabaseRealtimeSync() {
+      if (!supabaseClient) return;
+
+      // 1. Supabase Realtime WebSocket 채널 구독
+      try {
+        if (realtimeChannel) {
+          supabaseClient.removeChannel(realtimeChannel);
+        }
+        realtimeChannel = supabaseClient
+          .channel('delivery_schedules_realtime_dashboard')
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'delivery_schedules' }, function(payload) {
+            console.log('⚡ [Realtime Web] 클라우드 변경 감지:', payload.eventType, payload.new || payload.old);
+            triggerSync(true); // 즉시 무소음 동기화로 화면 갱신
+          })
+          .subscribe(function(status) {
+            console.log('📡 [Realtime Subscription Status]:', status);
+            var statusEl = document.getElementById('syncStatusText');
+            if (status === 'SUBSCRIBED' && statusEl) {
+              statusEl.innerText = '⚡ 실시간 구독 연결됨';
+            }
+          });
+      } catch(e) {
+        console.warn('Realtime subscription warning:', e);
+      }
+
+      // 2. 스마트 백그라운드 폴링 (12초 주기: 웹소켓 슬립 및 백그라운드 탭 대비)
+      if (syncPollingInterval) clearInterval(syncPollingInterval);
+      syncPollingInterval = setInterval(function() {
+        if (!document.hidden) {
+          triggerSync(true);
+        }
+      }, 12000);
+    }
+
+    // 3. 브라우저 탭 포커스 복귀 시 즉시 동기화
+    document.addEventListener('visibilitychange', function() {
+      if (!document.hidden) {
+        triggerSync(true);
+      }
+    });
+    window.addEventListener('focus', function() {
+      triggerSync(true);
+    });
 
     // ==========================================
     // Contract History & Field Issue Memo Engine
@@ -5484,6 +5535,7 @@
       initKakaoMapEngine(false);
       await loadAvailableDates();
       await triggerSync(false);
+      initSupabaseRealtimeSync();
     }
 
     if (document.readyState === 'loading') {

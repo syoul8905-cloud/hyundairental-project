@@ -143,7 +143,7 @@
 
       <div class="flex items-center gap-1 cursor-pointer relative" onclick="openCalendarPicker()">
         <i class="fa-regular fa-calendar-days text-indigo-600 text-sm"></i>
-        <span id="dateDisplay" class="font-black text-slate-900 text-sm">2026-09-11</span>
+        <span id="dateDisplay" class="font-black text-slate-900 text-sm"></span>
         <i class="fa-solid fa-chevron-down text-[10px] text-slate-400"></i>
         <input type="date" id="dateInput" onchange="setDate(this.value)" class="absolute inset-0 opacity-0 cursor-pointer w-full h-full">
       </div>
@@ -1334,12 +1334,14 @@
         r.status = '운행중';
 
         if (supabaseClient && r.id) {
-          supabaseClient.from('delivery_schedules').update({
-            memo_special: jsonStr,
-            status: '운행중'
-          }).eq('id', r.id).then(function(res) {
-            if (res.error) console.error(res.error);
-          });
+          try {
+            await supabaseClient.from('delivery_schedules').update({
+              memo_special: jsonStr,
+              status: '운행중'
+            }).eq('id', r.id);
+          } catch(e) {
+            console.error('Departure update error:', e);
+          }
         }
         renderCards();
         showToast('🚀 [' + r.customer_name + '] 출발 시각(' + nowStr + ')이 기록되었습니다!');
@@ -1358,7 +1360,7 @@
       }
     }
 
-    // Actions: Arrived Record
+    // Actions: Arrived Record (Strict Await + Retry + Visual Sync)
     async function markArrivedAndRecord(idx) {
       var r = driverRecords[idx];
       if (!r) return;
@@ -1374,20 +1376,32 @@
 
       var dur = calculateDurationMinutes(times.depart, times.arrive);
       var jsonStr = JSON.stringify(times);
-      r.memo_special = jsonStr;
-      r.status = '도착완료';
+
+      showToast('⏳ [서버 전송 중] 배송지 도착 상태를 기록 중입니다...');
 
       if (supabaseClient && r.id) {
-        supabaseClient.from('delivery_schedules').update({
-          memo_special: jsonStr,
-          status: '도착완료'
-        }).eq('id', r.id).then(function(res) {
-          if (res.error) console.error(res.error);
-        });
-      }
+        try {
+          var res = await supabaseClient.from('delivery_schedules').update({
+            memo_special: jsonStr,
+            status: '도착완료'
+          }).eq('id', r.id);
 
-      renderCards();
-      showToast('🏁 [' + r.customer_name + '] 배송지 도착 완료! (' + (dur !== null ? dur + '분 소요' : nowStr) + ')');
+          if (res.error) throw res.error;
+
+          r.memo_special = jsonStr;
+          r.status = '도착완료';
+          renderCards();
+          showToast('🏁 [' + r.customer_name + '] 배송지 도착 완료! (' + (dur !== null ? dur + '분 소요' : nowStr) + ')');
+        } catch(err) {
+          console.error('Supabase arrival update error:', err);
+          alert('⚠️ 통신 오류: 서버에 도착 기록 저장이 실패했습니다.\n네트워크 상태를 확인하고 다시 [도착 완료]를 눌러주세요.\n오류내용: ' + (err.message || err));
+        }
+      } else {
+        r.memo_special = jsonStr;
+        r.status = '도착완료';
+        renderCards();
+        showToast('🏁 [' + r.customer_name + '] 배송지 도착 완료! (' + (dur !== null ? dur + '분 소요' : nowStr) + ')');
+      }
     }
 
     // Reorder & Cloud Sync
@@ -1719,14 +1733,49 @@
       }
     }
 
-    // 모바일 브라우저 백그라운드 -> 포그라운드 복귀 시 날짜 검사
+    // ==========================================
+    // Realtime Sync Engine for Mobile
+    // ==========================================
+    var mobileRealtimeChannel = null;
+    var mobileSyncInterval = null;
+
+    function initMobileRealtimeSync() {
+      if (!supabaseClient) return;
+
+      try {
+        if (mobileRealtimeChannel) {
+          supabaseClient.removeChannel(mobileRealtimeChannel);
+        }
+        mobileRealtimeChannel = supabaseClient
+          .channel('mobile_delivery_schedules_realtime')
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'delivery_schedules' }, function(payload) {
+            console.log('⚡ [Mobile Realtime] 클라우드 동기화 감지:', payload.eventType);
+            loadMobileData(false);
+          })
+          .subscribe();
+      } catch(e) {
+        console.warn('Mobile realtime subscription warning:', e);
+      }
+
+      // 스마트 폴링 (12초 주기: 웹소켓 끊김/슬립 대비)
+      if (mobileSyncInterval) clearInterval(mobileSyncInterval);
+      mobileSyncInterval = setInterval(function() {
+        if (!document.hidden) {
+          loadMobileData(false);
+        }
+      }, 12000);
+    }
+
+    // 모바일 브라우저 백그라운드 -> 포그라운드 복귀 시 즉시 최신 데이터 갱신
     document.addEventListener('visibilitychange', function() {
       if (!document.hidden) {
         checkAndApplyDateRollover();
+        loadMobileData(false);
       }
     });
     window.addEventListener('focus', function() {
       checkAndApplyDateRollover();
+      loadMobileData(false);
     });
 
     function showToast(msg) {
@@ -1741,6 +1790,10 @@
     // Auto login check
     window.addEventListener('DOMContentLoaded', async function() {
       scheduleMidnightRollover();
+      // 날짜 초기화 및 실시간 동기화 즉각 가동
+      setDate(currentDate);
+      initMobileRealtimeSync();
+
       await syncAuthUsersFromCloud();
       var savedId = localStorage.getItem('DELIVERY_SAVED_ID') || '';
       var savedPw = (localStorage.getItem('DELIVERY_SAVED_PW') || '').replace(/[^0-9]/g, '').slice(0, 4);
@@ -1760,7 +1813,6 @@
           return;
         }
       }
-      setDate(currentDate);
     });
   </script>
 </body>
