@@ -4731,27 +4731,94 @@
       var merged = parsedCsvPendingData.slice();
       var manualMergedCount = 0;
 
+      // ────────────────────────────────────────────────────────────────────
+      // [핵심 개선] DB에서 직접 수동 배송지를 먼저 가져와서 병합
+      // 로컬 records 배열의 타이밍 이슈(동기화 레이스 컨디션)로 인한 유실 방지
+      // ────────────────────────────────────────────────────────────────────
+      var dbManualStops = [];
+      if (keepManual && supabaseClient) {
+        try {
+          var cleanDateForQuery = targetDate.replace(/\./g, '-');
+          var shortDateForQuery = targetDate.replace(/-/g, '.');
+          // DB에서 해당 일자의 수동 배송지만 직접 조회
+          var manualRes = await supabaseClient.from('delivery_schedules')
+            .select('*')
+            .or(
+              'source_sheet.eq.직접추가,contract_no.eq.신규등록'
+            )
+            .or(
+              'delivery_date.eq.' + targetDate + ',delivery_date.eq.' + cleanDateForQuery + ',delivery_date.eq.' + shortDateForQuery
+            );
+          if (!manualRes.error && manualRes.data && manualRes.data.length > 0) {
+            // 해당 일자 수동 배송지만 필터링
+            var validDates = [targetDate, cleanDateForQuery, shortDateForQuery];
+            dbManualStops = manualRes.data.filter(function(row) {
+              return validDates.indexOf(row.delivery_date) !== -1;
+            }).map(function(row) {
+              return {
+                ID: row.id,
+                배송일자: row.delivery_date || targetDate,
+                계약번호: row.contract_no || '신규등록',
+                구분: row.category || '배송',
+                담당기사: row.driver_name || '',
+                고객사: row.customer_name || '',
+                주소: row.address || '',
+                기본주소: row.address || '',
+                상세주소: '',
+                방문시간: row.visit_time || '',
+                담당자_연락처: row.contact || '',
+                품목_수량: row.items || '',
+                의뢰상태: row.status || '출고대기',
+                배송방법: row.delivery_method || '직배송',
+                비고_전문: row.memo_full || '',
+                source_sheet: '직접추가',
+                원본시트: '직접추가',
+                isManual: true
+              };
+            });
+            console.log('[CSV 병합] DB에서 직접 추가 배송지', dbManualStops.length, '건 조회됨');
+          }
+        } catch (e) {
+          console.warn('[CSV 병합] DB 수동 배송지 조회 실패, 로컬 records에서 대체:', e);
+        }
+      }
+
+      // 로컬 records에서도 수동 배송지 감지 (DB 조회 실패 시 보조 / 신규 미저장 건 포함)
+      var localManualStops = [];
       if (keepManual && records && records.length > 0) {
-        var manualStops = records.filter(function(r) {
+        localManualStops = records.filter(function(r) {
           return r.isManual || r.source_sheet === '직접추가' || r.원본시트 === '직접추가' || r.계약번호 === '신규등록';
         });
-
-        manualStops.forEach(function(m) {
-          var isDup = merged.some(function(c) {
-            return (c.계약번호 && m.계약번호 && c.계약번호 !== '신규등록' && c.계약번호 === m.계약번호)
-                   || (c.고객사 === m.고객사 && c.주소 === m.주소);
-          });
-          if (!isDup) {
-            var copy = Object.assign({}, m);
-            copy.배송일자 = targetDate;
-            copy.source_sheet = '직접추가';
-            copy.원본시트 = '직접추가';
-            copy.isManual = true;
-            merged.push(copy);
-            manualMergedCount++;
-          }
-        });
       }
+
+      // DB + 로컬 수동 배송지 통합 (중복 제거: ID 또는 고객사+주소 기준)
+      var allManualStops = dbManualStops.slice();
+      localManualStops.forEach(function(lm) {
+        var alreadyInDb = allManualStops.some(function(dm) {
+          return (lm.ID && dm.ID && lm.ID === dm.ID)
+              || (lm.고객사 === dm.고객사 && lm.주소 === dm.주소);
+        });
+        if (!alreadyInDb) {
+          allManualStops.push(lm);
+        }
+      });
+
+      // 수동 배송지를 merged에 추가 (CSV 내용과 중복 방지)
+      allManualStops.forEach(function(m) {
+        var isDup = merged.some(function(c) {
+          return (c.계약번호 && m.계약번호 && c.계약번호 !== '신규등록' && c.계약번호 === m.계약번호)
+                 || (c.고객사 === m.고객사 && c.주소 === m.주소);
+        });
+        if (!isDup) {
+          var copy = Object.assign({}, m);
+          copy.배송일자 = targetDate;
+          copy.source_sheet = '직접추가';
+          copy.원본시트 = '직접추가';
+          copy.isManual = true;
+          merged.push(copy);
+          manualMergedCount++;
+        }
+      });
 
       // 시간순 정렬
       merged.sort(function(a, b) {
@@ -4821,7 +4888,7 @@
           var cleanTargetDate = targetDate.replace(/\./g, '-');
           var shortTargetDate = targetDate.replace(/-/g, '.');
 
-          // 기존 해당 일자 구버전/중복 데이터를 완전히 삭제 후 최신(CSV + 직접추가 합본) 데이터로 일괄 등록
+          // 해당 일자 구버전/중복 데이터를 완전히 삭제 후 최신(CSV + 직접추가 합본) 데이터로 일괄 등록
           await supabaseClient.from('delivery_schedules').delete().eq('delivery_date', targetDate);
           if (cleanTargetDate !== targetDate) {
             await supabaseClient.from('delivery_schedules').delete().eq('delivery_date', cleanTargetDate);
@@ -4845,6 +4912,7 @@
         }
       }
     }
+
 
     // ==========================================
     // Master Table & Inline Driver Assignment
