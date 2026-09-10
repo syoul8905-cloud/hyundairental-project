@@ -83,6 +83,9 @@
         <i id="syncIcon" class="fa-solid fa-rotate"></i>
         <span>새로고침</span>
       </button>
+
+      <!-- Admin Auth Badge -->
+      <div id="adminAuthBadgeContainer"></div>
     </div>
   </header>
 
@@ -254,6 +257,57 @@
     </div>
   </div>
 
+  <!-- ========================================== -->
+  <!-- Admin Authentication Modal                 -->
+  <!-- ========================================== -->
+  <div id="adminAuthModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 hidden flex items-center justify-center p-3 animate-in fade-in duration-150">
+    <div class="bg-white rounded-2xl w-full max-w-sm shadow-2xl border border-slate-200 overflow-hidden animate-in zoom-in-95 duration-200">
+      <div class="px-4 py-3.5 bg-gradient-to-r from-slate-900 via-rose-950 to-slate-900 text-white flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <div class="w-7 h-7 rounded-lg bg-rose-500/20 text-rose-400 border border-rose-500/30 flex items-center justify-center text-xs">
+            <i class="fa-solid fa-lock"></i>
+          </div>
+          <div>
+            <h3 class="font-black text-xs">관리자 권한 인증</h3>
+            <p class="text-[10px] text-slate-300">시간 수정은 관리자만 가능합니다</p>
+          </div>
+        </div>
+        <button onclick="closeAdminAuthModal()" class="w-6 h-6 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition">
+          <i class="fa-solid fa-xmark text-xs"></i>
+        </button>
+      </div>
+
+      <form onsubmit="submitAdminAuth(event)" class="p-4 space-y-3">
+        <div>
+          <label class="block text-[11px] font-bold text-slate-600 mb-1">관리자 계정 선택</label>
+          <select id="adminAuthUserSelect" class="w-full bg-slate-50 font-bold text-slate-800 px-3 py-2 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-rose-500 focus:outline-none">
+            <option value="최두성">최두성 (관리자)</option>
+            <option value="이성호">이성호 (관리자)</option>
+            <option value="장종순">장종순 (관리자)</option>
+            <option value="박종환">박종환 (관리자)</option>
+            <option value="admin">admin (마스터)</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-[11px] font-bold text-slate-600 mb-1">PIN 번호 (4자리)</label>
+          <input type="password" id="adminAuthPinInput" maxlength="4" placeholder="••••" required class="w-full bg-white font-mono font-black text-center text-base tracking-widest text-slate-900 px-3 py-2 rounded-xl border border-slate-300 focus:ring-2 focus:ring-rose-500 focus:outline-none">
+          <p class="text-[10px] text-slate-400 mt-1 text-center">기본 PIN 번호: 1234</p>
+        </div>
+
+        <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+          <button type="button" onclick="closeAdminAuthModal()" class="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-xl text-xs transition">
+            취소
+          </button>
+          <button type="submit" class="px-4 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs transition flex items-center gap-1.5 shadow-md shadow-rose-600/20">
+            <i class="fa-solid fa-key"></i>
+            <span>인증하기</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- Toast -->
   <div id="toast" class="fixed bottom-4 right-4 bg-slate-900 text-white px-4 py-2.5 rounded-xl shadow-lg border border-slate-800 flex items-center gap-2 transform translate-y-12 opacity-0 pointer-events-none transition-all duration-300 z-50">
     <i class="fa-solid fa-circle-check text-emerald-400"></i>
@@ -278,6 +332,187 @@
 
     var records = [];
     var currentDate = getTodayLocalDate();
+
+    // ==========================================
+    // Admin Authentication & RBAC Engine
+    // ==========================================
+    const DEFAULT_AUTH_USERS = [
+      { id: '최두성', pw: '1234', role: 'admin' },
+      { id: '이성호', pw: '1234', role: 'admin' },
+      { id: '장종순', pw: '1234', role: 'admin' },
+      { id: '박종환', pw: '1234', role: 'admin' },
+      { id: '김승지', pw: '1234', role: 'driver' },
+      { id: '조경찬', pw: '1234', role: 'driver' }
+    ];
+
+    var authUsers = [];
+    var pendingEditRecordId = null;
+
+    function loadAuthUsers() {
+      try {
+        var raw = localStorage.getItem('DELIVERY_AUTH_USERS_V3');
+        if (raw) {
+          authUsers = JSON.parse(raw);
+        } else {
+          authUsers = JSON.parse(JSON.stringify(DEFAULT_AUTH_USERS));
+        }
+      } catch (e) {
+        authUsers = JSON.parse(JSON.stringify(DEFAULT_AUTH_USERS));
+      }
+    }
+
+    async function syncAuthUsersFromCloud() {
+      if (!supabaseClient) return;
+      try {
+        var res = await supabaseClient.from('delivery_schedules')
+          .select('memo_full')
+          .eq('source_sheet', 'SYSTEM_CONFIG_USERS')
+          .limit(1);
+        if (res.data && res.data.length > 0 && res.data[0].memo_full) {
+          var cloudUsers = JSON.parse(res.data[0].memo_full);
+          if (Array.isArray(cloudUsers) && cloudUsers.length > 0) {
+            authUsers = cloudUsers;
+            try { localStorage.setItem('DELIVERY_AUTH_USERS_V3', JSON.stringify(authUsers)); } catch(e){}
+            populateAdminSelect();
+          }
+        }
+      } catch (e) {}
+    }
+
+    function isTimeTrackerAdmin() {
+      var sessionAdmin = sessionStorage.getItem('TIME_TRACKER_ADMIN_USER');
+      if (sessionAdmin) return true;
+
+      var savedId = localStorage.getItem('DELIVERY_SAVED_ID');
+      var savedPw = localStorage.getItem('DELIVERY_SAVED_PW');
+      if (savedId && savedPw) {
+        var u = authUsers.find(function(x) { return x.id === savedId && x.pw === savedPw; });
+        if (u && u.role === 'admin') {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    function getCurrentAdminName() {
+      var sessionAdmin = sessionStorage.getItem('TIME_TRACKER_ADMIN_USER');
+      if (sessionAdmin) return sessionAdmin;
+      var savedId = localStorage.getItem('DELIVERY_SAVED_ID');
+      if (savedId) return savedId;
+      return '관리자';
+    }
+
+    function renderAdminAuthBadge() {
+      var container = document.getElementById('adminAuthBadgeContainer');
+      if (!container) return;
+
+      var isAdmin = isTimeTrackerAdmin();
+      if (isAdmin) {
+        var adminName = getCurrentAdminName();
+        container.innerHTML = `
+          <div class="flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 text-rose-800 border border-rose-200 rounded-xl text-xs font-black shadow-xs">
+            <span class="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
+            <i class="fa-solid fa-user-shield"></i>
+            <span>${adminName} (관리자)</span>
+            <button type="button" onclick="logoutAdminAuth()" class="ml-1 text-rose-400 hover:text-rose-700 text-[10px]" title="관리자 로그아웃">
+              <i class="fa-solid fa-right-from-bracket"></i>
+            </button>
+          </div>
+        `;
+      } else {
+        container.innerHTML = `
+          <button type="button" onclick="openAdminAuthModal()" class="px-3 py-1.5 bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-700 border border-slate-300 hover:border-rose-300 font-bold rounded-xl transition flex items-center gap-1.5 shadow-xs text-xs">
+            <i class="fa-solid fa-lock text-rose-500"></i>
+            <span>관리자 인증</span>
+          </button>
+        `;
+      }
+    }
+
+    function populateAdminSelect() {
+      var sel = document.getElementById('adminAuthUserSelect');
+      if (!sel) return;
+      var adminUsers = authUsers.filter(function(u) { return u.role === 'admin'; });
+      if (adminUsers.length === 0) {
+        adminUsers = DEFAULT_AUTH_USERS.filter(function(u) { return u.role === 'admin'; });
+      }
+      sel.innerHTML = adminUsers.map(function(u) {
+        return `<option value="${u.id}">${u.id} (관리자)</option>`;
+      }).join('');
+    }
+
+    function openAdminAuthModal(pendingRecId) {
+      pendingEditRecordId = pendingRecId || null;
+      populateAdminSelect();
+      var pinInput = document.getElementById('adminAuthPinInput');
+      if (pinInput) pinInput.value = '';
+      var modal = document.getElementById('adminAuthModal');
+      if (modal) modal.classList.remove('hidden');
+      setTimeout(function() {
+        if (pinInput) pinInput.focus();
+      }, 100);
+    }
+
+    function closeAdminAuthModal() {
+      var modal = document.getElementById('adminAuthModal');
+      if (modal) modal.classList.add('hidden');
+      pendingEditRecordId = null;
+    }
+
+    function submitAdminAuth(e) {
+      if (e) e.preventDefault();
+      var sel = document.getElementById('adminAuthUserSelect');
+      var pinInput = document.getElementById('adminAuthPinInput');
+      var userId = sel ? sel.value : '';
+      var pin = pinInput ? pinInput.value.trim() : '';
+
+      if (!userId || !pin) {
+        alert('관리자 계정과 4자리 PIN을 입력해주세요.');
+        return;
+      }
+
+      var targetUser = authUsers.find(function(u) { return u.id === userId && u.role === 'admin'; });
+      if (!targetUser) {
+        targetUser = DEFAULT_AUTH_USERS.find(function(u) { return u.id === userId && u.role === 'admin'; });
+      }
+
+      if (!targetUser || targetUser.pw !== pin) {
+        alert('비밀번호(PIN)가 일치하지 않습니다. (기본: 1234)');
+        if (pinInput) {
+          pinInput.value = '';
+          pinInput.focus();
+        }
+        return;
+      }
+
+      sessionStorage.setItem('TIME_TRACKER_ADMIN_USER', userId);
+      closeAdminAuthModal();
+      renderAdminAuthBadge();
+      renderTimeTable();
+      showToast('🔑 ' + userId + ' 관리자 인증 완료! 시간 수정 권한이 활성화되었습니다.');
+
+      if (pendingEditRecordId) {
+        var recIdToOpen = pendingEditRecordId;
+        pendingEditRecordId = null;
+        openEditTimeModal(recIdToOpen);
+      }
+    }
+
+    function logoutAdminAuth() {
+      sessionStorage.removeItem('TIME_TRACKER_ADMIN_USER');
+      renderAdminAuthBadge();
+      renderTimeTable();
+      showToast('🔒 관리자 모드가 해제되었습니다.');
+    }
+
+    function triggerAdminTimeEdit(recId) {
+      if (isTimeTrackerAdmin()) {
+        openEditTimeModal(recId);
+      } else {
+        openAdminAuthModal(recId);
+      }
+    }
+
 
 
     function parseTimeMinutes(timeStr) {
@@ -392,6 +627,7 @@
     function renderTimeTable() {
       var tbody = document.getElementById('timeTableBody');
       var driverFilter = document.getElementById('driverFilterSelect') ? document.getElementById('driverFilterSelect').value : 'all';
+      var isAdmin = isTimeTrackerAdmin();
 
       var filtered = records.filter(function(r) {
         if (driverFilter !== 'all' && (r.driver_name || '').trim() !== driverFilter) return false;
@@ -445,6 +681,9 @@
           statusBadge = `<span class="bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full font-bold text-[10px] flex items-center gap-1 w-max mx-auto animate-pulse"><i class="fa-solid fa-truck-fast"></i> 운행중</span>`;
         }
 
+        var cellClickAction = isAdmin ? `openEditTimeModal(${r.id})` : `triggerAdminTimeEdit(${r.id})`;
+        var cellTitle = isAdmin ? '클릭하여 출발/도착 시각 수정' : '시간 수정은 관리자만 가능합니다 (클릭 시 인증)';
+
         tr.innerHTML = `
           <td class="py-2.5 px-2 text-center">
             <div class="inline-flex items-center gap-1">
@@ -464,25 +703,32 @@
           <td class="py-2.5 px-3 text-slate-600 truncate max-w-xs" title="${r.address || ''}">${r.address || '-'}</td>
           <td class="py-2.5 px-2.5 text-center font-bold text-slate-500">${r.visit_time || '무관'}</td>
           
-          <td class="py-2.5 px-3 text-center bg-blue-50/30 border-x border-blue-50 cursor-pointer hover:bg-blue-100/60 transition group" onclick="openEditTimeModal(${r.id})" title="클릭하여 출발/도착 시각 수정">
+          <td class="py-2.5 px-3 text-center bg-blue-50/30 border-x border-blue-50 cursor-pointer hover:bg-blue-100/60 transition group" onclick="${cellClickAction}" title="${cellTitle}">
             ${times.depart ? `<b class="text-blue-700 text-xs font-black group-hover:underline">${times.depart}</b>` : '<span class="text-slate-300 group-hover:text-blue-500 text-[11px] font-bold">+입력</span>'}
           </td>
           
-          <td class="py-2.5 px-3 text-center bg-emerald-50/30 border-r border-emerald-50 cursor-pointer hover:bg-emerald-100/60 transition group" onclick="openEditTimeModal(${r.id})" title="클릭하여 출발/도착 시각 수정">
+          <td class="py-2.5 px-3 text-center bg-emerald-50/30 border-r border-emerald-50 cursor-pointer hover:bg-emerald-100/60 transition group" onclick="${cellClickAction}" title="${cellTitle}">
             ${times.arrive ? `<b class="text-emerald-700 text-xs font-black group-hover:underline">${times.arrive}</b>` : '<span class="text-slate-300 group-hover:text-emerald-500 text-[11px] font-bold">+입력</span>'}
           </td>
           
-          <td class="py-2.5 px-3 text-center bg-violet-50/30 border-r border-violet-50 font-bold cursor-pointer hover:bg-violet-100/60 transition" onclick="openEditTimeModal(${r.id})" title="클릭하여 시간 수정">
+          <td class="py-2.5 px-3 text-center bg-violet-50/30 border-r border-violet-50 font-bold cursor-pointer hover:bg-violet-100/60 transition" onclick="${cellClickAction}" title="${cellTitle}">
             ${dur !== null ? `<span class="text-violet-900 font-black text-xs">${dur}분</span>` : '<span class="text-slate-300">-</span>'}
           </td>
           
           <td class="py-2.5 px-3 text-center">${statusBadge}</td>
           
           <td class="py-2.5 px-3 text-center">
-            <button type="button" onclick="openEditTimeModal(${r.id})" class="px-2.5 py-1 bg-violet-50 hover:bg-violet-100 active:bg-violet-200 text-violet-700 border border-violet-200 font-bold rounded-lg text-xs flex items-center gap-1.5 transition shadow-2xs mx-auto" title="배송 운행 시간 및 소요시간 수정">
-              <i class="fa-solid fa-clock-rotate-left text-[10px]"></i>
-              <span>시간수정</span>
-            </button>
+            ${isAdmin ? `
+              <button type="button" onclick="openEditTimeModal(${r.id})" class="px-2.5 py-1 bg-violet-600 hover:bg-violet-700 text-white font-bold rounded-lg text-xs flex items-center gap-1.5 transition shadow-2xs mx-auto" title="배송 운행 시간 및 소요시간 수정">
+                <i class="fa-solid fa-clock-rotate-left text-[10px]"></i>
+                <span>시간수정</span>
+              </button>
+            ` : `
+              <button type="button" onclick="triggerAdminTimeEdit(${r.id})" class="px-2.5 py-1 bg-slate-100 hover:bg-rose-50 text-slate-500 hover:text-rose-700 border border-slate-200 hover:border-rose-300 font-bold rounded-lg text-xs flex items-center gap-1.5 transition shadow-2xs mx-auto" title="관리자 전용 기능 (클릭 시 인증)">
+                <i class="fa-solid fa-lock text-[10px] text-slate-400"></i>
+                <span>시간수정 (관리자)</span>
+              </button>
+            `}
           </td>
         `;
 
@@ -624,6 +870,10 @@
     // Edit Delivery Time Modal Engine (운행시간 관리)
     // ==========================================
     function openEditTimeModal(recId) {
+      if (!isTimeTrackerAdmin()) {
+        openAdminAuthModal(recId);
+        return;
+      }
       var r = records.find(function(x) { return x.id == recId; });
       if (!r) return;
       document.getElementById('editTimeRecordId').value = r.id;
@@ -693,6 +943,12 @@
     }
 
     async function saveEditTimeModal() {
+      if (!isTimeTrackerAdmin()) {
+        alert('시간 수정 권한이 없습니다. 관리자 인증을 먼저 완료해주세요.');
+        openAdminAuthModal();
+        return;
+      }
+
       var recId = document.getElementById('editTimeRecordId').value;
       var r = records.find(function(x) { return x.id == recId; });
       if (!r) return;
@@ -861,14 +1117,18 @@
     });
 
     // Initialize
-    window.addEventListener('DOMContentLoaded', function() {
+    window.addEventListener('DOMContentLoaded', async function() {
       var params = new URLSearchParams(window.location.search);
       var paramDate = params.get('date');
       if (paramDate) {
         currentDate = paramDate;
       }
+      loadAuthUsers();
+      renderAdminAuthBadge();
       setDate(currentDate);
       initSupabaseRealtime();
+      await syncAuthUsersFromCloud();
+      renderAdminAuthBadge();
     });
 
   </script>

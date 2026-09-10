@@ -4015,13 +4015,10 @@
                 <i class="fa-solid fa-flag-checkered"></i> ${times.arrive ? '도착 ' + times.arrive : '배송지 도착'}
               </button>
               ${durMin !== null ? `
-                <span onclick="event.stopPropagation(); openEditTimeModal(${realIdx});" class="px-1.5 py-0.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-[10px] rounded border border-indigo-200 cursor-pointer" title="클릭하여 출발/도착 시간 및 소요시간 수정">
-                  ⏱️ ${durMin}분 소요 ✎
+                <span class="px-1.5 py-0.5 bg-indigo-50 text-indigo-700 font-bold text-[10px] rounded border border-indigo-200">
+                  ⏱️ ${durMin}분 소요
                 </span>
               ` : ''}
-              <button type="button" onclick="event.stopPropagation(); openEditTimeModal(${realIdx});" class="px-2 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 font-bold rounded-lg text-[10px] flex items-center gap-1 transition shadow-2xs" title="배송 운행 시간 및 소요시간 수정">
-                <i class="fa-solid fa-clock"></i> 시간수정
-              </button>
             </div>
           </div>
         `;
@@ -4920,19 +4917,13 @@
                 <i class="fa-solid fa-location-arrow"></i> ${times.depart ? times.depart : '티맵'}
               </button>
               ${times.arrive ? `
-                <button type="button" onclick="openEditTimeModal(${realIdx})" class="px-1.5 py-0.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 rounded font-bold text-[9px] flex items-center gap-1 transition shadow-2xs" title="클릭하여 출발/도착 시간 및 소요시간 수정">
-                  <span>🏁 ${times.arrive}</span>
-                  <i class="fa-solid fa-pencil text-[8px] text-emerald-600"></i>
-                </button>
+                <span class="px-1.5 py-0.5 bg-emerald-50 text-emerald-800 rounded font-bold text-[9px] border border-emerald-200">
+                  🏁 ${times.arrive}
+                </span>
               ` : `
-                <div class="flex items-center gap-1">
-                  <button onclick="recordArrivalTime(${realIdx})" class="px-1.5 py-0.5 bg-slate-100 hover:bg-emerald-50 text-slate-600 hover:text-emerald-700 border border-slate-200 hover:border-emerald-300 rounded font-bold text-[9px] transition" title="배송지 도착 시간 기록">
-                    도착
-                  </button>
-                  <button type="button" onclick="openEditTimeModal(${realIdx})" class="px-1 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-500 rounded text-[9px]" title="시간 직접 수정">
-                    <i class="fa-solid fa-clock"></i>
-                  </button>
-                </div>
+                <button onclick="recordArrivalTime(${realIdx})" class="px-2 py-0.5 bg-slate-100 hover:bg-emerald-50 text-slate-600 hover:text-emerald-700 border border-slate-200 hover:border-emerald-300 rounded font-bold text-[9px] transition" title="배송지 도착 시간 기록">
+                  도착
+                </button>
               `}
             </div>
           </td>
@@ -5151,11 +5142,10 @@
 
           <!-- Time Record Badges & Action Buttons -->
           <div class="flex items-center justify-between pt-1 border-t border-slate-100 text-xs">
-            <div class="flex items-center gap-1.5 flex-wrap cursor-pointer" onclick="openEditTimeModal(${realIdx})" title="운행 시간 및 소요시간 수정">
-              ${times.depart ? `<span class="px-1.5 py-0.5 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold rounded text-[10px] border border-blue-200">🚀 ${times.depart}</span>` : ''}
-              ${times.arrive ? `<span class="px-1.5 py-0.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold rounded text-[10px] border border-emerald-200">🏁 ${times.arrive}</span>` : ''}
+            <div class="flex items-center gap-1.5 flex-wrap">
+              ${times.depart ? `<span class="px-1.5 py-0.5 bg-blue-50 text-blue-700 font-bold rounded text-[10px] border border-blue-200">🚀 ${times.depart}</span>` : ''}
+              ${times.arrive ? `<span class="px-1.5 py-0.5 bg-emerald-50 text-emerald-700 font-bold rounded text-[10px] border border-emerald-200">🏁 ${times.arrive}</span>` : ''}
               ${durMin !== null ? `<span class="px-1.5 py-0.5 bg-indigo-50 text-indigo-700 font-bold rounded text-[10px]">⏱️ ${durMin}분</span>` : ''}
-              <span class="text-[10px] text-amber-700 font-bold flex items-center gap-0.5"><i class="fa-solid fa-clock text-[9px]"></i> ✎</span>
             </div>
 
             <div class="flex items-center gap-1">
