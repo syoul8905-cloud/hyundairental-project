@@ -203,6 +203,7 @@
             <th class="py-2.5 px-3 w-28 text-right">운행 종료 / Km</th>
             <th class="py-2.5 px-3 w-24 text-right">당일 주행거리</th>
             <th class="py-2.5 px-3 w-28 text-center">네비 추천거리</th>
+            <th class="py-2.5 px-3 w-36 text-left">도착지 / 경로</th>
             <th class="py-2.5 px-3 w-24 text-right">주차비</th>
             <th class="py-2.5 px-3 w-28 text-right">주유 금액</th>
             <th class="py-2.5 px-3">비고 / 특이사항</th>
@@ -211,7 +212,7 @@
         </thead>
         <tbody id="tripLogTableBody" class="divide-y divide-slate-100 text-slate-800">
           <tr>
-            <td colspan="10" class="py-12 text-center text-slate-400 font-medium">
+            <td colspan="11" class="py-12 text-center text-slate-400 font-medium">
               <i class="fa-solid fa-spinner fa-spin text-lg text-indigo-500 mb-2"></i><br>
               운행일지 데이터를 불러오는 중입니다...
             </td>
@@ -304,6 +305,21 @@
           <div>
             <label class="block text-[11px] font-bold text-slate-500 mb-1">주유 금액 (원)</label>
             <input type="number" id="modalFuelFee" value="0" step="1000" class="w-full bg-slate-50 font-mono font-bold text-slate-800 px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-rose-500 focus:outline-none">
+          </div>
+        </div>
+
+        <!-- Row 4.5: Destination / Dismissal -->
+        <div class="grid grid-cols-3 gap-2.5">
+          <div>
+            <label class="block text-[11px] font-bold text-slate-500 mb-1">도착지 유형</label>
+            <select id="modalDismissalType" class="w-full bg-slate-50 font-bold text-slate-800 px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-teal-500 focus:outline-none">
+              <option value="center">🏢 센터 복귀</option>
+              <option value="dismissal">🏠 현지 퇴근</option>
+            </select>
+          </div>
+          <div class="col-span-2">
+            <label class="block text-[11px] font-bold text-slate-500 mb-1">도착지 주소 / 거점명</label>
+            <input type="text" id="modalDestAddr" placeholder="예: 서울 금천구 벚꽃로 278 (가산 센터) 또는 자택" class="w-full bg-slate-50 text-slate-800 px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-teal-500 focus:outline-none">
           </div>
         </div>
 
@@ -555,6 +571,8 @@
                 fuel_fee: Number(parsed.fuel_fee || 0),
                 is_unoperated: Boolean(parsed.is_unoperated),
                 is_local_dismissal: Boolean(parsed.is_local_dismissal),
+                destination_addr: parsed.destination_addr || '',
+                destination_name: parsed.destination_name || '',
                 memo: parsed.memo || ''
               };
             });
@@ -674,7 +692,7 @@
       if (tripLogs.length === 0) {
         tbody.innerHTML = `
           <tr>
-            <td colspan="10" class="py-12 text-center text-slate-400">
+            <td colspan="11" class="py-12 text-center text-slate-400">
               <div class="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400 mx-auto mb-2 text-xl">
                 <i class="fa-solid fa-calendar-xmark"></i>
               </div>
@@ -712,6 +730,10 @@
           diffBadge = `<span class="text-[10px] font-mono px-1 rounded ${color}">${diffNum > 0 ? '+' : ''}${diffNum}km</span>`;
         }
 
+        // Destination / Local Dismissal
+        var destText = log.destination_name || log.destination_addr || (log.is_local_dismissal ? '현지 거점' : '가산 센터');
+        var destFullAddr = log.destination_addr || log.destination_name || '';
+
         // Parking & Fuel
         var parkingStr = log.parking_fee > 0 ? `<b class="text-amber-700 font-mono font-bold">₩${log.parking_fee.toLocaleString()}</b>` : '-';
         var fuelStr = log.fuel_fee > 0 ? `<b class="text-rose-700 font-mono font-bold">₩${log.fuel_fee.toLocaleString()}</b>` : '-';
@@ -735,6 +757,18 @@
             </td>
             <td class="py-2.5 px-3 text-center font-mono text-[11px] text-slate-500">
               ${log.suggested_distance_km > 0 ? log.suggested_distance_km + ' km ' + diffBadge : '-'}
+            </td>
+            <td class="py-2.5 px-3 text-left">
+              ${isUnop ? '<span class="text-slate-400 font-mono text-[11px]">-</span>' : `
+                <div class="flex items-center gap-1.5">
+                  <span class="text-[9.5px] px-1.5 py-0.5 rounded font-black ${log.is_local_dismissal ? 'bg-teal-100 text-teal-800 border border-teal-200' : 'bg-indigo-50 text-indigo-700 border border-indigo-200'} shrink-0">
+                    ${log.is_local_dismissal ? '현지퇴근' : '센터복귀'}
+                  </span>
+                  <span class="truncate text-[11px] text-slate-700 font-medium max-w-[130px]" title="${destFullAddr || destText}">
+                    ${destText}
+                  </span>
+                </div>
+              `}
             </td>
             <td class="py-2.5 px-3 text-right">
               ${parkingStr}
@@ -779,6 +813,8 @@
       document.getElementById('modalEndKm').value = defaultStart;
       document.getElementById('modalDriverName').value = '조경찬';
       document.getElementById('modalIsUnoperated').checked = false;
+      document.getElementById('modalDismissalType').value = 'center';
+      document.getElementById('modalDestAddr').value = '가산 센터 (서울 금천구 벚꽃로 278)';
       document.getElementById('modalParkingFee').value = 0;
       document.getElementById('modalFuelFee').value = 0;
       document.getElementById('modalMemo').value = '';
@@ -799,6 +835,8 @@
       document.getElementById('modalStartKm').value = log.start_km;
       document.getElementById('modalEndKm').value = log.end_km;
       document.getElementById('modalIsUnoperated').checked = log.is_unoperated;
+      document.getElementById('modalDismissalType').value = log.is_local_dismissal ? 'dismissal' : 'center';
+      document.getElementById('modalDestAddr').value = log.destination_addr || log.destination_name || (log.is_local_dismissal ? '현지 퇴근' : '가산 센터');
       document.getElementById('modalParkingFee').value = log.parking_fee;
       document.getElementById('modalFuelFee').value = log.fuel_fee;
       document.getElementById('modalMemo').value = log.memo;
@@ -861,6 +899,10 @@
       var startKm = Number(document.getElementById('modalStartKm').value);
       var endKm = Number(document.getElementById('modalEndKm').value);
       var isUnoperated = document.getElementById('modalIsUnoperated').checked;
+      var dismissalType = document.getElementById('modalDismissalType').value;
+      var isLocalDismissal = (dismissalType === 'dismissal');
+      var destAddr = document.getElementById('modalDestAddr').value.trim();
+      var destName = isLocalDismissal ? (destAddr || '현지 퇴근') : (destAddr || '가산 센터');
       var parkingFee = Number(document.getElementById('modalParkingFee').value || 0);
       var fuelFee = Number(document.getElementById('modalFuelFee').value || 0);
       var memo = document.getElementById('modalMemo').value.trim();
@@ -886,7 +928,9 @@
         end_km: endKm,
         distance_km: distanceKm,
         suggested_distance_km: distanceKm > 0 ? (distanceKm * 0.98).toFixed(1) : 0,
-        is_local_dismissal: false,
+        is_local_dismissal: isLocalDismissal,
+        destination_addr: destAddr,
+        destination_name: destName,
         parking_fee: parkingFee,
         fuel_fee: fuelFee,
         is_unoperated: isUnoperated,
@@ -1063,7 +1107,7 @@
 
       lines.push(`Km,"${prevKm.toLocaleString()}","${currKm.toLocaleString()}","${totalDist.toLocaleString()}","₩${totalParking.toLocaleString()}","₩${totalFuel.toLocaleString()}"`);
       lines.push(',,,,,');
-      lines.push('날짜,운전자,운행 시작/ Km,운행 종료/ Km,주차비,주유 금액,비고');
+      lines.push('날짜,운전자,운행 시작/ Km,운행 종료/ Km,주행거리,도착지/마감,주차비,주유 금액,비고');
 
       tripLogs.forEach(function(l) {
         var dateParts = l.trip_date.split('-');
@@ -1071,9 +1115,10 @@
         var pStr = l.parking_fee > 0 ? `"₩${l.parking_fee.toLocaleString()}"` : '';
         var fStr = l.fuel_fee > 0 ? `"₩${l.fuel_fee.toLocaleString()}"` : '';
         var drvStr = l.driver_name.indexOf(',') !== -1 ? `"${l.driver_name}"` : l.driver_name;
+        var destStr = l.is_unoperated ? '미운행' : `"${(l.is_local_dismissal ? '[현지퇴근] ' : '[센터복귀] ') + (l.destination_name || l.destination_addr || '')}"`;
         var memoStr = l.memo ? `"${l.memo.replace(/"/g, '""')}"` : '';
 
-        lines.push(`${dateFormatted},${drvStr},"${l.start_km.toLocaleString()} ","${l.end_km.toLocaleString()} ",${pStr},${fStr},${memoStr}`);
+        lines.push(`${dateFormatted},${drvStr},"${l.start_km.toLocaleString()} ","${l.end_km.toLocaleString()} ","${l.distance_km.toLocaleString()} ",${destStr},${pStr},${fStr},${memoStr}`);
       });
 
       var csvContent = '\uFEFF' + lines.join('\r\n');

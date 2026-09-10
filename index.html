@@ -807,6 +807,75 @@
     </div>
   </div>
 
+  <!-- ========================================== -->
+  <!-- Local Dismissal Destination Selection Modal -->
+  <!-- ========================================== -->
+  <div id="localDismissalModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 hidden flex items-center justify-center p-4 animate-in fade-in duration-150" onclick="if(event.target===this)closeLocalDismissalModal()">
+    <div class="bg-white rounded-2xl max-w-sm w-full mx-auto p-5 shadow-2xl border border-slate-200 space-y-4 animate-in zoom-in-95 duration-150">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 rounded-xl bg-teal-600 text-white flex items-center justify-center text-sm shadow-xs">
+            <i class="fa-solid fa-house-user"></i>
+          </div>
+          <div>
+            <h3 class="font-black text-sm text-slate-900">현지 퇴근 도착지 선택</h3>
+            <p class="text-[11px] text-slate-400" id="dismissalModalDriverText">기사 도착지 지정</p>
+          </div>
+        </div>
+        <button type="button" onclick="closeLocalDismissalModal()" class="w-7 h-7 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center hover:bg-slate-200">
+          <i class="fa-solid fa-xmark text-xs"></i>
+        </button>
+      </div>
+
+      <input type="hidden" id="dismissalTargetStopIdx" value="-1">
+
+      <!-- Options -->
+      <div class="space-y-2.5">
+        <!-- Option 1: Registered Base -->
+        <label class="flex items-start gap-3 p-3 rounded-xl border-2 border-teal-500 bg-teal-50/50 cursor-pointer transition hover:bg-teal-50" id="dismissalOptBaseLabel" onclick="toggleDismissalDestInput('registered')">
+          <input type="radio" name="dismissalDestOption" id="dismissalOptRegistered" value="registered" checked class="mt-0.5 text-teal-600 focus:ring-teal-500">
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-black text-slate-900" id="dismissalBaseTitle">지점 거점 (기사 등록 거점)</span>
+              <span class="text-[9px] bg-teal-100 text-teal-800 font-bold px-1.5 py-0.5 rounded">등록됨</span>
+            </div>
+            <p class="text-[11px] text-slate-600 font-semibold mt-0.5 break-words" id="dismissalBaseAddr">주소 불러오는 중...</p>
+          </div>
+        </label>
+
+        <!-- Option 2: Custom Address -->
+        <label class="flex items-start gap-3 p-3 rounded-xl border-2 border-slate-200 bg-slate-50/50 cursor-pointer transition hover:bg-slate-50" id="dismissalOptCustomLabel" onclick="toggleDismissalDestInput('custom')">
+          <input type="radio" name="dismissalDestOption" id="dismissalOptCustom" value="custom" class="mt-0.5 text-teal-600 focus:ring-teal-500">
+          <div class="flex-1 min-w-0">
+            <span class="text-xs font-black text-slate-900">다른 주소 직접 입력</span>
+            <div id="dismissalCustomInputBox" class="hidden mt-2 space-y-1.5">
+              <input type="text" id="dismissalCustomAddrInput" placeholder="예: 서울 강남구 테헤란로 123" class="w-full bg-white text-slate-800 px-3 py-2 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-teal-500 focus:border-teal-500" onclick="event.stopPropagation()">
+              <p class="text-[10px] text-slate-400">* 입력하신 주소로 도착지 경로가 계산되고 내비게이션이 실행됩니다.</p>
+            </div>
+          </div>
+        </label>
+      </div>
+
+      <!-- Navigation & Confirm Buttons -->
+      <div class="space-y-2 pt-1">
+        <button type="button" onclick="confirmLocalDismissalAndNavi('tmap')" class="w-full py-2.5 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white font-black text-xs rounded-xl shadow-md transition flex items-center justify-center gap-1.5 active:scale-98">
+          <i class="fa-solid fa-location-arrow"></i>
+          <span>티맵 실행 및 현지퇴근 확정</span>
+        </button>
+        <div class="grid grid-cols-2 gap-2">
+          <button type="button" onclick="confirmLocalDismissalAndNavi('kakao')" class="py-2 bg-amber-400 hover:bg-amber-500 text-slate-900 font-black text-xs rounded-xl transition flex items-center justify-center gap-1 active:scale-98 shadow-xs">
+            <i class="fa-solid fa-diamond-turn-right"></i>
+            <span>카카오내비</span>
+          </button>
+          <button type="button" onclick="confirmLocalDismissalAndNavi('none')" class="py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition flex items-center justify-center gap-1 active:scale-98">
+            <i class="fa-solid fa-check"></i>
+            <span>도착지만 변경</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Add Stop Modal -->
   <div id="addStopModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50" onclick="if(event.target===this)closeAddStopModal()">
     <div class="bg-white rounded-2xl max-w-md w-full p-5 shadow-2xl border border-slate-200 space-y-4">
@@ -3323,6 +3392,9 @@
       var issueAuthor = '';
       var photo = '';
       var local_dismissal = false;
+      var dismissal_type = 'registered';
+      var dismissal_addr = '';
+      var dismissal_name = '';
       var raw = (r && (r.추후일정_특이사항 || r.memo_special)) ? (r.추후일정_특이사항 || r.memo_special) : '';
       if (raw) {
         try {
@@ -3334,6 +3406,9 @@
             issueAuthor = parsed.issue_author || '';
             photo = parsed.photo || '';
             local_dismissal = Boolean(parsed.local_dismissal);
+            dismissal_type = parsed.dismissal_type || 'registered';
+            dismissal_addr = parsed.dismissal_addr || '';
+            dismissal_name = parsed.dismissal_name || '';
           }
         } catch(e) {
           var dMatch = String(raw).match(/출발[:\s]*(\d{1,2}:\d{2})/);
@@ -3342,7 +3417,17 @@
           if (aMatch) arrive = aMatch[1];
         }
       }
-      return { depart: depart, arrive: arrive, issue: issue, issueAuthor: issueAuthor, photo: photo, local_dismissal: local_dismissal };
+      return {
+        depart: depart,
+        arrive: arrive,
+        issue: issue,
+        issueAuthor: issueAuthor,
+        photo: photo,
+        local_dismissal: local_dismissal,
+        dismissal_type: dismissal_type,
+        dismissal_addr: dismissal_addr,
+        dismissal_name: dismissal_name
+      };
     }
 
     function checkIsLocalDismissalForDriver(driverName, targetDate) {
@@ -3396,8 +3481,169 @@
       cachedRoadRouteData = null; // 경로 재계산을 위해 캐시 무효화
       renderRouteMap({ fitBounds: false });
       showToast(newVal 
-        ? `🏠 [${r.고객사}] 배송지에서 현지 퇴근으로 지정되었습니다. (도착지가 기사 등록 거점으로 변경)`
+        ? `🏠 [${r.고객사}] 배송지에서 현지 퇴근으로 지정되었습니다.`
         : `🏢 [${r.고객사}] 현지 퇴근이 해제되었습니다. (기본 가산 센터 복귀 왕복)`);
+
+      if (newVal) {
+        openLocalDismissalModal(realIdx);
+      }
+    }
+
+    function getDriverDismissalInfo(driverName, targetDate) {
+      if (!driverName || driverName === 'all') return { isDismissal: false, addr: '', name: '', type: 'registered' };
+      var dateStr = targetDate || getCurrentViewingDate();
+      var dTrim = driverName.trim();
+      for (var i = 0; i < records.length; i++) {
+        var r = records[i];
+        if (r.배송일자 === dateStr && (r.담당기사 || '').trim() === dTrim) {
+          var t = getStopTimes(r);
+          if (t.local_dismissal) {
+            return {
+              isDismissal: true,
+              addr: t.dismissal_addr || '',
+              name: t.dismissal_name || '',
+              type: t.dismissal_type || 'registered',
+              stopIdx: i
+            };
+          }
+        }
+      }
+      return { isDismissal: false, addr: '', name: '', type: 'registered' };
+    }
+
+    function openLocalDismissalModal(targetRealIdx) {
+      if (!currentDriver || currentDriver === 'all') {
+        alert('담당 기사를 먼저 선택해주세요.');
+        return;
+      }
+      var drvName = currentDriver.trim();
+      var regBase = getDriverRegisteredBase(drvName);
+
+      document.getElementById('dismissalTargetStopIdx').value = (targetRealIdx !== undefined ? targetRealIdx : -1);
+      document.getElementById('dismissalModalDriverText').innerText = `[${drvName} 기사님] 도착지 지정`;
+      
+      var baseAddrEl = document.getElementById('dismissalBaseAddr');
+      if (regBase && regBase.addr) {
+        baseAddrEl.innerText = `${regBase.addr} (${regBase.name || '자택 거점'})`;
+      } else {
+        baseAddrEl.innerText = '등록된 거점 주소가 없습니다. (다른 주소 직접 입력을 이용하세요)';
+      }
+
+      var disInfo = getDriverDismissalInfo(drvName, currentDate);
+      if (disInfo.isDismissal && disInfo.type === 'custom') {
+        toggleDismissalDestInput('custom');
+        document.getElementById('dismissalCustomAddrInput').value = disInfo.addr || '';
+      } else {
+        toggleDismissalDestInput('registered');
+        document.getElementById('dismissalCustomAddrInput').value = '';
+      }
+
+      document.getElementById('localDismissalModal').classList.remove('hidden');
+    }
+
+    function closeLocalDismissalModal() {
+      document.getElementById('localDismissalModal').classList.add('hidden');
+    }
+
+    function toggleDismissalDestInput(type) {
+      var isCustom = (type === 'custom');
+      document.getElementById('dismissalOptRegistered').checked = !isCustom;
+      document.getElementById('dismissalOptCustom').checked = isCustom;
+
+      var baseLabel = document.getElementById('dismissalOptBaseLabel');
+      var customLabel = document.getElementById('dismissalOptCustomLabel');
+      var inputBox = document.getElementById('dismissalCustomInputBox');
+
+      if (isCustom) {
+        baseLabel.className = 'flex items-start gap-3 p-3 rounded-xl border-2 border-slate-200 bg-slate-50/50 cursor-pointer transition hover:bg-slate-50';
+        customLabel.className = 'flex items-start gap-3 p-3 rounded-xl border-2 border-teal-500 bg-teal-50/50 cursor-pointer transition hover:bg-teal-50';
+        inputBox.classList.remove('hidden');
+        document.getElementById('dismissalCustomAddrInput').focus();
+      } else {
+        baseLabel.className = 'flex items-start gap-3 p-3 rounded-xl border-2 border-teal-500 bg-teal-50/50 cursor-pointer transition hover:bg-teal-50';
+        customLabel.className = 'flex items-start gap-3 p-3 rounded-xl border-2 border-slate-200 bg-slate-50/50 cursor-pointer transition hover:bg-slate-50';
+        inputBox.classList.add('hidden');
+      }
+    }
+
+    async function confirmLocalDismissalAndNavi(naviType) {
+      if (!currentDriver || currentDriver === 'all') return;
+      var drvName = currentDriver.trim();
+      var regBase = getDriverRegisteredBase(drvName);
+      var isCustom = document.getElementById('dismissalOptCustom').checked;
+
+      var targetAddr = '';
+      var targetName = '';
+
+      if (isCustom) {
+        targetAddr = document.getElementById('dismissalCustomAddrInput').value.trim();
+        targetName = '현지 퇴근지';
+        if (!targetAddr) {
+          alert('도착지 주소를 입력해주세요.');
+          return;
+        }
+      } else {
+        if (!regBase || !regBase.addr) {
+          alert(`[${drvName}] 기사님의 등록 거점 주소가 없습니다.\n[다른 주소 직접 입력]을 이용해주세요.`);
+          return;
+        }
+        targetAddr = regBase.addr;
+        targetName = regBase.name || (drvName + ' 자택');
+      }
+
+      // 1. SYNCHRONOUS APP LAUNCH (모바일 팝업/인텐트 차단 방지를 위해 즉시 실행)
+      if (naviType && naviType !== 'none') {
+        launchNaviApp(targetAddr, targetName, naviType);
+      }
+
+      // 2. 스케줄 배송 건에 현지 퇴근 정보 기록
+      var dateStr = getCurrentViewingDate();
+      var driverStops = records.filter(function(r) {
+        return r.배송일자 === dateStr && (r.담당기사 || '').trim() === drvName;
+      });
+
+      if (driverStops.length === 0) {
+        alert('오늘 배송 스케줄이 없습니다.');
+        closeLocalDismissalModal();
+        return;
+      }
+
+      var targetIdx = Number(document.getElementById('dismissalTargetStopIdx').value);
+      var targetStop = (targetIdx >= 0 && targetIdx < records.length)
+        ? records[targetIdx]
+        : driverStops[driverStops.length - 1];
+
+      // 다른 건 해제
+      driverStops.forEach(function(other) {
+        if (other !== targetStop) {
+          var ot = getStopTimes(other);
+          if (ot.local_dismissal) {
+            ot.local_dismissal = false;
+            var oj = JSON.stringify(ot);
+            other.추후일정_특이사항 = oj;
+            if (supabaseClient && other.ID) {
+              supabaseClient.from('delivery_schedules').update({ memo_special: oj }).eq('id', other.ID).then();
+            }
+          }
+        }
+      });
+
+      var times = getStopTimes(targetStop);
+      times.local_dismissal = true;
+      times.dismissal_type = isCustom ? 'custom' : 'registered';
+      times.dismissal_addr = targetAddr;
+      times.dismissal_name = targetName;
+      var jsonStr = JSON.stringify(times);
+      targetStop.추후일정_특이사항 = jsonStr;
+
+      if (supabaseClient && targetStop.ID) {
+        await supabaseClient.from('delivery_schedules').update({ memo_special: jsonStr }).eq('id', targetStop.ID);
+      }
+
+      cachedRoadRouteData = null;
+      renderRouteMap({ fitBounds: false });
+      closeLocalDismissalModal();
+      showToast(`🏠 [${targetName}] 도착지로 현지 퇴근이 지정되었습니다!`);
     }
 
     async function handleArrivalLocalDismissalAction(isDismissal) {
@@ -3406,59 +3652,16 @@
         return;
       }
 
-      var drvName = currentDriver.trim();
-      var regBase = getDriverRegisteredBase(drvName);
-      if (isDismissal && (!regBase || !regBase.addr)) {
-        alert(`[${drvName}] 기사님의 등록 거점이 없습니다.\n상단 거점 설정에서 자택 거점 주소를 먼저 등록해주세요.`);
-        if (typeof openDriverOriginSettingsModal === 'function') openDriverOriginSettingsModal();
-        return;
-      }
-
-      var dateStr = getCurrentViewingDate();
-      var driverStops = records.filter(function(r) {
-        return r.배송일자 === dateStr && (r.담당기사 || '').trim() === drvName;
-      });
-
-      if (driverStops.length === 0) {
-        alert(`[${drvName}] 기사님의 오늘 배송 스케줄이 없습니다.`);
-        return;
-      }
-
       if (isDismissal) {
-        // 마지막 배송지에 현지 퇴근 플래그 설정
-        var lastStop = driverStops[driverStops.length - 1];
-
-        driverStops.forEach(function(other) {
-          if (other !== lastStop) {
-            var ot = getStopTimes(other);
-            if (ot.local_dismissal) {
-              ot.local_dismissal = false;
-              var oj = JSON.stringify(ot);
-              other.추후일정_특이사항 = oj;
-              if (supabaseClient && other.ID) {
-                supabaseClient.from('delivery_schedules').update({ memo_special: oj }).eq('id', other.ID).then();
-              }
-            }
-          }
-        });
-
-        var times = getStopTimes(lastStop);
-        times.local_dismissal = true;
-        var jsonStr = JSON.stringify(times);
-        lastStop.추후일정_특이사항 = jsonStr;
-
-        if (supabaseClient && lastStop.ID) {
-          await supabaseClient.from('delivery_schedules').update({ memo_special: jsonStr }).eq('id', lastStop.ID);
-        }
-
-        cachedRoadRouteData = null;
-        renderRouteMap({ fitBounds: false });
-        showToast(`🏠 [${regBase.name || drvName + ' 자택'}] 등록 거점으로 현지 퇴근 전환되었습니다.`);
-
-        // 티맵 실행
-        openDestinationTmap();
+        openLocalDismissalModal(-1);
       } else {
         // 현지 퇴근 해제 (센터 복귀)
+        var drvName = currentDriver.trim();
+        var dateStr = getCurrentViewingDate();
+        var driverStops = records.filter(function(r) {
+          return r.배송일자 === dateStr && (r.담당기사 || '').trim() === drvName;
+        });
+
         driverStops.forEach(function(r) {
           var t = getStopTimes(r);
           if (t.local_dismissal) {
@@ -3477,34 +3680,60 @@
       }
     }
 
+    function launchNaviApp(targetAddr, targetName, naviType) {
+      var clean = (targetAddr || '').replace(/\([^)]*\)/g, '').trim();
+      var query = clean || targetName || '도착지';
+      var isAndroid = /Android/i.test(navigator.userAgent);
+      var isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+      if (naviType === 'kakao') {
+        if (isAndroid || isIOS) {
+          window.location.href = 'kakaonavi://search?q=' + encodeURIComponent(query);
+          setTimeout(function() {
+            window.open('https://map.kakao.com/link/search/' + encodeURIComponent(query), '_blank');
+          }, 1500);
+        } else {
+          window.open('https://map.kakao.com/link/search/' + encodeURIComponent(query), '_blank');
+        }
+        return;
+      }
+
+      if (naviType === 'tmap') {
+        if (isAndroid) {
+          var intentUrl = 'intent://search?name=' + encodeURIComponent(query) + '#Intent;scheme=tmap;package=com.skt.tmap.ku;end';
+          window.location.href = intentUrl;
+          setTimeout(function() {
+            window.open('https://map.kakao.com/link/search/' + encodeURIComponent(query), '_blank');
+          }, 1500);
+        } else if (isIOS) {
+          var tmapScheme = 'tmap://search?name=' + encodeURIComponent(query);
+          window.location.href = tmapScheme;
+          setTimeout(function() {
+            window.open('https://apps.apple.com/kr/app/t-map/id431589174', '_blank');
+          }, 1500);
+        } else {
+          try {
+            window.location.href = 'tmap://search?name=' + encodeURIComponent(query);
+          } catch(e) {}
+          window.open('https://map.kakao.com/link/search/' + encodeURIComponent(query), '_blank');
+        }
+        return;
+      }
+    }
+
     function openDestinationTmap(customAddr, customName) {
       var isDismissal = checkIsLocalDismissalForDriver(currentDriver, currentDate);
       var regBase = getDriverRegisteredBase(currentDriver);
-      var targetAddr = customAddr || (isDismissal ? (regBase && regBase.addr ? regBase.addr : '') : DEFAULT_GASAN_ORIGIN.addr);
-      var targetName = customName || (isDismissal ? (regBase && regBase.name ? regBase.name : (currentDriver + ' 자택')) : DEFAULT_GASAN_ORIGIN.name);
+      var disInfo = getDriverDismissalInfo(currentDriver, currentDate);
+      var targetAddr = customAddr || (isDismissal ? (disInfo.addr || (regBase && regBase.addr ? regBase.addr : '')) : DEFAULT_GASAN_ORIGIN.addr);
+      var targetName = customName || (isDismissal ? (disInfo.name || (regBase && regBase.name ? regBase.name : (currentDriver + ' 자택'))) : DEFAULT_GASAN_ORIGIN.name);
 
       if (!targetAddr) {
         alert('안내할 도착지 주소가 등록되어 있지 않습니다.');
         return;
       }
 
-      var clean = targetAddr.replace(/\([^)]*\)/g, '').trim();
-      var tmapAppUrl = 'tmap://search?name=' + encodeURIComponent(clean || targetName);
-      var tmapWebUrl = 'https://surl.tmap.co.kr/search?name=' + encodeURIComponent(clean || targetName);
-      var kakaoWebUrl = 'https://map.kakao.com/link/search/' + encodeURIComponent(clean || targetName);
-
-      var isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-      if (isMobile) {
-        window.location.href = tmapAppUrl;
-        setTimeout(function() {
-          window.open(tmapWebUrl, '_blank');
-        }, 1200);
-      } else {
-        try {
-          window.location.href = tmapAppUrl;
-        } catch(e) {}
-        window.open(kakaoWebUrl, '_blank');
-      }
+      launchNaviApp(targetAddr, targetName, 'tmap');
     }
 
     function copyNotifyMessage() {
@@ -3964,11 +4193,12 @@
       if (!isAllDrivers && activeRecords.length > 0) {
         var isLocalDismissal = checkIsLocalDismissalForDriver(currentDriver, currentDate);
         var regBase = getDriverRegisteredBase(currentDriver);
+        var disInfo = getDriverDismissalInfo(currentDriver, currentDate);
         var destName = isLocalDismissal 
-          ? (regBase && regBase.name ? ('🏠 ' + regBase.name + ' (현지 퇴근)') : '🏠 현지 퇴근 마감')
+          ? (disInfo.name ? ('🏠 ' + disInfo.name + (disInfo.type === 'custom' ? ' (현지 퇴근)' : ' (현지 퇴근)')) : (regBase && regBase.name ? ('🏠 ' + regBase.name + ' (현지 퇴근)') : '🏠 현지 퇴근'))
           : '🏢 가산 센터 (복귀)';
         var destAddr = isLocalDismissal 
-          ? ((regBase && regBase.addr) || '현지 배송지에서 운행 마감')
+          ? (disInfo.addr || (regBase && regBase.addr) || '현지 배송지에서 운행 마감')
           : DEFAULT_GASAN_ORIGIN.addr;
 
         var arrivalCardHtml = `
@@ -3978,7 +4208,7 @@
                 <span class="w-5 h-5 rounded-lg ${isLocalDismissal ? 'bg-teal-600' : 'bg-indigo-600'} text-white flex items-center justify-center text-[10px] shadow-xs">
                   <i class="fa-solid fa-flag-checkered"></i>
                 </span>
-                <span class="text-xs">최종 도착지:</span>
+                <span class="text-xs">도착지:</span>
                 <span class="text-xs font-black ${isLocalDismissal ? 'text-teal-800' : 'text-indigo-900'}">${destName}</span>
                 <span class="text-[9px] ${isLocalDismissal ? 'bg-teal-100 text-teal-800 border-teal-300' : 'bg-indigo-100 text-indigo-800 border-indigo-200'} px-1.5 py-0.5 rounded-full font-bold border">
                   ${isLocalDismissal ? '현지 퇴근 적용됨' : '기본 왕복 복귀'}
@@ -3986,14 +4216,18 @@
               </div>
               <div class="flex items-center gap-1.5 shrink-0">
                 ${!isLocalDismissal ? `
-                  <button type="button" onclick="handleArrivalLocalDismissalAction(true)" class="px-2.5 py-1 rounded-lg text-[11px] font-black bg-teal-600 hover:bg-teal-700 text-white flex items-center gap-1 shadow-xs transition active:scale-95" title="현지 퇴근으로 전환하고 등록거점으로 티맵을 실행합니다">
+                  <button type="button" onclick="handleArrivalLocalDismissalAction(true)" class="px-2.5 py-1 rounded-lg text-[11px] font-black bg-teal-600 hover:bg-teal-700 text-white flex items-center gap-1 shadow-xs transition active:scale-95" title="현지 퇴근으로 전환하고 도착지 선택 팝업을 엽니다">
                     <i class="fa-solid fa-house-user"></i>
                     <span>현지퇴근 (티맵)</span>
                   </button>
                 ` : `
-                  <button type="button" onclick="openDestinationTmap()" class="px-2.5 py-1 rounded-lg text-[11px] font-black bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1 shadow-xs transition active:scale-95" title="등록거점 주소로 티맵 내비게이션 실행">
+                  <button type="button" onclick="openDestinationTmap()" class="px-2.5 py-1 rounded-lg text-[11px] font-black bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1 shadow-xs transition active:scale-95" title="도착지 주소로 티맵 내비게이션 실행">
                     <i class="fa-solid fa-location-arrow"></i>
                     <span>티맵 안내</span>
+                  </button>
+                  <button type="button" onclick="openLocalDismissalModal(-1)" class="px-2 py-1 rounded-lg text-[10.5px] font-bold bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200 flex items-center gap-1 transition active:scale-95" title="도착지 변경">
+                    <i class="fa-solid fa-pen"></i>
+                    <span>도착지 변경</span>
                   </button>
                   <button type="button" onclick="handleArrivalLocalDismissalAction(false)" class="px-2 py-1 rounded-lg text-[10.5px] font-bold bg-slate-200 hover:bg-slate-300 text-slate-700 flex items-center gap-1 transition active:scale-95" title="가산 센터 기본 복귀로 전환">
                     <i class="fa-solid fa-rotate-left"></i>
@@ -4013,7 +4247,7 @@
               </button>
             </div>
             <p class="text-[9.5px] text-slate-400 text-center leading-tight">
-              ${isLocalDismissal ? '* 배송 건에서 현지 퇴근이 선택되어 센터 복귀 거리가 제외되고 등록 거점으로 안내됩니다.' : '* 배송 완료 후 센터로 복귀하는 왕복 경로가 기본 적용됩니다. [현지퇴근] 버튼을 누르면 등록 거점으로 티맵이 실행됩니다.'}
+              ${isLocalDismissal ? '* 배송 건에서 현지 퇴근이 선택되어 센터 복귀 거리가 제외되고 도착지로 안내됩니다.' : '* 배송 완료 후 센터로 복귀하는 왕복 경로가 기본 적용됩니다. [현지퇴근] 버튼을 누르면 도착지 선택 및 티맵이 실행됩니다.'}
             </p>
           </div>
         `;
@@ -4034,22 +4268,30 @@
 
       var isLocalDismissal = checkIsLocalDismissalForDriver(currentDriver, currentDate);
       var regBase = getDriverRegisteredBase(currentDriver);
+      var disInfo = getDriverDismissalInfo(currentDriver, currentDate);
+
+      // 도착지 좌표 계산
+      var destCoord = DEFAULT_GASAN_ORIGIN;
+      if (isLocalDismissal) {
+        if (disInfo.addr) {
+          var c = getCoordForAddress(disInfo.addr);
+          if (c && c.lat && c.lng) {
+            destCoord = { lat: c.lat, lng: c.lng, name: disInfo.name || '현지 퇴근지' };
+          } else if (regBase && regBase.lat) {
+            destCoord = regBase;
+          }
+        } else if (regBase && regBase.lat && regBase.lng) {
+          destCoord = regBase;
+        }
+      }
 
       if (!isRoadRouteMode) {
         // [기본 모드: 직선거리 배정]
         if (!isAllDrivers && kakaoMap && window.kakao && kakao.maps.Polyline && linePath.length > 0) {
-          // 최종 도착지(가산센터 또는 등록거점) 라인패스에 추가
-          if (isLocalDismissal) {
-            if (regBase && regBase.lat && regBase.lng) {
-              var destPos = new kakao.maps.LatLng(regBase.lat, regBase.lng);
-              linePath.push(destPos);
-              if (bounds) bounds.extend(destPos);
-            }
-          } else {
-            var destPos = new kakao.maps.LatLng(DEFAULT_GASAN_ORIGIN.lat, DEFAULT_GASAN_ORIGIN.lng);
-            linePath.push(destPos);
-            if (bounds) bounds.extend(destPos);
-          }
+          // 도착지 라인패스에 추가
+          var destPos = new kakao.maps.LatLng(destCoord.lat, destCoord.lng);
+          linePath.push(destPos);
+          if (bounds) bounds.extend(destPos);
 
           if (linePath.length > 1) {
             var straightLine = new kakao.maps.Polyline({
@@ -4093,14 +4335,8 @@
         var validCoords = coords.filter(function(c) { return c && c.lat && c.lng; });
         var routePoints = [{ lat: originCoord.lat, lng: originCoord.lng }].concat(validCoords);
 
-        // 최종 도착지 포인트 추가 (기본: 가산 센터 복귀 왕복 / 현지 퇴근 시: 등록 거점 자택)
-        if (isLocalDismissal) {
-          if (regBase && regBase.lat && regBase.lng) {
-            routePoints.push({ lat: regBase.lat, lng: regBase.lng });
-          }
-        } else {
-          routePoints.push({ lat: DEFAULT_GASAN_ORIGIN.lat, lng: DEFAULT_GASAN_ORIGIN.lng });
-        }
+        // 도착지 포인트 추가
+        routePoints.push({ lat: destCoord.lat, lng: destCoord.lng });
 
         if (routePoints.length > 1) {
           await renderRealRoadPolyline(routePoints, bounds, fitBounds);
