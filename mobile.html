@@ -1958,43 +1958,7 @@
         container.appendChild(card);
       });
 
-      // Render Arrival Card in mobile
-      if (driverRecords.length > 0) {
-        var dest = getMobileDriverDestination();
-        var isGasan = (dest.type === 'gasan' || (dest.addr && dest.addr.indexOf('벚꽃로 278') !== -1));
-
-        var arrivalCard = document.createElement('div');
-        arrivalCard.className = `p-3.5 rounded-2xl bg-gradient-to-r from-slate-50 via-indigo-50/40 to-slate-50 border-2 border-indigo-200 shadow-xs mt-2 space-y-2`;
-        arrivalCard.innerHTML = `
-          <div class="flex items-center justify-between gap-2">
-            <div class="flex items-center gap-1.5 font-black text-slate-900">
-              <span class="w-5 h-5 rounded-lg bg-indigo-600 text-white flex items-center justify-center text-[10px] shadow-xs">
-                <i class="fa-solid fa-flag-checkered"></i>
-              </span>
-              <span class="text-xs">도착지:</span>
-              <span class="text-xs font-black text-indigo-900">${dest.name || '가산 센터'}</span>
-              <span class="text-[9px] ${isGasan ? 'bg-indigo-100 text-indigo-800 border-indigo-200' : 'bg-emerald-100 text-emerald-800 border-emerald-200'} px-1.5 py-0.5 rounded-full font-bold border">
-                ${isGasan ? '🏢 가산 센터' : '📍 변경된 도착지'}
-              </span>
-            </div>
-            <div class="flex items-center gap-1.5 shrink-0">
-              <button type="button" onclick="openMobileChangeDestinationModal()" class="px-2.5 py-1.5 rounded-xl text-xs font-bold bg-white hover:bg-indigo-50 text-indigo-700 border border-indigo-200 flex items-center gap-1 transition active:scale-95" title="도착지 변경">
-                <i class="fa-solid fa-pen-to-square text-[10px]"></i>
-                <span>도착지 변경</span>
-              </button>
-              <button type="button" onclick="openMobileReturnModal(event)" class="px-2.5 py-1.5 rounded-xl text-xs font-black bg-indigo-600 hover:bg-indigo-700 text-white flex items-center gap-1 shadow-sm transition active:scale-95" title="복귀지 선택 (센터/거점 티맵)">
-                <i class="fa-solid fa-house-chimney text-[10px]"></i>
-                <span>복귀</span>
-              </button>
-            </div>
-          </div>
-          <div class="text-[11px] text-slate-600 bg-white/95 px-2.5 py-2 rounded-xl border border-slate-200 flex items-center gap-1.5">
-            <i class="fa-solid fa-location-dot text-indigo-600 text-xs shrink-0"></i>
-            <span class="truncate font-semibold text-slate-800 text-[11px]">${dest.addr}</span>
-          </div>
-        `;
-        container.appendChild(arrivalCard);
-      }
+      // End of stop cards list
 
       if (prevScrollY > 0) {
         window.scrollTo({ top: prevScrollY, behavior: 'instant' });
