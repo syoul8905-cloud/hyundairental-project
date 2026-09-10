@@ -141,9 +141,12 @@
           <i class="fa-solid fa-table-list text-violet-600"></i> 배송지별 운행 시간 기록부
         </h2>
         <span class="text-slate-400 font-bold">조회: <b id="tableCount" class="text-violet-600">0</b>건</span>
+        <button type="button" onclick="sortRecordsByTime(true)" class="ml-2 text-[11px] px-2.5 py-1 bg-violet-50 hover:bg-violet-100 text-violet-700 font-bold rounded-lg border border-violet-200 flex items-center gap-1 transition shadow-2xs" title="실제 운행 시각 및 희망시간 기준으로 순번 자동 정렬">
+          <i class="fa-solid fa-arrow-down-short-wide text-violet-600"></i> 시간순 자동 정렬
+        </button>
       </div>
       <div class="text-[11px] text-slate-400">
-        * 티맵 안내 클릭 시 <b>출발 시각</b>이, 배송지 도착 클릭 시 <b>도착 시각</b>이 자동 동기화됩니다.
+        * 순번의 <b>▲ / ▼</b> 버튼 또는 번호를 클릭하여 순서를 자유롭게 조정할 수 있습니다.
       </div>
     </div>
 
@@ -152,7 +155,8 @@
         <table class="w-full text-left whitespace-nowrap text-xs">
           <thead class="bg-slate-50 text-slate-600 font-bold border-b border-slate-200 sticky top-0 z-10">
             <tr>
-              <th class="py-2.5 px-3 text-center">순번</th>
+              <th class="py-2.5 px-3 text-center">순번 (순서조정)</th>
+
               <th class="py-2.5 px-3">담당기사</th>
               <th class="py-2.5 px-3">고객사명</th>
               <th class="py-2.5 px-3">배송지 주소</th>
@@ -333,8 +337,25 @@
                  row.delivery_date !== '1970-01-01';
         });
 
+        // 기본 정렬: stop_order가 모두 부여되어 있으면 stop_order 우선, 아니면 시간순 정렬
+        records.sort(function(a, b) {
+          var ordA = (typeof a.stop_order === 'number' && a.stop_order > 0) ? a.stop_order : null;
+          var ordB = (typeof b.stop_order === 'number' && b.stop_order > 0) ? b.stop_order : null;
+
+          if (ordA !== null && ordB !== null && ordA !== ordB) {
+            return ordA - ordB;
+          }
+
+          var timeA = getRecordSortTimeMinutes(a);
+          var timeB = getRecordSortTimeMinutes(b);
+          if (timeA !== timeB) return timeA - timeB;
+
+          return (a.id || 0) - (b.id || 0);
+        });
+
         updateDriverFilter();
         renderTimeTable();
+
 
         if (syncIcon) syncIcon.classList.remove('fa-spin');
         if (!isSilent) showToast('⚡ ' + records.length + '건 시간 기록 동기화 완료!');
@@ -425,7 +446,17 @@
         }
 
         tr.innerHTML = `
-          <td class="py-2.5 px-3 text-center font-bold text-slate-400">${idx + 1}</td>
+          <td class="py-2.5 px-2 text-center">
+            <div class="inline-flex items-center gap-1">
+              <button type="button" onclick="moveRecordOrder(${idx}, -1)" ${idx === 0 ? 'disabled' : ''} class="w-5 h-5 flex items-center justify-center rounded bg-slate-100 hover:bg-violet-100 text-slate-500 hover:text-violet-700 disabled:opacity-25 disabled:hover:bg-slate-100 disabled:cursor-not-allowed transition text-[9px]" title="순번 위로 이동">
+                <i class="fa-solid fa-chevron-up"></i>
+              </button>
+              <span class="w-6 text-center font-black text-xs text-slate-800 cursor-pointer hover:text-violet-600 hover:underline" onclick="promptChangeOrder(${idx})" title="클릭하여 순번 직접 입력">${idx + 1}</span>
+              <button type="button" onclick="moveRecordOrder(${idx}, 1)" ${idx === filtered.length - 1 ? 'disabled' : ''} class="w-5 h-5 flex items-center justify-center rounded bg-slate-100 hover:bg-violet-100 text-slate-500 hover:text-violet-700 disabled:opacity-25 disabled:hover:bg-slate-100 disabled:cursor-not-allowed transition text-[9px]" title="순번 아래로 이동">
+                <i class="fa-solid fa-chevron-down"></i>
+              </button>
+            </div>
+          </td>
           <td class="py-2.5 px-3 font-bold text-slate-800">
             ${r.driver_name ? `<span class="bg-amber-50 text-amber-800 border border-amber-200 px-2 py-0.5 rounded-lg text-xs font-black">🚗 ${r.driver_name}</span>` : '<span class="text-slate-300">미배정</span>'}
           </td>
@@ -467,6 +498,127 @@
         document.getElementById('kpiAvgDuration').innerText = '-';
       }
     }
+
+    // ==========================================
+    // Sequence (순번) & Time Sorting Engine
+    // ==========================================
+    function getRecordSortTimeMinutes(r) {
+      var times = getStopTimes(r);
+      if (times.depart) {
+        var m = parseTimeMinutes(times.depart);
+        if (m > 0) return m;
+      }
+      if (times.arrive) {
+        var m = parseTimeMinutes(times.arrive);
+        if (m > 0) return m;
+      }
+
+      var vt = (r.visit_time || '').trim();
+      if (vt) {
+        if (vt.indexOf('9시이전') !== -1 || vt.indexOf('09시이전') !== -1) return 8 * 60;
+        if (vt.indexOf('오전') !== -1) return 9 * 60;
+        var match = vt.match(/(\d{1,2})[:시\s]*(\d{0,2})/);
+        if (match) {
+          var h = parseInt(match[1], 10);
+          var min = match[2] ? parseInt(match[2], 10) : 0;
+          if (h >= 1 && h <= 7) h += 12;
+          return h * 60 + min;
+        }
+        if (vt.indexOf('오후') !== -1) return 13 * 60;
+      }
+
+      return 1439;
+    }
+
+    async function sortRecordsByTime(saveToCloud) {
+      records.sort(function(a, b) {
+        var timeA = getRecordSortTimeMinutes(a);
+        var timeB = getRecordSortTimeMinutes(b);
+        if (timeA !== timeB) return timeA - timeB;
+        return (a.id || 0) - (b.id || 0);
+      });
+
+      renderTimeTable();
+      if (saveToCloud) {
+        await saveRecordsOrderToCloud();
+        showToast('⏰ 시간 순서대로 순번이 자동 정렬되었습니다.');
+      }
+    }
+
+    async function moveRecordOrder(filteredIdx, delta) {
+      var driverFilter = document.getElementById('driverFilterSelect') ? document.getElementById('driverFilterSelect').value : 'all';
+      var filtered = records.filter(function(r) {
+        if (driverFilter !== 'all' && (r.driver_name || '').trim() !== driverFilter) return false;
+        return true;
+      });
+
+      var targetIdx = filteredIdx + delta;
+      if (targetIdx < 0 || targetIdx >= filtered.length) return;
+
+      var recA = filtered[filteredIdx];
+      var recB = filtered[targetIdx];
+
+      var origIdxA = records.indexOf(recA);
+      var origIdxB = records.indexOf(recB);
+      if (origIdxA === -1 || origIdxB === -1) return;
+
+      records.splice(origIdxA, 1);
+      records.splice(origIdxB, 0, recA);
+
+      renderTimeTable();
+      await saveRecordsOrderToCloud();
+    }
+
+    async function promptChangeOrder(filteredIdx) {
+      var driverFilter = document.getElementById('driverFilterSelect') ? document.getElementById('driverFilterSelect').value : 'all';
+      var filtered = records.filter(function(r) {
+        if (driverFilter !== 'all' && (r.driver_name || '').trim() !== driverFilter) return false;
+        return true;
+      });
+
+      var currentNum = filteredIdx + 1;
+      var input = prompt('[' + (filtered[filteredIdx].customer_name || '고객사') + '] 변경할 순번을 입력하세요 (1 ~ ' + filtered.length + '):', currentNum);
+      if (!input) return;
+      var newNum = parseInt(input.trim(), 10);
+      if (isNaN(newNum) || newNum < 1 || newNum > filtered.length || newNum === currentNum) return;
+
+      var recA = filtered[filteredIdx];
+      var targetFilteredIdx = newNum - 1;
+      var recB = filtered[targetFilteredIdx];
+
+      var origIdxA = records.indexOf(recA);
+      var origIdxB = records.indexOf(recB);
+      if (origIdxA === -1 || origIdxB === -1) return;
+
+      records.splice(origIdxA, 1);
+      records.splice(origIdxB, 0, recA);
+
+      renderTimeTable();
+      await saveRecordsOrderToCloud();
+    }
+
+    async function saveRecordsOrderToCloud() {
+      if (!supabaseClient) return;
+      try {
+        var updates = [];
+        for (var i = 0; i < records.length; i++) {
+          records[i].stop_order = i + 1;
+          if (records[i].id) {
+            updates.push(
+              supabaseClient.from('delivery_schedules')
+                .update({ stop_order: i + 1 })
+                .eq('id', records[i].id)
+            );
+          }
+        }
+        await Promise.all(updates);
+        showToast('✅ 배송 순번이 클라우드에 영구 저장되었습니다.');
+      } catch (err) {
+        console.error('saveRecordsOrderToCloud error:', err);
+        showToast('❌ 순번 저장 실패: ' + (err.message || err));
+      }
+    }
+
 
     // ==========================================
     // Edit Delivery Time Modal Engine (운행시간 관리)
