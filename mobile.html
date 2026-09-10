@@ -947,6 +947,7 @@
 
     function renderCards() {
       var container = document.getElementById('cardsContainer');
+      var prevScrollY = window.scrollY || document.documentElement.scrollTop;
       container.innerHTML = '';
 
       var total = driverRecords.length;
@@ -1158,6 +1159,10 @@
 
         container.appendChild(card);
       });
+
+      if (prevScrollY > 0) {
+        window.scrollTo({ top: prevScrollY, behavior: 'instant' });
+      }
     }
 
     // ==========================================

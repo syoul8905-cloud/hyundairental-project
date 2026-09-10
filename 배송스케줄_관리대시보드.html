@@ -721,6 +721,80 @@
     </div>
   </div>
 
+  <!-- ========================================== -->
+  <!-- Edit Delivery Time Modal (관리자 운행시간 관리) -->
+  <!-- ========================================== -->
+  <div id="editTimeModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50" onclick="if(event.target===this)closeEditTimeModal()">
+    <div class="bg-white rounded-2xl max-w-sm w-full p-5 shadow-2xl border border-slate-200 space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <h3 class="font-black text-sm text-slate-900 flex items-center gap-2">
+          <i class="fa-solid fa-stopwatch text-indigo-600"></i> 배송 운행 시간 관리
+        </h3>
+        <button type="button" onclick="closeEditTimeModal()" class="text-slate-400 hover:text-slate-600 text-base">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <input type="hidden" id="editTimeIndex" value="-1">
+
+      <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
+        <div class="flex items-center justify-between">
+          <span id="editTimeCustName" class="font-black text-slate-900 text-xs truncate">고객사명</span>
+          <span id="editTimeStatusBadge" class="text-[10px] px-2 py-0.5 rounded-full font-bold bg-slate-200 text-slate-700">진행중</span>
+        </div>
+        <div class="text-[10px] text-slate-500 font-medium flex items-center gap-2">
+          <span id="editTimeDriverName">🚗 기사: 미지정</span>
+          <span>|</span>
+          <span id="editTimeContractNo" class="font-mono">계약번호: -</span>
+        </div>
+      </div>
+
+      <div class="space-y-3 text-xs">
+        <!-- 출발 시각 입력 -->
+        <div>
+          <label class="block text-[11px] font-bold text-slate-700 mb-1 flex items-center justify-between">
+            <span class="flex items-center gap-1"><i class="fa-solid fa-location-arrow text-indigo-600"></i> 출발 시각 (티맵 시작)</span>
+            <div class="flex items-center gap-1">
+              <button type="button" onclick="setEditTimeNow('depart')" class="text-[10px] px-1.5 py-0.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold rounded border border-indigo-200 transition">현재시각</button>
+              <button type="button" onclick="clearEditTimeField('depart')" class="text-[10px] px-1.5 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded border border-slate-200 transition">지우기</button>
+            </div>
+          </label>
+          <input type="time" id="editTimeDepart" oninput="onEditTimeInputsChanged()" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold focus:outline-none focus:border-indigo-500">
+        </div>
+
+        <!-- 도착 시각 입력 -->
+        <div>
+          <label class="block text-[11px] font-bold text-slate-700 mb-1 flex items-center justify-between">
+            <span class="flex items-center gap-1"><i class="fa-solid fa-flag-checkered text-emerald-600"></i> 도착 시각 (배송지 도착)</span>
+            <div class="flex items-center gap-1">
+              <button type="button" onclick="setEditTimeNow('arrive')" class="text-[10px] px-1.5 py-0.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold rounded border border-emerald-200 transition">현재시각</button>
+              <button type="button" onclick="clearEditTimeField('arrive')" class="text-[10px] px-1.5 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded border border-slate-200 transition">지우기</button>
+            </div>
+          </label>
+          <input type="time" id="editTimeArrive" oninput="onEditTimeInputsChanged()" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold focus:outline-none focus:border-emerald-500">
+        </div>
+
+        <!-- 실시간 소요시간 및 상태 계산 안내 카드 -->
+        <div id="editTimeDurationCard" class="p-2.5 bg-indigo-50/60 border border-indigo-200/80 rounded-xl text-xs flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <i class="fa-solid fa-clock text-indigo-600 text-sm"></i>
+            <span id="editTimeDurationText" class="font-black text-indigo-900">운행 시간 미입력</span>
+          </div>
+          <span id="editTimeAutoStatus" class="text-[10px] px-2 py-0.5 rounded-full font-bold bg-white text-indigo-700 border border-indigo-200">상태: 유지</span>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+        <button type="button" onclick="closeEditTimeModal()" class="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-xl text-xs transition">
+          취소
+        </button>
+        <button type="button" onclick="saveEditTimeModal()" class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-xs transition flex items-center gap-1.5 shadow-sm">
+          <i class="fa-solid fa-check"></i> 변경사항 저장
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- Add Stop Modal -->
   <div id="addStopModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50" onclick="if(event.target===this)closeAddStopModal()">
     <div class="bg-white rounded-2xl max-w-md w-full p-5 shadow-2xl border border-slate-200 space-y-4">
@@ -1847,6 +1921,18 @@
     var draggedStopIndex = null;
     var parsedCsvPendingData = null;
 
+    // 동기화 안전 잠금 및 상태 보존 가드 (회귀 방지 및 깜빡임 0%)
+    var pendingSyncIds = new Set();
+    var lastDataHash = '';
+    var currentSelectedDriverFilter = 'all';
+
+    function calcRecordsHash(recs) {
+      if (!recs || recs.length === 0) return 'empty';
+      return recs.map(function(r) {
+        return (r.ID || '') + ':' + (r.담당기사 || '') + ':' + (r.의뢰상태 || '') + ':' + (r.추후일정_특이사항 || '') + ':' + (r.stop_order || '') + ':' + (r.방문시간 || '');
+      }).join('|');
+    }
+
     // Kakao Maps Instance & Geocoder & Places
     var kakaoMap = null;
     var kakaoGeocoder = null;
@@ -2769,6 +2855,7 @@
     });
 
     function selectDriverFromPopover(driverName) {
+      currentSelectedDriverFilter = driverName;
       var select = document.getElementById('driverFilterSelect');
       if (select) select.value = driverName;
       var mobileSelect = document.getElementById('driverFilterSelectMobile');
@@ -2781,8 +2868,7 @@
     function renderDriverSelectPopover() {
       var listEl = document.getElementById('driverSelectPopoverList');
       if (!listEl) return;
-      var select = document.getElementById('driverFilterSelect');
-      var currentVal = select ? select.value : 'all';
+      var currentVal = (currentSelectedDriverFilter !== undefined && currentSelectedDriverFilter !== null) ? currentSelectedDriverFilter : 'all';
 
       var driverCounts = {};
       var unassignedCount = 0;
@@ -2851,7 +2937,14 @@
     function updateDriverFilterOptions(forceResetToAll) {
       var select = document.getElementById('driverFilterSelect');
       if (!select) return;
-      var curr = forceResetToAll ? 'all' : (select.value || 'all');
+
+      if (forceResetToAll) {
+        currentSelectedDriverFilter = 'all';
+      }
+      var curr = (currentSelectedDriverFilter !== undefined && currentSelectedDriverFilter !== null)
+        ? currentSelectedDriverFilter
+        : (select.value !== undefined ? select.value : 'all');
+      currentSelectedDriverFilter = curr;
 
       var driverCounts = {};
       var hasUnassigned = false;
@@ -2890,7 +2983,7 @@
       var mobileSelect = document.getElementById('driverFilterSelectMobile');
       if (mobileSelect) {
         mobileSelect.innerHTML = select.innerHTML;
-        mobileSelect.value = select.value;
+        mobileSelect.value = curr;
       }
 
       // Populate modal quick select
@@ -2913,10 +3006,12 @@
     }
 
     function onDriverFilterChanged() {
+      var select = document.getElementById('driverFilterSelect');
+      if (select) currentSelectedDriverFilter = select.value;
       updateKPIs();
-      renderRouteMap();
+      renderRouteMap({ fitBounds: true });
       renderTable();
-      var filterVal = document.getElementById('driverFilterSelect') ? document.getElementById('driverFilterSelect').value : 'all';
+      var filterVal = currentSelectedDriverFilter;
       if (filterVal && filterVal !== 'all') {
         showToast('🚗 [' + filterVal + '] 기사 전용 동선으로 설정되었습니다.');
       } else {
@@ -3378,9 +3473,12 @@
     // ==========================================
     // Route Map & Timeline Rendering (Kakao Map)
     // ==========================================
-    async function renderRouteMap() {
+    async function renderRouteMap(options) {
+      options = options || {};
+      var fitBounds = (options.fitBounds !== false); // 기본값 true, 백그라운드 동기화 시 false
       var activeRecords = getFilteredRecords();
       var timelineBox = document.getElementById('routeTimeline');
+      var prevScrollTop = timelineBox ? timelineBox.scrollTop : 0;
       document.getElementById('timelineCount').innerText = activeRecords.length;
 
       // Clear existing Kakao overlays & lines
@@ -3670,13 +3768,21 @@
                 <i class="fa-solid fa-flag-checkered"></i> ${times.arrive ? '도착 ' + times.arrive : '배송지 도착'}
               </button>
               ${durMin !== null ? `
-                <span class="px-1.5 py-0.5 bg-indigo-50 text-indigo-700 font-bold text-[10px] rounded border border-indigo-200">
-                  ⏱️ ${durMin}분 소요
+                <span onclick="event.stopPropagation(); openEditTimeModal(${realIdx});" class="px-1.5 py-0.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-[10px] rounded border border-indigo-200 cursor-pointer" title="클릭하여 출발/도착 시간 및 소요시간 수정">
+                  ⏱️ ${durMin}분 소요 ✎
                 </span>
               ` : ''}
+              <button type="button" onclick="event.stopPropagation(); openEditTimeModal(${realIdx});" class="px-2 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 font-bold rounded-lg text-[10px] flex items-center gap-1 transition shadow-2xs" title="배송 운행 시간 및 소요시간 수정">
+                <i class="fa-solid fa-clock"></i> 시간수정
+              </button>
             </div>
           </div>
         `;
+      }
+
+      // 타임라인 스크롤 위치 완벽 복원 (보고 있던 화면 위치 고정)
+      if (timelineBox) {
+        timelineBox.scrollTop = prevScrollTop;
       }
 
       // Polyline 렌더링 (직선거리 vs 실제 도로 경로)
@@ -3700,7 +3806,7 @@
           kakaoPolylines.push(straightLine);
         }
 
-        if (kakaoMap && bounds) {
+        if (kakaoMap && bounds && fitBounds) {
           kakaoMap.setBounds(bounds);
         }
 
@@ -3731,7 +3837,7 @@
         );
 
         if (routePoints.length > 1) {
-          await renderRealRoadPolyline(routePoints, bounds);
+          await renderRealRoadPolyline(routePoints, bounds, fitBounds);
         } else {
           showToast('⚠️ 배송지가 2개소 이상 필요합니다.');
           switchToStraightRoute();
@@ -3742,7 +3848,8 @@
     // ==========================================
     // Real Road Route Calculation Engine (OSRM)
     // ==========================================
-    async function renderRealRoadPolyline(points, bounds) {
+    async function renderRealRoadPolyline(points, bounds, fitBounds) {
+      if (fitBounds === undefined) fitBounds = true;
       var calcIcon = document.getElementById('calcRoadRouteIcon');
       var calcText = document.getElementById('calcRoadRouteBtnText');
       var distEl = document.getElementById('routeDistanceText');
@@ -3826,7 +3933,7 @@
           <i class="fa-solid fa-car text-indigo-600"></i> 총 <b>${points.length - 1}</b>개소 배송 동선 <b>(실제 도로)</b>
         `;
 
-        if (bounds) {
+        if (bounds && fitBounds) {
           cachedRoadRouteData.roadLatLngs.forEach(function(ll, idx) {
             if (idx % 8 === 0) bounds.extend(ll);
           });
@@ -4500,13 +4607,19 @@
                 <i class="fa-solid fa-location-arrow"></i> ${times.depart ? times.depart : '티맵'}
               </button>
               ${times.arrive ? `
-                <span class="px-1.5 py-0.5 bg-emerald-100 text-emerald-800 rounded font-bold text-[9px]">
-                  🏁 ${times.arrive}
-                </span>
-              ` : `
-                <button onclick="recordArrivalTime(${realIdx})" class="px-1.5 py-0.5 bg-slate-100 hover:bg-emerald-50 text-slate-600 hover:text-emerald-700 border border-slate-200 hover:border-emerald-300 rounded font-bold text-[9px] transition" title="배송지 도착 시간 기록">
-                  도착
+                <button type="button" onclick="openEditTimeModal(${realIdx})" class="px-1.5 py-0.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 rounded font-bold text-[9px] flex items-center gap-1 transition shadow-2xs" title="클릭하여 출발/도착 시간 및 소요시간 수정">
+                  <span>🏁 ${times.arrive}</span>
+                  <i class="fa-solid fa-pencil text-[8px] text-emerald-600"></i>
                 </button>
+              ` : `
+                <div class="flex items-center gap-1">
+                  <button onclick="recordArrivalTime(${realIdx})" class="px-1.5 py-0.5 bg-slate-100 hover:bg-emerald-50 text-slate-600 hover:text-emerald-700 border border-slate-200 hover:border-emerald-300 rounded font-bold text-[9px] transition" title="배송지 도착 시간 기록">
+                    도착
+                  </button>
+                  <button type="button" onclick="openEditTimeModal(${realIdx})" class="px-1 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-500 rounded text-[9px]" title="시간 직접 수정">
+                    <i class="fa-solid fa-clock"></i>
+                  </button>
+                </div>
               `}
             </div>
           </td>
@@ -4725,10 +4838,11 @@
 
           <!-- Time Record Badges & Action Buttons -->
           <div class="flex items-center justify-between pt-1 border-t border-slate-100 text-xs">
-            <div class="flex items-center gap-1.5 flex-wrap">
-              ${times.depart ? `<span class="px-1.5 py-0.5 bg-blue-50 text-blue-700 font-bold rounded text-[10px] border border-blue-200">🚀 ${times.depart}</span>` : ''}
-              ${times.arrive ? `<span class="px-1.5 py-0.5 bg-emerald-50 text-emerald-700 font-bold rounded text-[10px] border border-emerald-200">🏁 ${times.arrive}</span>` : ''}
+            <div class="flex items-center gap-1.5 flex-wrap cursor-pointer" onclick="openEditTimeModal(${realIdx})" title="운행 시간 및 소요시간 수정">
+              ${times.depart ? `<span class="px-1.5 py-0.5 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold rounded text-[10px] border border-blue-200">🚀 ${times.depart}</span>` : ''}
+              ${times.arrive ? `<span class="px-1.5 py-0.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold rounded text-[10px] border border-emerald-200">🏁 ${times.arrive}</span>` : ''}
               ${durMin !== null ? `<span class="px-1.5 py-0.5 bg-indigo-50 text-indigo-700 font-bold rounded text-[10px]">⏱️ ${durMin}분</span>` : ''}
+              <span class="text-[10px] text-amber-700 font-bold flex items-center gap-0.5"><i class="fa-solid fa-clock text-[9px]"></i> ✎</span>
             </div>
 
             <div class="flex items-center gap-1">
@@ -4849,12 +4963,18 @@
 
       // Cloud Supabase batch update
       if (supabaseClient && idsToUpdate.length > 0) {
+        idsToUpdate.forEach(function(id) { pendingSyncIds.add(id); });
         try {
-          await supabaseClient.from('delivery_schedules')
+          var bRes = await supabaseClient.from('delivery_schedules')
             .update({ driver_name: newDriver })
             .in('id', idsToUpdate);
+          if (bRes.error) throw bRes.error;
+          lastDataHash = '';
         } catch(err) {
           console.error('Failed to batch update driver in cloud:', err);
+          showToast('⚠️ 일괄 배정 클라우드 동기화 중 오류가 발생했습니다.');
+        } finally {
+          idsToUpdate.forEach(function(id) { pendingSyncIds.delete(id); });
         }
       }
 
@@ -4862,7 +4982,7 @@
       updateDriverFilterOptions();
       updateKPIs();
       saveCurrentStopOrderToCloud(true);
-      renderRouteMap();
+      renderRouteMap({ fitBounds: false, isSilent: true });
       renderTable();
       showToast('🚗 선택된 ' + updatedCount + '건이 [' + newDriver + '] 기사님으로 일괄 배정되었습니다!');
 
@@ -4875,7 +4995,7 @@
       var r = records[realIdx];
       r.구분 = newCat;
       updateKPIs();
-      renderRouteMap();
+      renderRouteMap({ fitBounds: false, isSilent: true });
       renderTable();
 
       showToast('🏷️ [' + r.고객사 + '] 구분이 "' + newCat + '"(으)로 변경되었습니다!');
@@ -4895,7 +5015,7 @@
         r.담당기사 = '방문수령';
       }
       updateKPIs();
-      renderRouteMap();
+      renderRouteMap({ fitBounds: false, isSilent: true });
       renderTable();
 
       showToast('📦 [' + r.고객사 + '] 배송방법이 "' + newMethod + '"(으)로 변경되었습니다!');
@@ -4914,7 +5034,7 @@
       if (realIdx < 0 || realIdx >= records.length) return;
       var r = records[realIdx];
       r.비고_전문 = (newMemo || '').trim();
-      renderRouteMap();
+      renderRouteMap({ fitBounds: false, isSilent: true });
 
       showToast('📝 [' + r.고객사 + '] 비고가 저장되었습니다!');
 
@@ -4927,21 +5047,36 @@
       }
     }
 
-    function onInlineDriverChange(realIdx, newDriver) {
+    async function onInlineDriverChange(realIdx, newDriver) {
       if (realIdx < 0 || realIdx >= records.length) return;
       var r = records[realIdx];
+      var oldDriver = r.담당기사;
       r.담당기사 = newDriver;
+      if (r.ID) pendingSyncIds.add(r.ID);
+
       updateDriverFilterOptions();
       updateKPIs();
-      renderRouteMap();
+      renderRouteMap({ fitBounds: false, isSilent: true });
       renderTable();
 
       showToast('🚗 [' + r.고객사 + '] 담당기사가 "' + (newDriver || '미배정') + '"(으)로 배정되었습니다!');
 
       if (supabaseClient && r.ID) {
-        supabaseClient.from('delivery_schedules').update({ driver_name: newDriver }).eq('id', r.ID).then(function(res) {
-          if (res.error) console.error('DB Update error:', res.error);
-        });
+        try {
+          var res = await supabaseClient.from('delivery_schedules').update({ driver_name: newDriver }).eq('id', r.ID);
+          if (res.error) throw res.error;
+          lastDataHash = '';
+        } catch(err) {
+          console.error('DB Update error:', err);
+          r.담당기사 = oldDriver;
+          updateDriverFilterOptions();
+          updateKPIs();
+          renderRouteMap({ fitBounds: false, isSilent: true });
+          renderTable();
+          showToast('❌ 담당기사 DB 저장 실패: ' + (err.message || err));
+        } finally {
+          pendingSyncIds.delete(r.ID);
+        }
       }
     }
 
@@ -5016,26 +5151,165 @@
       closeEditStopModal();
       updateDriverFilterOptions();
       updateKPIs();
-      renderRouteMap();
+      renderRouteMap({ fitBounds: false, isSilent: true });
       renderTable();
 
+      if (r.ID) pendingSyncIds.add(r.ID);
+
       if (supabaseClient && r.ID) {
-        supabaseClient.from('delivery_schedules').update({
-          customer_name: cust,
-          address: r.주소,
-          visit_time: time,
-          category: type,
-          delivery_method: method,
-          items: item,
-          memo_full: memo,
-          driver_name: driver,
-          contact: combinedContact
-        }).eq('id', r.ID).then(function(res) {
-          if (res.error) console.error('DB Update error:', res.error);
-          else showToast('💾 Supabase DB에 성공적으로 저장되었습니다!');
-        });
+        try {
+          var res = await supabaseClient.from('delivery_schedules').update({
+            customer_name: cust,
+            address: r.주소,
+            visit_time: time,
+            category: type,
+            delivery_method: method,
+            items: item,
+            memo_full: memo,
+            driver_name: driver,
+            contact: combinedContact
+          }).eq('id', r.ID);
+          if (res.error) throw res.error;
+          lastDataHash = '';
+          showToast('💾 Supabase DB에 성공적으로 저장되었습니다!');
+        } catch(err) {
+          console.error('DB Update error:', err);
+          showToast('❌ 배송지 저장 실패: ' + (err.message || err));
+        } finally {
+          pendingSyncIds.delete(r.ID);
+        }
       } else {
         showToast('✅ [' + cust + '] 정보가 수정되었습니다!');
+      }
+    }
+
+    // ==========================================
+    // Edit Delivery Time Modal Engine (운행시간 관리)
+    // ==========================================
+    function openEditTimeModal(idx) {
+      if (idx < 0 || idx >= records.length) return;
+      var r = records[idx];
+      document.getElementById('editTimeIndex').value = idx;
+      document.getElementById('editTimeCustName').innerText = r.고객사 || '고객사';
+      document.getElementById('editTimeDriverName').innerText = '🚗 기사: ' + (r.담당기사 || '미지정');
+      document.getElementById('editTimeContractNo').innerText = '계약번호: ' + (r.계약번호 || '-');
+      document.getElementById('editTimeStatusBadge').innerText = r.의뢰상태 || '진행중';
+
+      var times = getStopTimes(r);
+      document.getElementById('editTimeDepart').value = times.depart || '';
+      document.getElementById('editTimeArrive').value = times.arrive || '';
+
+      onEditTimeInputsChanged();
+      document.getElementById('editTimeModal').classList.remove('hidden');
+    }
+
+    function closeEditTimeModal() {
+      document.getElementById('editTimeModal').classList.add('hidden');
+    }
+
+    function setEditTimeNow(field) {
+      var now = new Date();
+      var hh = String(now.getHours()).padStart(2, '0');
+      var mm = String(now.getMinutes()).padStart(2, '0');
+      var timeStr = hh + ':' + mm;
+      if (field === 'depart') {
+        document.getElementById('editTimeDepart').value = timeStr;
+      } else if (field === 'arrive') {
+        document.getElementById('editTimeArrive').value = timeStr;
+      }
+      onEditTimeInputsChanged();
+    }
+
+    function clearEditTimeField(field) {
+      if (field === 'depart') {
+        document.getElementById('editTimeDepart').value = '';
+      } else if (field === 'arrive') {
+        document.getElementById('editTimeArrive').value = '';
+      }
+      onEditTimeInputsChanged();
+    }
+
+    function onEditTimeInputsChanged() {
+      var dep = (document.getElementById('editTimeDepart').value || '').trim();
+      var arr = (document.getElementById('editTimeArrive').value || '').trim();
+      var durTextEl = document.getElementById('editTimeDurationText');
+      var autoStatusEl = document.getElementById('editTimeAutoStatus');
+
+      if (arr) {
+        if (dep) {
+          var dur = calculateDurationMinutes(dep, arr);
+          durTextEl.innerText = '⏱️ 소요시간: ' + (dur !== null ? dur + '분 소요' : '-');
+        } else {
+          durTextEl.innerText = '🏁 도착 시각: ' + arr + ' (출발 미입력)';
+        }
+        autoStatusEl.innerText = '상태: 도착완료';
+        autoStatusEl.className = 'text-[10px] px-2 py-0.5 rounded-full font-bold bg-emerald-100 text-emerald-800 border border-emerald-300';
+      } else if (dep) {
+        durTextEl.innerText = '🚚 출발: ' + dep + ' (운행 중)';
+        autoStatusEl.innerText = '상태: 운행중';
+        autoStatusEl.className = 'text-[10px] px-2 py-0.5 rounded-full font-bold bg-blue-100 text-blue-800 border border-blue-300';
+      } else {
+        durTextEl.innerText = '운행 시간 미입력';
+        autoStatusEl.innerText = '상태: 미운행';
+        autoStatusEl.className = 'text-[10px] px-2 py-0.5 rounded-full font-bold bg-slate-200 text-slate-700 border border-slate-300';
+      }
+    }
+
+    async function saveEditTimeModal() {
+      var idx = parseInt(document.getElementById('editTimeIndex').value, 10);
+      if (isNaN(idx) || idx < 0 || idx >= records.length) return;
+      var r = records[idx];
+
+      var dep = (document.getElementById('editTimeDepart').value || '').trim();
+      var arr = (document.getElementById('editTimeArrive').value || '').trim();
+
+      // 기존 특이사항 및 사진 데이터 보존
+      var raw = r.추후일정_특이사항 || '';
+      var parsed = {};
+      if (raw) {
+        try {
+          parsed = JSON.parse(raw);
+        } catch(e) {
+          parsed = {};
+        }
+      }
+      parsed.depart = dep;
+      parsed.arrive = arr;
+      var newJson = JSON.stringify(parsed);
+
+      var newStatus = r.의뢰상태 || '진행중';
+      if (arr) {
+        newStatus = '도착완료';
+      } else if (dep) {
+        newStatus = '운행중';
+      } else if (newStatus === '도착완료' || newStatus === '운행중') {
+        newStatus = '진행중';
+      }
+
+      r.추후일정_특이사항 = newJson;
+      r.의뢰상태 = newStatus;
+
+      if (r.ID) pendingSyncIds.add(r.ID);
+
+      closeEditTimeModal();
+      renderTable();
+      renderRouteMap({ fitBounds: false, isSilent: true });
+      showToast('⏱️ [' + r.고객사 + '] 운행 시간이 수정되었습니다!');
+
+      if (supabaseClient && r.ID) {
+        try {
+          var res = await supabaseClient.from('delivery_schedules').update({
+            memo_special: newJson,
+            status: newStatus
+          }).eq('id', r.ID);
+          if (res.error) throw res.error;
+          lastDataHash = ''; // 다음 동기화 시 갱신 반영
+        } catch(err) {
+          console.error('Time update error:', err);
+          showToast('❌ 클라우드 시간 저장 실패: ' + (err.message || err));
+        } finally {
+          pendingSyncIds.delete(r.ID);
+        }
       }
     }
 
@@ -5202,7 +5476,7 @@
                  row.delivery_date !== '1970-01-01';
         });
 
-        records = data.map(function(row) {
+        var fetchedRecords = data.map(function(row) {
           return {
             ID: row.id,
             배송일자: row.delivery_date || '',
@@ -5227,8 +5501,27 @@
           };
         });
 
+        // [Pending Mutation Lock 보호] 사용자가 방금 변경 중인 항목은 구버전 DB 값으로 덮어쓰지 않고 로컬 값 유지
+        if (pendingSyncIds.size > 0 && records && records.length > 0) {
+          var localPendingMap = new Map();
+          records.forEach(function(r) {
+            if (r.ID && pendingSyncIds.has(r.ID)) {
+              localPendingMap.set(r.ID, r);
+            }
+          });
+          fetchedRecords.forEach(function(r) {
+            if (r.ID && localPendingMap.has(r.ID)) {
+              var local = localPendingMap.get(r.ID);
+              r.담당기사 = local.담당기사;
+              r.추후일정_특이사항 = local.추후일정_특이사항;
+              r.의뢰상태 = local.의뢰상태;
+              r.stop_order = local.stop_order;
+            }
+          });
+        }
+
         // stop_order 우선 정렬 (stop_order가 지정된 경우 최우선 정렬, 없는 경우 방문시간순)
-        records.sort(function(a, b) {
+        fetchedRecords.sort(function(a, b) {
           var aHasOrder = (a.stop_order !== null && a.stop_order !== undefined && !isNaN(a.stop_order) && a.stop_order > 0);
           var bHasOrder = (b.stop_order !== null && b.stop_order !== undefined && !isNaN(b.stop_order) && b.stop_order > 0);
           if (aHasOrder && bHasOrder) {
@@ -5238,6 +5531,13 @@
           if (bHasOrder) return 1;
           return parseVisitMinutes(a.방문시간) - parseVisitMinutes(b.방문시간);
         });
+
+        // [Data Hash Check] 백그라운드 동기화 시 데이터가 100% 동일하다면 DOM 리렌더링 차단 (깜빡임 & 스크롤 튐 0%)
+        var newHash = calcRecordsHash(fetchedRecords);
+        var isDataChanged = (newHash !== lastDataHash);
+        lastDataHash = newHash;
+
+        records = fetchedRecords;
         originalRecords = JSON.parse(JSON.stringify(records));
 
         // 고유 배송일자 목록 추출 (전체 조회 시에만 재동기화)
@@ -5251,10 +5551,12 @@
           }
         }
 
-        updateDriverFilterOptions();
-        updateKPIs();
-        renderTable();
-        renderRouteMap();
+        if (!isSilent || isDataChanged) {
+          updateDriverFilterOptions();
+          updateKPIs();
+          renderTable();
+          renderRouteMap({ fitBounds: false, isSilent: isSilent });
+        }
 
         if (syncIcon) syncIcon.classList.remove('fa-spin');
         var nowStr = new Date().toLocaleTimeString('ko-KR', { hour12: false });
