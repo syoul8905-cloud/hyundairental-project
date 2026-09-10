@@ -63,11 +63,34 @@
         <span>차량 관리</span>
       </button>
 
-      <!-- Excel Export Button -->
-      <button onclick="exportVehicleLogCsv()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl transition flex items-center gap-1.5 shadow-xs text-xs">
-        <i class="fa-solid fa-file-excel"></i>
-        <span>엑셀(CSV) 다운로드</span>
-      </button>
+      <!-- Excel Export Dropdown Menu -->
+      <div class="relative inline-block text-left" id="exportDropdownContainer">
+        <button onclick="toggleExportMenu(event)" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl transition flex items-center gap-1.5 shadow-xs text-xs">
+          <i class="fa-solid fa-file-excel"></i>
+          <span>CSV 다운로드</span>
+          <i class="fa-solid fa-chevron-down text-[10px] ml-0.5"></i>
+        </button>
+        <div id="exportMenu" class="hidden absolute right-0 mt-2 w-64 bg-white rounded-2xl shadow-xl border border-slate-200 py-1.5 z-50 animate-in fade-in zoom-in duration-100">
+          <div class="px-3 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">CSV 서식 선택</div>
+          <button onclick="exportVehicleLogCsv('detail'); closeExportMenu();" class="w-full text-left px-3.5 py-2.5 hover:bg-emerald-50 flex items-start gap-2.5 transition text-xs group">
+            <i class="fa-solid fa-location-dot text-emerald-600 mt-0.5 text-sm group-hover:scale-110 transition-transform"></i>
+            <div>
+              <div class="font-bold text-slate-800 flex items-center gap-1">
+                <span>배송지별 상세 CSV</span>
+                <span class="px-1.5 py-0.2 bg-emerald-100 text-emerald-800 rounded text-[9px] font-black">추천</span>
+              </div>
+              <div class="text-[10px] text-slate-400 mt-0.5">경유지 순서, 도로명 주소, 구간 계기판 Km, 개별 주차비/주유비 포함</div>
+            </div>
+          </button>
+          <button onclick="exportVehicleLogCsv('summary'); closeExportMenu();" class="w-full text-left px-3.5 py-2.5 hover:bg-slate-50 flex items-start gap-2.5 transition text-xs border-t border-slate-100 group">
+            <i class="fa-solid fa-table-list text-slate-500 mt-0.5 text-sm group-hover:scale-110 transition-transform"></i>
+            <div>
+              <div class="font-bold text-slate-800">일자별 요약 CSV</div>
+              <div class="text-[10px] text-slate-400 mt-0.5">국세청 업무용 승용차 운행기록부 표준 호환 서식</div>
+            </div>
+          </button>
+        </div>
+      </div>
 
       <!-- Refresh Button -->
       <button onclick="loadVehicleData(false)" class="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition flex items-center gap-1 shadow-xs text-xs">
@@ -2264,12 +2287,31 @@
     // ==========================================
     // 8. Excel (CSV) Export Engine
     // ==========================================
-    function exportVehicleLogCsv() {
+    function toggleExportMenu(e) {
+      if (e) e.stopPropagation();
+      var menu = document.getElementById('exportMenu');
+      if (menu) menu.classList.toggle('hidden');
+    }
+
+    function closeExportMenu() {
+      var menu = document.getElementById('exportMenu');
+      if (menu) menu.classList.add('hidden');
+    }
+
+    window.addEventListener('click', function(e) {
+      var container = document.getElementById('exportDropdownContainer');
+      if (container && !container.contains(e.target)) {
+        closeExportMenu();
+      }
+    });
+
+    function exportVehicleLogCsv(mode) {
       if (tripLogs.length === 0) {
         alert('다운로드할 운행일지 데이터가 없습니다.');
         return;
       }
 
+      var exportMode = mode || currentViewMode || 'detail';
       var currentVeh = vehiclesMaster.find(function(v) { return v.vehicle_no === currentSelectedVehicleNo; }) || {};
 
       var prevKm = tripLogs[0].start_km;
@@ -2280,16 +2322,16 @@
 
       var lines = [];
 
-      if (currentViewMode === 'detail') {
+      if (exportMode === 'detail') {
         // ----------------------------------------------------
-        // [세분화 모드] 방문 배송지별 상세 CSV (상세 주소 및 개별 비용 포함)
+        // [배송지별 상세 모드] 경유지별 순서, 주소, 구간Km, 개별비용 포함
         // ----------------------------------------------------
         lines.push('법인차량 운행일지 (배송지별 상세 서식),,,,,,,,,,,');
         lines.push(`차종,,${currentVeh.model_name || '스타리아'},차량번호,${currentSelectedVehicleNo},,,,,,,`);
         lines.push(',전월말 계기판,당월말 계기판,총 주행거리,총 주차비,총 주유비,,,,,,,');
         lines.push(`Km,"${prevKm.toLocaleString()}","${currKm.toLocaleString()}","${totalDist.toLocaleString()}","₩${totalParking.toLocaleString()}","₩${totalFuel.toLocaleString()}",,,,,,,`);
         lines.push(',,,,,,,,,,,');
-        lines.push('날짜,요일,운전자,순번,구분,방문지명,상세 도로명 주소,출발 계기판(km),도착 계기판(km),구간거리(km),주차비(원),주유비(원),비고/품목');
+        lines.push('날짜,요일,운전자,순번,구분,방문지명(고객사),상세 도로명 주소,출발 계기판(km),도착 계기판(km),구간거리(km),해당 배송지 주차비(원),해당 배송지 주유비(원),비고/품목');
 
         tripLogs.forEach(function(l) {
           var dateParts = l.trip_date.split('-');
@@ -2343,7 +2385,7 @@
       var url = URL.createObjectURL(blob);
       var a = document.createElement('a');
       a.href = url;
-      var fileSuffix = currentViewMode === 'detail' ? '배송지별상세' : '일자별요약';
+      var fileSuffix = exportMode === 'detail' ? '배송지별상세' : '일자별요약';
       a.download = `법인차량_운행일지_${fileSuffix}_${currentSelectedVehicleNo}_${currentYear}년${currentMonth}월.csv`;
       document.body.appendChild(a);
       a.click();

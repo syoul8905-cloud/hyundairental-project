@@ -87,13 +87,6 @@
           </button>
         </div>
 
-        <!-- DB Recorded Dates Quick Select -->
-        <div class="flex items-center bg-slate-50 px-1.5 py-1 rounded-lg border border-slate-200" title="기존 스케줄 등록일 목록">
-          <select id="sheetDateSelect" onchange="onDateSelectDropdownChanged(this.value)" class="bg-transparent font-bold text-slate-700 text-xs focus:outline-none cursor-pointer max-w-[110px] truncate">
-            <option value="">등록일 목록...</option>
-          </select>
-        </div>
-
         <!-- Hidden Driver Filter Select (Managed via KPI Card Popover) -->
         <select id="driverFilterSelect" class="hidden">
           <option value="all">전체 기사</option>
@@ -5879,8 +5872,7 @@
 
       try {
         var dateInp = document.getElementById('calendarDateInput');
-        var selectInp = document.getElementById('sheetDateSelect');
-        var selectedDate = (selectInp && selectInp.value) ? selectInp.value : (dateInp ? dateInp.value : '');
+        var selectedDate = (dateInp && dateInp.value) ? dateInp.value : (selectInp ? selectInp.value : '');
 
         var query = supabaseClient.from('delivery_schedules')
           .select('*')
