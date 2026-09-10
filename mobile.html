@@ -155,6 +155,21 @@
   </header>
 
   <!-- ========================================== -->
+  <!-- 1-1. Admin Driver Selector Bar (관리자 전용) -->
+  <!-- ========================================== -->
+  <div id="adminDriverSelectorBar" class="hidden bg-indigo-900 text-white px-4 py-2.5 shadow-md sticky top-[89px] z-20 transition-all">
+    <div class="flex items-center justify-between gap-2 max-w-lg mx-auto">
+      <div class="flex items-center gap-1.5 shrink-0 text-xs font-black text-indigo-200">
+        <i class="fa-solid fa-user-gear text-amber-400"></i>
+        <span>기사 스케줄:</span>
+      </div>
+      <select id="mobileAdminDriverSelect" onchange="onMobileAdminDriverSelectChanged(this.value)" class="flex-1 bg-indigo-800 text-white font-bold text-xs rounded-xl px-2.5 py-1.5 border border-indigo-700 focus:outline-none focus:ring-2 focus:ring-amber-400">
+        <option value="__ALL__">👥 전체 기사 스케줄 (일괄 보기)</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
   <!-- 2. Daily Progress Summary & Map Launcher   -->
   <!-- ========================================== -->
   <div class="p-3 space-y-2.5">
@@ -347,6 +362,24 @@
     </div>
   </div>
 
+  <!-- ========================================== -->
+  <!-- Photo Viewer Modal (Mobile Lightbox)       -->
+  <!-- ========================================== -->
+  <div id="mobilePhotoViewerModal" class="hidden fixed inset-0 bg-black/95 z-[10000] flex flex-col items-center justify-center p-3 backdrop-blur-xs">
+    <div class="w-full max-w-md flex items-center justify-between text-white pb-2 px-1">
+      <div class="flex items-center gap-1.5 truncate">
+        <i class="fa-solid fa-image text-indigo-400"></i>
+        <h3 id="mobilePhotoViewerTitle" class="text-xs font-bold truncate">현장 사진 확인</h3>
+      </div>
+      <button onclick="closeMobilePhotoModal()" class="w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 active:scale-95 text-white flex items-center justify-center text-sm transition">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+    <div class="max-w-md w-full max-h-[75vh] flex items-center justify-center bg-black/60 rounded-2xl overflow-hidden p-1 border border-white/10 shadow-2xl">
+      <img id="mobilePhotoViewerImg" src="" alt="현장 사진" class="max-w-full max-h-[72vh] object-contain rounded-xl">
+    </div>
+  </div>
+
   <!-- Toast Notification -->
   <div id="toast" class="fixed top-4 inset-x-4 max-w-sm mx-auto bg-slate-900/95 text-white px-4 py-2.5 rounded-2xl shadow-xl z-[9999] flex items-center gap-2 text-xs font-bold transition-all duration-300 -translate-y-12 opacity-0 pointer-events-none">
     <i class="fa-solid fa-bell text-amber-400"></i>
@@ -365,8 +398,16 @@
     var currentDriverName = '';
     var currentDate = new Date().toISOString().split('T')[0];
     var driverRecords = [];
+    var allMobileRows = [];
+    var selectedViewingDriver = '__ALL__';
 
     function getCurrentDriverName() {
+      if (currentUser && currentUser.role === 'admin') {
+        if (selectedViewingDriver && selectedViewingDriver !== '__ALL__') {
+          return selectedViewingDriver;
+        }
+        return '가산 센터';
+      }
       if (currentUser && currentUser.id) return currentUser.id;
       if (currentDriverName) return currentDriverName;
       var saved = localStorage.getItem('DELIVERY_SAVED_ID');
@@ -594,6 +635,7 @@
       var arrive = '';
       var issue = '';
       var issueAuthor = '';
+      var photo = '';
       var raw = (record && (record.memo_special || record.추후일정_특이사항)) ? (record.memo_special || record.추후일정_특이사항) : '';
       if (raw) {
         try {
@@ -603,6 +645,7 @@
             arrive = parsed.arrive || '';
             issue = parsed.issue || '';
             issueAuthor = parsed.issue_author || '';
+            photo = parsed.photo || '';
           }
         } catch(e) {
           var dMatch = String(raw).match(/출발[:\s]*(\d{1,2}:\d{2})/);
@@ -611,7 +654,7 @@
           if (aMatch) arrive = aMatch[1];
         }
       }
-      return { depart: depart, arrive: arrive, issue: issue, issueAuthor: issueAuthor };
+      return { depart: depart, arrive: arrive, issue: issue, issueAuthor: issueAuthor, photo: photo };
     }
 
     // ==========================================
@@ -711,7 +754,7 @@
 
       currentUser = user;
       document.getElementById('loginOverlay').classList.add('hidden');
-      document.getElementById('headerDriverName').innerText = user.id + ' 기사님';
+      document.getElementById('headerDriverName').innerText = (user.role === 'admin' ? user.id + ' (관리자)' : user.id + ' 기사님');
 
       if (document.getElementById('loginRememberId').checked) {
         localStorage.setItem('DELIVERY_SAVED_ID', user.id);
@@ -734,6 +777,10 @@
     function handleMobileLogout() {
       if (!confirm('로그아웃 하시겠습니까?')) return;
       currentUser = null;
+      selectedViewingDriver = '__ALL__';
+      allMobileRows = [];
+      var adminBar = document.getElementById('adminDriverSelectorBar');
+      if (adminBar) adminBar.classList.add('hidden');
       localStorage.removeItem('DELIVERY_AUTO_LOGIN');
       document.getElementById('loginOverlay').classList.remove('hidden');
       document.getElementById('headerDriverName').innerText = '로그인 필요';
@@ -742,8 +789,98 @@
     }
 
     // ==========================================
-    // Data Sync
+    // Data Sync & Admin Driver Selector Engine
     // ==========================================
+    function populateMobileAdminDriverSelect() {
+      var select = document.getElementById('mobileAdminDriverSelect');
+      if (!select) return;
+
+      var users = getAuthUsers();
+      var driverCounts = {};
+
+      allMobileRows.forEach(function(r) {
+        var d = (r.driver_name || '').trim();
+        if (d) {
+          driverCounts[d] = (driverCounts[d] || 0) + 1;
+        }
+      });
+
+      var driverList = [];
+      // 기사 및 관리자 목록 추가
+      users.forEach(function(u) {
+        if (!driverList.includes(u.id)) driverList.push(u.id);
+      });
+      Object.keys(driverCounts).forEach(function(d) {
+        if (!driverList.includes(d)) driverList.push(d);
+      });
+
+      var prevVal = select.value || selectedViewingDriver || '__ALL__';
+
+      select.innerHTML = `<option value="__ALL__">👥 전체 기사 스케줄 (일괄 보기 - 총 ${allMobileRows.length}건)</option>`;
+
+      driverList.forEach(function(d) {
+        var cnt = driverCounts[d] || 0;
+        var opt = document.createElement('option');
+        opt.value = d;
+        opt.textContent = `🚗 ${d} (${cnt}건)`;
+        select.appendChild(opt);
+      });
+
+      if (prevVal && (prevVal === '__ALL__' || driverList.includes(prevVal))) {
+        select.value = prevVal;
+        selectedViewingDriver = prevVal;
+      } else {
+        select.value = '__ALL__';
+        selectedViewingDriver = '__ALL__';
+      }
+    }
+
+    function onMobileAdminDriverSelectChanged(val) {
+      selectedViewingDriver = val;
+      filterAndRenderSchedule(false);
+    }
+
+    function filterAndRenderSchedule(showWelcome) {
+      if (!currentUser) return;
+
+      if (currentUser.role === 'admin') {
+        if (!selectedViewingDriver || selectedViewingDriver === '__ALL__') {
+          driverRecords = allMobileRows.slice();
+        } else {
+          driverRecords = allMobileRows.filter(function(r) {
+            return (r.driver_name || '').trim() === selectedViewingDriver;
+          });
+        }
+      } else {
+        // 일반 기사는 본인 배정 건만 엄격 유지
+        driverRecords = allMobileRows.filter(function(r) {
+          return (r.driver_name || '').trim() === currentUser.id;
+        });
+      }
+
+      // stop_order 우선 정렬 (관리자가 지정한 순서가 최우선 반영됨)
+      driverRecords.sort(function(a, b) {
+        var aHasOrder = (a.stop_order !== null && a.stop_order !== undefined && !isNaN(a.stop_order) && a.stop_order > 0);
+        var bHasOrder = (b.stop_order !== null && b.stop_order !== undefined && !isNaN(b.stop_order) && b.stop_order > 0);
+        if (aHasOrder && bHasOrder) {
+          return a.stop_order - b.stop_order;
+        }
+        if (aHasOrder) return -1;
+        if (bHasOrder) return 1;
+        return parseVisitMinutes(a.visit_time) - parseVisitMinutes(b.visit_time);
+      });
+
+      cachedMobileRoadData = null;
+      renderCards();
+
+      if (showWelcome) {
+        var label = (currentUser.role === 'admin' && selectedViewingDriver !== '__ALL__')
+          ? selectedViewingDriver + ' 기사'
+          : currentUser.id + '님';
+        showToast('👋 ' + label + ', 오늘의 배송 (' + driverRecords.length + '건) 목록입니다.');
+      }
+    }
+
     async function loadMobileData(showWelcome) {
       if (!currentUser) return;
       var syncIcon = document.getElementById('syncIcon');
@@ -766,29 +903,18 @@
         var allRows = (res.data || []).filter(function(row) {
           return row.source_sheet !== 'SYSTEM_CONFIG_USERS' && row.delivery_date !== '2099-12-31';
         });
+        allMobileRows = allRows;
 
-        // 관리자/기사 구분 없이 모바일웹에서는 본인(currentUser.id)에게 배정된 건들만 표출!
-        driverRecords = allRows.filter(function(r) {
-          return (r.driver_name || '').trim() === currentUser.id;
-        });
-
-        // stop_order 우선 정렬 (관리자가 지정한 순서가 최우선 반영됨)
-        driverRecords.sort(function(a, b) {
-          var aHasOrder = (a.stop_order !== null && a.stop_order !== undefined && !isNaN(a.stop_order) && a.stop_order > 0);
-          var bHasOrder = (b.stop_order !== null && b.stop_order !== undefined && !isNaN(b.stop_order) && b.stop_order > 0);
-          if (aHasOrder && bHasOrder) {
-            return a.stop_order - b.stop_order;
-          }
-          if (aHasOrder) return -1;
-          if (bHasOrder) return 1;
-          return parseVisitMinutes(a.visit_time) - parseVisitMinutes(b.visit_time);
-        });
-
-        renderCards();
-
-        if (showWelcome) {
-          showToast('👋 ' + currentUser.id + '님, 오늘의 배정 배송 (' + driverRecords.length + '건) 목록입니다.');
+        var adminBar = document.getElementById('adminDriverSelectorBar');
+        if (currentUser && currentUser.role === 'admin') {
+          if (adminBar) adminBar.classList.remove('hidden');
+          populateMobileAdminDriverSelect();
+        } else {
+          if (adminBar) adminBar.classList.add('hidden');
+          selectedViewingDriver = currentUser.id;
         }
+
+        filterAndRenderSchedule(showWelcome);
       } catch (err) {
         console.error('Data load error:', err);
         showToast('⚠️ 배송 목록을 불러오는 중 오류가 발생했습니다.');
@@ -894,10 +1020,15 @@
               </span>
               <div>
                 <h3 class="font-black text-slate-900 text-base leading-tight">${r.customer_name || '고객사 미정'}</h3>
-                <div class="flex items-center gap-1.5 pt-0.5">
+                <div class="flex items-center gap-1.5 pt-0.5 flex-wrap">
                   <span class="px-2 py-0.5 rounded text-[10px] font-black ${getMobileCategoryBadgeStyle(r.category)}">
                     ${r.category || '배송'}
                   </span>
+                  ${(currentUser && currentUser.role === 'admin' && selectedViewingDriver === '__ALL__') ? `
+                    <span class="px-2 py-0.5 rounded text-[10px] font-black bg-indigo-100 text-indigo-800 border border-indigo-200">
+                      <i class="fa-solid fa-truck text-indigo-600"></i> ${r.driver_name || '미배정'}
+                    </span>
+                  ` : ''}
                   <span class="text-[11px] font-bold text-slate-500 flex items-center gap-1">
                     <i class="fa-regular fa-clock text-indigo-500"></i> ${r.visit_time || '시간 무관'}
                   </span>
@@ -944,17 +1075,34 @@
             </div>
           ` : ''}
 
-          <!-- Field Issue Memo Section -->
-          <div class="p-2.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
+          <!-- Field Issue Memo & Photo Section -->
+          <div class="p-2.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
             <div class="flex items-center justify-between">
               <span class="text-[11px] font-black text-slate-700 flex items-center gap-1">
                 <i class="fa-solid fa-pen-to-square text-indigo-600"></i> 현장 특이사항 / 메모
               </span>
               ${times.issueAuthor ? `<span class="text-[9px] bg-indigo-50 text-indigo-700 border border-indigo-200 px-1.5 py-0.2 rounded font-bold">${times.issueAuthor}</span>` : ''}
             </div>
-            <textarea id="fieldIssueInput_${idx}" rows="2" placeholder="부재, 경비실 보관, 장비 불량 등 현장 이슈 입력..." class="w-full text-xs p-2 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-500 font-medium">${times.issue || ''}</textarea>
-            <div class="flex justify-end">
-              <button type="button" onclick="saveDriverIssueMemo(${idx})" class="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white text-[11px] font-black rounded-lg shadow-xs flex items-center gap-1">
+            <textarea id="fieldIssueInput_${idx}" rows="2" placeholder="부재, 경비실 보관, 파손/장비 이상 등 현장 메모..." class="w-full text-xs p-2 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-500 font-medium">${times.issue || ''}</textarea>
+            
+            <div class="flex items-center justify-between gap-2 pt-0.5">
+              <div>
+                <input type="file" id="photoFileInput_${idx}" accept="image/*" capture="environment" class="hidden" onchange="handlePhotoUpload(${idx}, event)">
+                ${times.photo ? `
+                  <div class="relative inline-block">
+                    <img src="${times.photo}" onclick="openMobilePhotoModal('${times.photo.replace(/'/g, "\\'")}', '${(r.customer_name || '현장 사진').replace(/'/g, "\\'")}')" class="w-12 h-12 object-cover rounded-lg border-2 border-indigo-500 shadow-xs cursor-pointer hover:opacity-90" title="클릭 시 확대">
+                    <button type="button" onclick="removePhoto(${idx})" class="absolute -top-1.5 -right-1.5 w-4 h-4 bg-rose-500 hover:bg-rose-600 text-white rounded-full flex items-center justify-center text-[9px] shadow" title="사진 삭제">
+                      <i class="fa-solid fa-xmark"></i>
+                    </button>
+                  </div>
+                ` : `
+                  <button type="button" onclick="document.getElementById('photoFileInput_${idx}').click()" class="px-2.5 py-1.5 bg-white hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 text-[11px] font-bold rounded-lg border border-slate-200 shadow-xs flex items-center gap-1 transition active:scale-95">
+                    <i class="fa-solid fa-camera text-indigo-600"></i>
+                    <span>사진 촬영/첨부</span>
+                  </button>
+                `}
+              </div>
+              <button type="button" onclick="saveDriverIssueMemo(${idx})" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white text-[11px] font-black rounded-lg shadow-xs flex items-center gap-1 transition active:scale-95">
                 <i class="fa-solid fa-floppy-disk text-[10px]"></i> 메모 저장
               </button>
             </div>
@@ -1003,6 +1151,128 @@
     }
 
     // ==========================================
+    // Client-side Image Compression & Photo Engine
+    // ==========================================
+    function compressImage(file, maxDimension, quality) {
+      return new Promise(function(resolve, reject) {
+        var reader = new FileReader();
+        reader.onload = function(e) {
+          var img = new Image();
+          img.onload = function() {
+            var width = img.width;
+            var height = img.height;
+            if (width > maxDimension || height > maxDimension) {
+              if (width > height) {
+                height = Math.round((height * maxDimension) / width);
+                width = maxDimension;
+              } else {
+                width = Math.round((width * maxDimension) / height);
+                height = maxDimension;
+              }
+            }
+            var canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            var ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+            var dataUrl = canvas.toDataURL('image/jpeg', quality || 0.7);
+            resolve(dataUrl);
+          };
+          img.onerror = reject;
+          img.src = e.target.result;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function openMobilePhotoModal(src, title) {
+      var modal = document.getElementById('mobilePhotoViewerModal');
+      var img = document.getElementById('mobilePhotoViewerImg');
+      var titleEl = document.getElementById('mobilePhotoViewerTitle');
+      if (!modal || !img) return;
+      img.src = src;
+      if (titleEl) titleEl.innerText = title || '현장 사진 확인';
+      modal.classList.remove('hidden');
+    }
+
+    function closeMobilePhotoModal() {
+      var modal = document.getElementById('mobilePhotoViewerModal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    async function handlePhotoUpload(idx, event) {
+      var file = event.target.files && event.target.files[0];
+      if (!file) return;
+
+      var r = driverRecords[idx];
+      if (!r) return;
+
+      showToast('⏳ 사진 압축 및 저장 중...');
+
+      try {
+        var base64Data = await compressImage(file, 800, 0.7);
+        var times = getStopTimes(r);
+        times.photo = base64Data;
+        times.issue_author = (currentUser && currentUser.id) ? currentUser.id : '기사';
+        times.updated_at = new Date().toISOString();
+
+        var inputEl = document.getElementById('fieldIssueInput_' + idx);
+        if (inputEl) {
+          times.issue = inputEl.value.trim();
+        }
+
+        var jsonStr = JSON.stringify(times);
+        r.memo_special = jsonStr;
+
+        if (supabaseClient && r.id) {
+          var res = await supabaseClient.from('delivery_schedules').update({
+            memo_special: jsonStr
+          }).eq('id', r.id);
+          if (res.error) throw res.error;
+        }
+
+        showToast('📷 현장 사진이 저장되었습니다!');
+        renderCards();
+      } catch (err) {
+        console.error('Photo upload error:', err);
+        showToast('⚠️ 사진 업로드 중 오류가 발생했습니다.');
+      }
+    }
+
+    async function removePhoto(idx) {
+      var r = driverRecords[idx];
+      if (!r) return;
+      if (!confirm('첨부된 현장 사진을 삭제하시겠습니까?')) return;
+
+      var times = getStopTimes(r);
+      times.photo = '';
+      times.updated_at = new Date().toISOString();
+
+      var inputEl = document.getElementById('fieldIssueInput_' + idx);
+      if (inputEl) {
+        times.issue = inputEl.value.trim();
+      }
+
+      var jsonStr = JSON.stringify(times);
+      r.memo_special = jsonStr;
+
+      if (supabaseClient && r.id) {
+        var res = await supabaseClient.from('delivery_schedules').update({
+          memo_special: jsonStr
+        }).eq('id', r.id);
+        if (res.error) {
+          console.error('Remove photo error:', res.error);
+          showToast('❌ 사진 삭제 실패');
+          return;
+        }
+      }
+
+      showToast('🗑️ 사진이 삭제되었습니다.');
+      renderCards();
+    }
+
+    // ==========================================
     // Field Issue Memo Save Engine
     // ==========================================
     async function saveDriverIssueMemo(idx) {
@@ -1030,7 +1300,7 @@
           return;
         }
       }
-      showToast('💾 현장 특이사항 메모가 저장되었습니다!');
+      showToast('💾 현장 특이사항 및 사진이 저장되었습니다!');
       renderCards();
     }
 
@@ -1434,7 +1704,7 @@
         if (user) {
           currentUser = user;
           document.getElementById('loginOverlay').classList.add('hidden');
-          document.getElementById('headerDriverName').innerText = user.id + ' 기사님';
+          document.getElementById('headerDriverName').innerText = (user.role === 'admin' ? user.id + ' (관리자)' : user.id + ' 기사님');
           loadMobileData(true);
           return;
         }

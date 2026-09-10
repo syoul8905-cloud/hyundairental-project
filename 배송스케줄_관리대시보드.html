@@ -894,6 +894,32 @@
     </div>
   </div>
 
+  <!-- Photo Viewer Lightbox Modal -->
+  <div id="photoViewerModal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50" onclick="if(event.target===this)closePhotoViewerModal()">
+    <div class="bg-white rounded-3xl max-w-lg w-full p-4 shadow-2xl border border-slate-200 space-y-3 flex flex-col max-h-[90vh]">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-2.5 shrink-0">
+        <div class="flex items-center gap-2">
+          <span class="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center text-xs">
+            <i class="fa-solid fa-camera"></i>
+          </span>
+          <h3 id="photoViewerTitle" class="font-black text-xs text-slate-900 truncate max-w-[280px]">현장 사진 확대 보기</h3>
+        </div>
+        <button type="button" onclick="closePhotoViewerModal()" class="w-7 h-7 rounded-full bg-slate-100 text-slate-500 hover:text-slate-800 flex items-center justify-center text-xs">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div class="flex-1 overflow-auto flex items-center justify-center bg-slate-950 rounded-2xl p-1 min-h-[250px]">
+        <img id="photoViewerImg" src="" alt="현장 사진" class="max-h-[70vh] w-auto max-w-full rounded-xl object-contain shadow-lg">
+      </div>
+      <div class="flex items-center justify-between pt-1 shrink-0 text-xs">
+        <span class="text-[11px] text-slate-400 font-medium">현장 기사가 촬영 및 첨부한 원본 사진입니다.</span>
+        <button type="button" onclick="closePhotoViewerModal()" class="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl text-xs">
+          닫기
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- Driver Origin & Registered Bases Edit Modal -->
   <div id="originModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50" onclick="if(event.target===this)closeOriginModal()">
     <div class="bg-white rounded-3xl max-w-lg w-full p-5 sm:p-6 shadow-2xl border border-slate-200 space-y-4 max-h-[92vh] flex flex-col">
@@ -2828,20 +2854,30 @@
     };
 
     function openAssignmentNotifyModal(driverName, updatedCount) {
-      if (!driverName || driverName === '미배정' || driverName === '방문수령' || driverName === '퀵') {
-        return;
-      }
       var targetDate = getCurrentViewingDate();
+      var activeRecords = getFilteredRecords();
+
+      // If driverName is not provided or 'all', attempt to detect single driver
+      if (!driverName || driverName === 'all' || driverName === '전체' || driverName === '미배정') {
+        var drivers = Array.from(new Set(activeRecords.map(function(r) { return (r.담당기사 || '').trim(); }).filter(Boolean)));
+        if (drivers.length === 1) {
+          driverName = drivers[0];
+        } else if (drivers.length > 1) {
+          driverName = drivers[0];
+        } else {
+          driverName = '담당기사';
+        }
+      }
+
       var driverRecords = records.filter(function(r) {
         var d = (r.담당기사 || '').trim();
-        return d === driverName;
+        return (driverName === '담당기사') ? true : (d === driverName);
       });
-
-      if (driverRecords.length === 0) return;
+      if (driverRecords.length === 0) driverRecords = activeRecords.slice();
 
       var summaryLines = [];
-      summaryLines.push(`[현대렌탈 배송 알림]`);
-      summaryLines.push(`🚗 ${driverName} 기사님, ${targetDate} 배송 일정이 배정되었습니다.`);
+      summaryLines.push(`[현대렌탈 배송 및 방문순서 확정 알림]`);
+      summaryLines.push(`🚗 ${driverName} 기사님, ${targetDate} 배송 일정 및 방문 순서가 확정되었습니다.`);
       summaryLines.push(`📋 총 ${driverRecords.length}건 (배송 ${driverRecords.filter(r=>r.구분!=='회수').length}건 / 회수 ${driverRecords.filter(r=>r.구분==='회수').length}건)`);
       summaryLines.push(`-----------------------`);
 
@@ -2875,7 +2911,7 @@
       var modal = document.getElementById('assignmentNotifyModal');
 
       if (driverEl) driverEl.innerText = `🚗 ${driverName} 기사님`;
-      if (summaryEl) summaryEl.innerText = `총 ${driverRecords.length}건 (선택 ${updatedCount}건 갱신)의 배송 일정이 확정되었습니다.`;
+      if (summaryEl) summaryEl.innerText = `총 ${driverRecords.length}건의 배송 일정 및 방문 순서가 확정되었습니다.`;
       if (dateBadge) dateBadge.innerText = targetDate;
       if (msgBox) msgBox.value = fullMessage;
 
@@ -2885,6 +2921,51 @@
     function closeAssignmentNotifyModal() {
       var modal = document.getElementById('assignmentNotifyModal');
       if (modal) modal.classList.add('hidden');
+    }
+
+    // ==========================================
+    // Photo Viewer Lightbox Engine
+    // ==========================================
+    function openPhotoViewerModal(src, title) {
+      if (!src) return;
+      var modal = document.getElementById('photoViewerModal');
+      var img = document.getElementById('photoViewerImg');
+      var titleEl = document.getElementById('photoViewerTitle');
+      if (img) img.src = src;
+      if (titleEl) titleEl.innerText = title ? ('[📷 현장 사진] ' + title) : '현장 사진 확대 보기';
+      if (modal) modal.classList.remove('hidden');
+    }
+
+    function closePhotoViewerModal() {
+      var modal = document.getElementById('photoViewerModal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    function getStopTimes(r) {
+      var depart = '';
+      var arrive = '';
+      var issue = '';
+      var issueAuthor = '';
+      var photo = '';
+      var raw = (r && (r.추후일정_특이사항 || r.memo_special)) ? (r.추후일정_특이사항 || r.memo_special) : '';
+      if (raw) {
+        try {
+          var parsed = JSON.parse(raw);
+          if (parsed && typeof parsed === 'object') {
+            depart = parsed.depart || '';
+            arrive = parsed.arrive || '';
+            issue = parsed.issue || '';
+            issueAuthor = parsed.issue_author || '';
+            photo = parsed.photo || '';
+          }
+        } catch(e) {
+          var dMatch = String(raw).match(/출발[:\s]*(\d{1,2}:\d{2})/);
+          if (dMatch) depart = dMatch[1];
+          var aMatch = String(raw).match(/도착[:\s]*(\d{1,2}:\d{2})/);
+          if (aMatch) arrive = aMatch[1];
+        }
+      }
+      return { depart: depart, arrive: arrive, issue: issue, issueAuthor: issueAuthor, photo: photo };
     }
 
     function copyNotifyMessage() {
@@ -2968,31 +3049,6 @@
         return false;
       }
       return true;
-    }
-
-    function getStopTimes(r) {
-      var depart = '';
-      var arrive = '';
-      var issue = '';
-      var issueAuthor = '';
-      var raw = (r && (r.추후일정_특이사항 || r.memo_special)) ? (r.추후일정_특이사항 || r.memo_special) : '';
-      if (raw) {
-        try {
-          var parsed = JSON.parse(raw);
-          if (parsed && typeof parsed === 'object') {
-            depart = parsed.depart || '';
-            arrive = parsed.arrive || '';
-            issue = parsed.issue || '';
-            issueAuthor = parsed.issue_author || '';
-          }
-        } catch(e) {
-          var dMatch = String(raw).match(/출발[:\s]*(\d{1,2}:\d{2})/);
-          if (dMatch) depart = dMatch[1];
-          var aMatch = String(raw).match(/도착[:\s]*(\d{1,2}:\d{2})/);
-          if (aMatch) arrive = aMatch[1];
-        }
-      }
-      return { depart: depart, arrive: arrive, issue: issue, issueAuthor: issueAuthor };
     }
 
     async function recordDepartureTime(realIdx, skipConfirm) {
@@ -3276,6 +3332,18 @@
               </div>
             ` : ''}
 
+            ${times.photo ? `
+              <div class="mx-2 ml-6 p-2 bg-slate-50 border border-slate-200 rounded-lg flex items-center gap-2.5">
+                <img src="${times.photo}" onclick="event.stopPropagation(); openPhotoViewerModal('${times.photo.replace(/'/g, "\\'")}', '${r.고객사}')" class="w-12 h-12 rounded-lg object-cover border border-slate-300 shadow-xs cursor-pointer hover:opacity-80 transition" alt="현장 사진">
+                <div class="flex flex-col justify-center">
+                  <span class="text-[10px] font-black text-indigo-900 flex items-center gap-1 cursor-pointer hover:underline" onclick="event.stopPropagation(); openPhotoViewerModal('${times.photo.replace(/'/g, "\\'")}', '${r.고객사}')">
+                    <i class="fa-solid fa-camera text-indigo-600"></i> 현장 사진 첨부됨
+                  </span>
+                  <span class="text-[9px] text-slate-400">클릭하여 확대 보기</span>
+                </div>
+              </div>
+            ` : ''}
+
             <!-- Mobile Quick Buttons (통화 & 티맵 출발 & 배송지 도착 & 소요시간) -->
             <div class="flex items-center flex-wrap gap-1.5 pl-6 pt-1">
               ${phoneNum ? `
@@ -3513,6 +3581,8 @@
         await Promise.all(updates);
         if (!isSilent) {
           showToast('☁️ 방문 순서 ' + activeRecords.length + '건이 클라우드에 영구 저장 및 실시간 동기화되었습니다!');
+          var currDriver = getCurrentViewingDriver();
+          openAssignmentNotifyModal(currDriver, activeRecords.length);
         }
       } catch (err) {
         console.error('saveCurrentStopOrderToCloud error:', err);
@@ -4084,6 +4154,14 @@
                 <span class="truncate max-w-[190px]">현장: ${times.issue}</span>
               </div>
             ` : ''}
+            ${times.photo ? `
+              <div class="mt-1 flex items-center gap-1.5">
+                <img src="${times.photo}" onclick="openPhotoViewerModal('${times.photo.replace(/'/g, "\\'")}', '${r.고객사}')" class="w-6 h-6 rounded object-cover border border-slate-300 shadow-2xs cursor-pointer hover:opacity-80" alt="사진">
+                <button type="button" onclick="openPhotoViewerModal('${times.photo.replace(/'/g, "\\'")}', '${r.고객사}')" class="text-[10px] text-indigo-600 hover:text-indigo-800 font-bold flex items-center gap-0.5">
+                  <i class="fa-solid fa-camera text-[9px]"></i> 사진확인
+                </button>
+              </div>
+            ` : ''}
           </td>
           <td class="py-2.5 px-3">${driverSelectHtml}</td>
           <td class="py-2 px-2 text-center">
@@ -4314,6 +4392,18 @@
                 <span>현장 기사 특이사항${times.issueAuthor ? ' (' + times.issueAuthor + ')' : ''}</span>
               </div>
               <div class="font-bold whitespace-pre-wrap pl-3.5 leading-snug">${times.issue}</div>
+            </div>
+          ` : ''}
+
+          ${times.photo ? `
+            <div class="p-2 bg-slate-50 border border-slate-200 rounded-xl flex items-center gap-2.5">
+              <img src="${times.photo}" onclick="openPhotoViewerModal('${times.photo.replace(/'/g, "\\'")}', '${r.고객사}')" class="w-12 h-12 rounded-lg object-cover border border-slate-300 shadow-xs cursor-pointer hover:opacity-80" alt="현장 사진">
+              <div class="flex-1">
+                <span class="text-[11px] font-black text-indigo-950 flex items-center gap-1 cursor-pointer" onclick="openPhotoViewerModal('${times.photo.replace(/'/g, "\\'")}', '${r.고객사}')">
+                  <i class="fa-solid fa-camera text-indigo-600"></i> 현장 사진 첨부됨
+                </span>
+                <p class="text-[10px] text-slate-400">터치하여 확대 보기</p>
+              </div>
             </div>
           ` : ''}
 
@@ -4966,6 +5056,7 @@
         var arrive = '';
         var issue = '';
         var issueAuthor = '';
+        var photo = '';
         if (memoSpecialRaw) {
           try {
             var p = JSON.parse(memoSpecialRaw);
@@ -4974,6 +5065,7 @@
               arrive = p.arrive || '';
               issue = p.issue || '';
               issueAuthor = p.issue_author || '';
+              photo = p.photo || '';
             }
           } catch(e) {
             issue = memoSpecialRaw;
@@ -5027,6 +5119,19 @@
                   <span>현장 기사 특이사항 메모${issueAuthor ? ' (' + issueAuthor + ')' : ''}</span>
                 </div>
                 <div class="font-bold leading-relaxed whitespace-pre-wrap pl-3.5">${issue}</div>
+              </div>
+            ` : ''}
+
+            <!-- 당시 현장 사진 -->
+            ${photo ? `
+              <div class="p-2 bg-white rounded-xl border border-slate-200 flex items-center gap-2.5">
+                <img src="${photo}" onclick="openPhotoViewerModal('${photo.replace(/'/g, "\\'")}', '${cust} (${contract})')" class="w-14 h-14 rounded-lg object-cover border border-slate-300 shadow-xs cursor-pointer hover:opacity-80 shrink-0" alt="현장 사진">
+                <div class="text-xs">
+                  <span class="font-black text-indigo-900 flex items-center gap-1 cursor-pointer hover:underline" onclick="openPhotoViewerModal('${photo.replace(/'/g, "\\'")}', '${cust} (${contract})')">
+                    <i class="fa-solid fa-camera text-indigo-600"></i> 당시 현장 사진
+                  </span>
+                  <span class="text-[10px] text-slate-500 block">배송/회수 현장에서 기사가 등록한 사진입니다. (클릭 확대)</span>
+                </div>
               </div>
             ` : ''}
 
