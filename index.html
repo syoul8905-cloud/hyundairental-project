@@ -3760,19 +3760,19 @@
       if (r.ID) pendingSyncIds.add(r.ID);
 
       if (supabaseClient && r.ID) {
-        supabaseClient.from('delivery_schedules').update({
-          memo_special: jsonStr,
-          status: '운행중'
-        }).eq('id', r.ID).then(function(res) {
-          if (res.error) {
-            console.error('Cloud departure update error:', res.error);
-            showToast('⚠️ 클라우드 출발 시각 저장 오류: ' + (res.error.message || res.error));
-          } else {
-            lastDataHash = '';
-          }
-        }).finally(function() {
+        try {
+          var res = await supabaseClient.from('delivery_schedules').update({
+            memo_special: jsonStr,
+            status: '운행중'
+          }).eq('id', r.ID);
+          if (res.error) throw res.error;
+          lastDataHash = '';
+        } catch (err) {
+          console.error('Cloud departure update error:', err);
+          showToast('⚠️ 클라우드 출발 시각 저장 오류: ' + (err.message || err));
+        } finally {
           pendingSyncIds.delete(r.ID);
-        });
+        }
       }
       renderRouteMap();
       renderTable();
@@ -3800,19 +3800,19 @@
       if (r.ID) pendingSyncIds.add(r.ID);
 
       if (supabaseClient && r.ID) {
-        supabaseClient.from('delivery_schedules').update({
-          memo_special: jsonStr,
-          status: '도착완료'
-        }).eq('id', r.ID).then(function(res) {
-          if (res.error) {
-            console.error('Cloud arrival update error:', res.error);
-            showToast('⚠️ 클라우드 도착 완료 저장 오류: ' + (res.error.message || res.error));
-          } else {
-            lastDataHash = '';
-          }
-        }).finally(function() {
+        try {
+          var res = await supabaseClient.from('delivery_schedules').update({
+            memo_special: jsonStr,
+            status: '도착완료'
+          }).eq('id', r.ID);
+          if (res.error) throw res.error;
+          lastDataHash = '';
+        } catch (err) {
+          console.error('Cloud arrival update error:', err);
+          showToast('⚠️ 클라우드 도착 완료 저장 오류: ' + (err.message || err));
+        } finally {
           pendingSyncIds.delete(r.ID);
-        });
+        }
       }
       renderRouteMap();
       renderTable();
@@ -3839,19 +3839,19 @@
       if (r.ID) pendingSyncIds.add(r.ID);
 
       if (supabaseClient && r.ID) {
-        supabaseClient.from('delivery_schedules').update({
-          memo_special: jsonStr,
-          status: '접수완료'
-        }).eq('id', r.ID).then(function(res) {
-          if (res.error) {
-            console.error('Cloud quick receipt update error:', res.error);
-            showToast('⚠️ 클라우드 퀵 접수 저장 오류: ' + (res.error.message || res.error));
-          } else {
-            lastDataHash = '';
-          }
-        }).finally(function() {
+        try {
+          var res = await supabaseClient.from('delivery_schedules').update({
+            memo_special: jsonStr,
+            status: '접수완료'
+          }).eq('id', r.ID);
+          if (res.error) throw res.error;
+          lastDataHash = '';
+        } catch (err) {
+          console.error('Cloud quick receipt update error:', err);
+          showToast('⚠️ 클라우드 퀵 접수 저장 오류: ' + (err.message || err));
+        } finally {
           pendingSyncIds.delete(r.ID);
-        });
+        }
       }
       renderRouteMap();
       renderTable();
@@ -3880,19 +3880,19 @@
       if (r.ID) pendingSyncIds.add(r.ID);
 
       if (supabaseClient && r.ID) {
-        supabaseClient.from('delivery_schedules').update({
-          memo_special: jsonStr,
-          status: '퀵출발'
-        }).eq('id', r.ID).then(function(res) {
-          if (res.error) {
-            console.error('Cloud quick departure update error:', res.error);
-            showToast('⚠️ 클라우드 퀵 출발 저장 오류: ' + (res.error.message || res.error));
-          } else {
-            lastDataHash = '';
-          }
-        }).finally(function() {
+        try {
+          var res = await supabaseClient.from('delivery_schedules').update({
+            memo_special: jsonStr,
+            status: '퀵출발'
+          }).eq('id', r.ID);
+          if (res.error) throw res.error;
+          lastDataHash = '';
+        } catch (err) {
+          console.error('Cloud quick departure update error:', err);
+          showToast('⚠️ 클라우드 퀵 출발 저장 오류: ' + (err.message || err));
+        } finally {
           pendingSyncIds.delete(r.ID);
-        });
+        }
       }
       renderRouteMap();
       renderTable();
@@ -3919,19 +3919,19 @@
       if (r.ID) pendingSyncIds.add(r.ID);
 
       if (supabaseClient && r.ID) {
-        supabaseClient.from('delivery_schedules').update({
-          memo_special: jsonStr,
-          status: '수령완료'
-        }).eq('id', r.ID).then(function(res) {
-          if (res.error) {
-            console.error('Cloud pickup completion update error:', res.error);
-            showToast('⚠️ 클라우드 방문수령 저장 오류: ' + (res.error.message || res.error));
-          } else {
-            lastDataHash = '';
-          }
-        }).finally(function() {
+        try {
+          var res = await supabaseClient.from('delivery_schedules').update({
+            memo_special: jsonStr,
+            status: '수령완료'
+          }).eq('id', r.ID);
+          if (res.error) throw res.error;
+          lastDataHash = '';
+        } catch (err) {
+          console.error('Cloud pickup completion update error:', err);
+          showToast('⚠️ 클라우드 방문수령 저장 오류: ' + (err.message || err));
+        } finally {
           pendingSyncIds.delete(r.ID);
-        });
+        }
       }
       renderRouteMap();
       renderTable();
