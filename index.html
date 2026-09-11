@@ -6460,6 +6460,7 @@
 
       try {
         var dateInp = document.getElementById('calendarDateInput');
+        var selectInp = document.getElementById('sheetDateSelect');
         var selectedDate = (dateInp && dateInp.value) ? dateInp.value : (selectInp ? selectInp.value : '');
 
         var query = supabaseClient.from('delivery_schedules')
