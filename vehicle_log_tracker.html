@@ -373,7 +373,7 @@
                 <button type="button" onclick="appendDriverNameToModal('이성호')" class="px-1.5 py-0.5 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 rounded text-[10px] font-bold text-slate-600 border border-slate-200 transition">+이성호</button>
                 <button type="button" onclick="appendDriverNameToModal('장종순')" class="px-1.5 py-0.5 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 rounded text-[10px] font-bold text-slate-600 border border-slate-200 transition">+장종순</button>
                 <button type="button" onclick="appendDriverNameToModal('박종환')" class="px-1.5 py-0.5 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 rounded text-[10px] font-bold text-slate-600 border border-slate-200 transition">+박종환</button>
-                <button type="button" onclick="appendDriverNameToModal('현민혁')" class="px-1.5 py-0.5 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 rounded text-[10px] font-bold text-slate-600 border border-slate-200 transition">+현민혁</button>
+                <button type="button" onclick="appendDriverNameToModal('한민혁')" class="px-1.5 py-0.5 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 rounded text-[10px] font-bold text-slate-600 border border-slate-200 transition">+한민혁</button>
                 <button type="button" onclick="appendDriverNameToModal('최두성')" class="px-1.5 py-0.5 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 rounded text-[10px] font-bold text-slate-600 border border-slate-200 transition">+최두성</button>
                 <button type="button" onclick="appendDriverNameToModal('기타')" class="px-1.5 py-0.5 bg-amber-50 hover:bg-amber-100 text-amber-800 rounded text-[10px] font-black border border-amber-200 transition">+기타</button>
               </div>
@@ -426,19 +426,30 @@
             </div>
           </div>
 
-          <!-- Row 4.5: Destination -->
-          <div class="grid grid-cols-3 gap-2.5">
-            <div>
-              <label class="block text-[11px] font-bold text-slate-500 mb-1">도착지 선택</label>
-              <select id="modalDestType" onchange="onModalDestTypeChange(this.value)" class="w-full bg-slate-50 font-bold text-slate-800 px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-teal-500 focus:outline-none">
-                <option value="gasan">🏢 가산 센터 복귀</option>
-                <option value="custom">📍 도착지 직접 입력</option>
-              </select>
+          <!-- Row 4.5: Destination / Return Point -->
+          <div class="p-3 bg-teal-50/70 rounded-xl border border-teal-200/80 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-[11px] font-black text-teal-900 flex items-center gap-1.5">
+                <i class="fa-solid fa-flag-checkered text-teal-600"></i> 최종 복귀지 (운행 마감 장소)
+              </span>
+              <span id="destHelperBadge" class="text-[10px] font-bold text-teal-700 bg-teal-100 px-2 py-0.5 rounded-full">
+                🏢 센터 복귀 (기본)
+              </span>
             </div>
-            <div class="col-span-2">
-              <label class="block text-[11px] font-bold text-slate-500 mb-1">도착지 주소</label>
-              <input type="text" id="modalDestAddr" value="서울 금천구 벚꽃로 278 (가산 센터)" placeholder="도착지 주소 입력" class="w-full bg-slate-50 text-slate-800 px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-teal-500 focus:outline-none">
+            <div class="grid grid-cols-3 gap-2">
+              <div>
+                <select id="modalDestType" onchange="onModalDestTypeChange(this.value)" class="w-full bg-white font-bold text-slate-800 px-2.5 py-2 rounded-xl border border-teal-200 text-xs focus:ring-2 focus:ring-teal-500 focus:outline-none">
+                  <option value="gasan">🏢 가산 센터 복귀</option>
+                  <option value="custom">🏠 현지(자택) 퇴근/직접입력</option>
+                </select>
+              </div>
+              <div class="col-span-2">
+                <input type="text" id="modalDestAddr" value="서울 금천구 벚꽃로 278 (가산 센터)" oninput="onModalDestAddrInput(this.value)" placeholder="복귀지 주소 입력 (자택 또는 타 도착지)" class="w-full bg-white text-slate-800 px-3 py-2 rounded-xl border border-teal-200 text-xs focus:ring-2 focus:ring-teal-500 focus:outline-none font-medium">
+              </div>
             </div>
+            <p id="destDescHelp" class="text-[10.5px] text-teal-800/90 leading-tight">
+              💡 <b>안내:</b> 배송지를 돌고 가산 센터로 복귀한 경우 <b>'가산 센터 복귀'</b>를 그대로 두시면 됩니다. (하단 배송지 외에 가산 센터 복귀로 자동 마감됩니다.)
+            </p>
           </div>
 
           <!-- Row 4.8: Stops Management (방문 경로 및 배송 순서 관리) -->
@@ -1881,10 +1892,12 @@
         var isReturn = (s.type === 'return');
         var isMovable = !isOrigin && !isReturn;
 
+        var isCustomDest = (document.getElementById('modalDestType') && document.getElementById('modalDestType').value === 'custom');
+
         var badgeHtml = isOrigin
           ? '<span class="px-1.5 py-0.5 rounded text-[9.5px] font-bold bg-indigo-100 text-indigo-700 shrink-0">출발</span>'
           : isReturn
-          ? '<span class="px-1.5 py-0.5 rounded text-[9.5px] font-bold bg-teal-100 text-teal-800 shrink-0">도착</span>'
+          ? '<span class="px-1.5 py-0.5 rounded text-[9.5px] font-bold bg-teal-600 text-white shrink-0">최종 복귀</span>'
           : (s.type === 'team1' || s.type === 'other')
           ? `<span class="px-1.5 py-0.5 rounded text-[9.5px] font-black bg-amber-100 text-amber-900 border border-amber-200 shrink-0">기타 #${s.order || idx}</span>`
           : (s.type === 'gas')
@@ -1893,6 +1906,9 @@
           ? `<span class="px-1.5 py-0.5 rounded text-[9.5px] font-bold bg-slate-100 text-slate-700 border border-slate-200 shrink-0">경유 #${s.order || idx}</span>`
           : `<span class="px-1.5 py-0.5 rounded text-[9.5px] font-bold bg-amber-100 text-amber-900 shrink-0">배송 #${s.order || idx}</span>`;
 
+        var displayName = s.name || (isReturn ? (isCustomDest ? '최종 도착지' : '가산 센터 (최종 복귀)') : '경유지');
+        var displayAddr = s.addr || (isReturn ? (isCustomDest ? '<span class="text-rose-500 font-bold">주소 미입력 (상단 복귀지 주소를 입력하세요)</span>' : '서울 금천구 벚꽃로 278 (가산 센터)') : '주소 미입력');
+
         var canMoveUp = isMovable && (idx > 1);
         var canMoveDown = isMovable && (idx < modalStops.length - 2);
 
@@ -1900,16 +1916,22 @@
         var curFuel = Number(s.fuel_fee || 0);
 
         return `
-          <div class="p-2.5 rounded-xl bg-white border border-slate-200 shadow-2xs text-xs hover:border-indigo-200 transition space-y-1.5">
+          <div class="p-2.5 rounded-xl bg-white border ${isReturn ? 'border-teal-200 bg-teal-50/20' : 'border-slate-200'} shadow-2xs text-xs hover:border-indigo-200 transition space-y-1.5">
             <div class="flex items-center justify-between gap-2">
               <div class="flex items-center gap-2 min-w-0 flex-1">
                 ${badgeHtml}
                 <div class="min-w-0 flex-1">
-                  <p class="font-bold text-slate-900 text-[11px] truncate">${s.name || '경유지'}</p>
-                  <p class="text-[10px] text-slate-500 truncate" title="${s.addr || ''}">${s.addr || '주소 미입력'}</p>
+                  <p class="font-bold text-slate-900 text-[11px] truncate">${displayName}</p>
+                  <p class="text-[10px] text-slate-500 truncate" title="${s.addr || ''}">${displayAddr}</p>
                 </div>
               </div>
               <div class="flex items-center gap-1 shrink-0">
+                ${isReturn && isCustomDest ? `
+                  <button type="button" onclick="resetModalDestToGasan()" class="px-2 py-1 bg-teal-50 hover:bg-teal-100 text-teal-700 border border-teal-200 rounded-lg text-[10px] font-bold shadow-2xs transition flex items-center gap-1">
+                    <i class="fa-solid fa-building text-[9px]"></i>
+                    <span>가산 센터 복귀로 전환</span>
+                  </button>
+                ` : ''}
                 ${isMovable ? `
                   <button type="button" onclick="moveModalStop(${idx}, -1)" class="w-6 h-6 rounded bg-slate-100 hover:bg-indigo-50 text-slate-600 hover:text-indigo-600 flex items-center justify-center text-[10px] transition active:scale-95" title="순서 위로" ${!canMoveUp ? 'disabled style="opacity:0.25; cursor:default;"' : ''}>
                     <i class="fa-solid fa-chevron-up"></i>
@@ -2079,13 +2101,22 @@
       document.getElementById('modalIsUnoperated').checked = false;
       document.getElementById('modalDestType').value = 'gasan';
       document.getElementById('modalDestAddr').value = '서울 금천구 벚꽃로 278 (가산 센터)';
+      var newBadge = document.getElementById('destHelperBadge');
+      if (newBadge) {
+        newBadge.className = 'text-[10px] font-bold text-teal-700 bg-teal-100 px-2 py-0.5 rounded-full';
+        newBadge.innerText = '🏢 센터 복귀 (기본)';
+      }
+      var newHelp = document.getElementById('destDescHelp');
+      if (newHelp) {
+        newHelp.innerHTML = '💡 <b>안내:</b> 배송지를 돌고 가산 센터로 복귀한 경우 <b>\'가산 센터 복귀\'</b>를 그대로 두시면 됩니다. (하단 배송지 외에 가산 센터 복귀로 자동 마감됩니다.)';
+      }
       document.getElementById('modalParkingFee').value = 0;
       document.getElementById('modalFuelFee').value = 0;
       document.getElementById('modalMemo').value = '';
 
       modalStops = [
         { id: 'stop_origin', type: 'origin', name: '가산 센터', addr: '서울 금천구 벚꽃로 278 (가산 센터)', time: '08:30' },
-        { id: 'stop_return', type: 'return', name: '가산 센터', addr: '서울 금천구 벚꽃로 278 (가산 센터)', time: '18:00' }
+        { id: 'stop_return', type: 'return', name: '가산 센터 (최종 복귀)', addr: '서울 금천구 벚꽃로 278 (가산 센터)', time: '18:00' }
       ];
       renderModalStops();
       loadStopsForDate(todayStr);
@@ -2110,6 +2141,25 @@
       var isCustom = (log.destination_addr && log.destination_addr.indexOf('벚꽃로 278') === -1);
       document.getElementById('modalDestType').value = isCustom ? 'custom' : 'gasan';
       document.getElementById('modalDestAddr').value = log.destination_addr || log.destination_name || '서울 금천구 벚꽃로 278 (가산 센터)';
+      var editBadge = document.getElementById('destHelperBadge');
+      var editHelp = document.getElementById('destDescHelp');
+      if (isCustom) {
+        if (editBadge) {
+          editBadge.className = 'text-[10px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full';
+          editBadge.innerText = '🏠 현지/자택 마감';
+        }
+        if (editHelp) {
+          editHelp.innerHTML = '⚠️ <b>현지 퇴근/기타 마감:</b> 센터로 돌아오지 않고 자택 등 타 장소에서 업무를 마감한 경우 복귀지 주소를 입력해주세요.';
+        }
+      } else {
+        if (editBadge) {
+          editBadge.className = 'text-[10px] font-bold text-teal-700 bg-teal-100 px-2 py-0.5 rounded-full';
+          editBadge.innerText = '🏢 센터 복귀 (기본)';
+        }
+        if (editHelp) {
+          editHelp.innerHTML = '💡 <b>안내:</b> 배송지를 돌고 가산 센터로 복귀한 경우 <b>\'가산 센터 복귀\'</b>를 그대로 두시면 됩니다. (하단 배송지 외에 가산 센터 복귀로 자동 마감됩니다.)';
+        }
+      }
       document.getElementById('modalParkingFee').value = log.parking_fee;
       document.getElementById('modalFuelFee').value = log.fuel_fee;
       document.getElementById('modalMemo').value = log.memo;
@@ -2119,7 +2169,7 @@
       } else {
         modalStops = [
           { id: 'stop_origin', type: 'origin', name: '가산 센터', addr: '서울 금천구 벚꽃로 278 (가산 센터)', time: '08:30' },
-          { id: 'stop_return', type: 'return', name: log.destination_name || '가산 센터', addr: log.destination_addr || '서울 금천구 벚꽃로 278 (가산 센터)', time: '18:00' }
+          { id: 'stop_return', type: 'return', name: isCustom ? (log.destination_name || '최종 도착지') : '가산 센터 (최종 복귀)', addr: log.destination_addr || '서울 금천구 벚꽃로 278 (가산 센터)', time: '18:00' }
         ];
         loadStopsForDate(log.trip_date);
       }
@@ -2136,21 +2186,62 @@
 
     function onModalDestTypeChange(val) {
       var addrInp = document.getElementById('modalDestAddr');
+      var badge = document.getElementById('destHelperBadge');
+      var help = document.getElementById('destDescHelp');
       if (!addrInp) return;
+
       if (val === 'gasan') {
         addrInp.value = '서울 금천구 벚꽃로 278 (가산 센터)';
+        if (badge) {
+          badge.className = 'text-[10px] font-bold text-teal-700 bg-teal-100 px-2 py-0.5 rounded-full';
+          badge.innerText = '🏢 센터 복귀 (기본)';
+        }
+        if (help) {
+          help.innerHTML = '💡 <b>안내:</b> 배송지를 돌고 가산 센터로 복귀한 경우 <b>\'가산 센터 복귀\'</b>를 그대로 두시면 됩니다. (하단 배송지 외에 가산 센터 복귀로 자동 마감됩니다.)';
+        }
       } else {
         if (addrInp.value.indexOf('벚꽃로 278') !== -1) addrInp.value = '';
+        if (badge) {
+          badge.className = 'text-[10px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full';
+          badge.innerText = '🏠 현지/자택 마감';
+        }
+        if (help) {
+          help.innerHTML = '⚠️ <b>현지 퇴근/기타 마감:</b> 센터로 돌아오지 않고 자택 등 타 장소에서 업무를 마감한 경우 복귀지 주소를 입력해주세요.';
+        }
         addrInp.focus();
       }
+
       if (modalStops.length > 0) {
         var ret = modalStops[modalStops.length - 1];
         if (ret && ret.type === 'return') {
-          ret.name = (val === 'gasan') ? '가산 센터' : '도착지';
-          ret.addr = addrInp.value;
+          ret.name = (val === 'gasan') ? '가산 센터 (최종 복귀)' : (addrInp.value.trim() ? (addrInp.value.trim().split(' ')[0] + ' (종료)') : '최종 도착지');
+          ret.addr = addrInp.value.trim();
           renderModalStops();
         }
       }
+    }
+
+    function onModalDestAddrInput(val) {
+      if (modalStops.length > 0) {
+        var ret = modalStops[modalStops.length - 1];
+        if (ret && ret.type === 'return') {
+          ret.addr = val.trim();
+          var destType = document.getElementById('modalDestType') ? document.getElementById('modalDestType').value : 'gasan';
+          if (destType === 'gasan') {
+            ret.name = '가산 센터 (최종 복귀)';
+          } else {
+            ret.name = val.trim() ? (val.trim().split(' ')[0] + ' (종료)') : '최종 도착지';
+          }
+          renderModalStops();
+        }
+      }
+    }
+
+    function resetModalDestToGasan() {
+      var sel = document.getElementById('modalDestType');
+      if (sel) sel.value = 'gasan';
+      onModalDestTypeChange('gasan');
+      showToast('🏢 최종 복귀지가 [가산 센터 복귀]로 설정되었습니다.');
     }
 
     function closeTripLogModal() {
@@ -2216,10 +2307,20 @@
       var isUnoperated = document.getElementById('modalIsUnoperated').checked;
       var destType = document.getElementById('modalDestType').value;
       var destAddr = document.getElementById('modalDestAddr').value.trim();
-      var destName = (destType === 'gasan' || !destAddr) ? '가산 센터' : destAddr;
+      var destName = (destType === 'gasan' || !destAddr) ? '가산 센터' : (destAddr.split(' ')[0] || destAddr);
+      var finalDestAddr = (destType === 'gasan' || !destAddr) ? '서울 금천구 벚꽃로 278 (가산 센터)' : destAddr;
       var parkingFee = Number(document.getElementById('modalParkingFee').value || 0);
       var fuelFee = Number(document.getElementById('modalFuelFee').value || 0);
       var memo = document.getElementById('modalMemo').value.trim();
+
+      // Ensure last return stop has valid addr & name
+      if (modalStops && modalStops.length > 0) {
+        var lastStop = modalStops[modalStops.length - 1];
+        if (lastStop && lastStop.type === 'return') {
+          lastStop.addr = finalDestAddr;
+          lastStop.name = (destType === 'gasan') ? '가산 센터 (최종 복귀)' : (destName + ' (종료)');
+        }
+      }
 
       // Validation Guard
       if (endKm < startKm) {
@@ -2242,8 +2343,8 @@
         end_km: endKm,
         distance_km: distanceKm,
         suggested_distance_km: distanceKm > 0 ? (distanceKm * 0.98).toFixed(1) : 0,
-        is_local_dismissal: false,
-        destination_addr: destAddr || '서울 금천구 벚꽃로 278 (가산 센터)',
+        is_local_dismissal: (destType === 'custom'),
+        destination_addr: finalDestAddr,
         destination_name: destName,
         stops: modalStops,
         parking_fee: parkingFee,
