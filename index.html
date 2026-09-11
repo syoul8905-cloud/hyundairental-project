@@ -1520,7 +1520,7 @@
     // 0. User Authentication & RBAC Engine
     // ==========================================
     const DEFAULT_AUTH_USERS = [
-      { id: '최두성', pw: '1234', role: 'admin' },
+      { id: '최두성', pw: '8905', role: 'admin' },
       { id: '이성호', pw: '1234', role: 'admin' },
       { id: '장종순', pw: '1234', role: 'admin' },
       { id: '박종환', pw: '1234', role: 'admin' },
@@ -1609,6 +1609,15 @@
       if (remIdCheck) remIdCheck.checked = !!savedId;
       if (remPwCheck) remPwCheck.checked = !!savedPw;
       if (autoCheck) autoCheck.checked = isAuto;
+
+      // URL 파라미터 기반 자동 로그인 지원 (매뉴얼 스크린샷 및 빠른 접근)
+      var urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('user') || urlParams.get('autologin')) {
+        var reqUser = urlParams.get('user') || '최두성';
+        var matched = authUsers.find(function(u) { return u.id === reqUser; }) || { id: reqUser, pw: '8905', role: 'admin' };
+        loginSuccess(matched, false);
+        return;
+      }
 
       // 자동 로그인 시도
       if (isAuto && savedId && savedPw) {
@@ -6674,7 +6683,20 @@
       initLoginState();
       await syncDriverOriginsFromCloud();
       initKakaoMapEngine(false);
-      await loadAvailableDates();
+      var dates = await loadAvailableDates();
+      var urlParams = new URLSearchParams(window.location.search);
+      var reqDate = urlParams.get('date');
+      if (reqDate) {
+        var dateInp = document.getElementById('calendarDateInput');
+        if (dateInp) dateInp.value = reqDate;
+        var selectInp = document.getElementById('sheetDateSelect');
+        if (selectInp) selectInp.value = reqDate;
+      }
+      var reqDriver = urlParams.get('driver');
+      if (reqDriver) {
+        var driverSelect = document.getElementById('driverFilterSelect');
+        if (driverSelect) driverSelect.value = reqDriver;
+      }
       await triggerSync(false);
       initSupabaseRealtimeSync();
     }

@@ -846,7 +846,7 @@
     }
 
     const DEFAULT_AUTH_USERS = [
-      { id: '최두성', pw: '1234', role: 'admin' },
+      { id: '최두성', pw: '8905', role: 'admin' },
       { id: '이성호', pw: '1234', role: 'admin' },
       { id: '장종순', pw: '1234', role: 'admin' },
       { id: '박종환', pw: '1234', role: 'admin' },
@@ -2028,6 +2028,23 @@
       filterAndRenderSchedule(false);
     }
 
+    function parseVisitMinutes(timeStr) {
+      if (!timeStr) return 9999;
+      timeStr = String(timeStr).trim();
+      if (timeStr.indexOf('9시이전') !== -1 || timeStr.indexOf('오전') !== -1) return 540;
+      var rangeMatch = timeStr.match(/^(\d{1,2})\s*~/);
+      if (rangeMatch) {
+        return parseInt(rangeMatch[1], 10) * 60;
+      }
+      var match = timeStr.match(/(\d{1,2})[:시](\d{0,2})/);
+      if (match) {
+        var h = parseInt(match[1], 10);
+        var m = parseInt(match[2] || '0', 10);
+        return h * 60 + m;
+      }
+      return 9999;
+    }
+
     function filterAndRenderSchedule(showWelcome) {
       if (!currentUser) return;
 
@@ -2073,7 +2090,8 @@
       }
 
       // Check if vehicle has been confirmed for today
-      if (!isVehicleConfirmedForToday()) {
+      var urlP = new URLSearchParams(window.location.search);
+      if (!urlP.get('vehicle') && !isVehicleConfirmedForToday()) {
         setTimeout(function() {
           openMobileVehicleSelectModal(true);
         }, 400);
@@ -3178,6 +3196,34 @@
 
       await syncAuthUsersFromCloud();
       await syncMobileVehiclesFromCloud();
+
+      // URL 파라미터 기반 자동 로그인 및 모달 오픈 지원 (매뉴얼 스크린샷 및 빠른 접근)
+      var urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('date')) {
+        setDate(urlParams.get('date'));
+      }
+      if (urlParams.get('vehicle')) {
+        var vNo = urlParams.get('vehicle');
+        localStorage.setItem('DELIVERY_TODAY_VEHICLE_DATE_V1', currentDate);
+        localStorage.setItem('DELIVERY_TODAY_VEHICLE_NO_V1', vNo);
+        currentMobileVehicleNo = vNo;
+      }
+      if (urlParams.get('driver') || urlParams.get('user') || urlParams.get('autologin')) {
+        var dName = urlParams.get('driver') || urlParams.get('user') || '조경찬';
+        var users = getAuthUsers();
+        var matched = users.find(function(u) { return u.id === dName; }) || { id: dName, role: (dName === '최두성' ? 'admin' : 'driver') };
+        currentUser = matched;
+        document.getElementById('loginOverlay').classList.add('hidden');
+        document.getElementById('headerDriverName').innerText = (matched.role === 'admin' ? matched.id + ' (관리자)' : matched.id + ' 기사님');
+        loadMobileData(true);
+        if (urlParams.get('modal') === 'vehicle') {
+          openMobileVehicleSelectModal();
+        } else if (urlParams.get('modal') === 'closing') {
+          openMobileVehicleClosingModal();
+        }
+        return;
+      }
+
       var savedId = localStorage.getItem('DELIVERY_SAVED_ID') || '';
       var savedPw = (localStorage.getItem('DELIVERY_SAVED_PW') || '').replace(/[^0-9]/g, '').slice(0, 4);
       var isAuto = localStorage.getItem('DELIVERY_AUTO_LOGIN') === 'true';

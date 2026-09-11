@@ -213,9 +213,20 @@
             <p class="text-xs text-slate-700 leading-relaxed">
               나에게 배정된 배송지 목록을 확인합니다. 상단 파란색 <b>[🗺️ 전체 배송 지도 보기 & 실제 주행 경로]</b> 버튼을 누르면 오늘 방문할 전체 경유지와 추천 도로 주행선이 지도 위에 시원하게 펼쳐집니다.
             </p>
-            <div class="p-3 bg-white rounded-xl border border-slate-200 text-xs text-slate-600 space-y-1">
-              <b class="text-slate-800">현장 순서 변경 (▲/▼ 버튼)</b>
-              <p class="text-[11px]">고객 요청이나 도로 정체로 인해 순서를 바꿔야 할 때는 각 배송 카드 우측 상단의 <b>[▲] / [▼]</b> 버튼을 눌러 순서를 즉시 조정합니다. 변경 즉시 관제 PC 화면에도 실시간 반영됩니다.</p>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
+              <div class="rounded-xl overflow-hidden border border-slate-300 shadow-xs max-w-xs mx-auto md:mx-0">
+                <img src="./docs_images/mobile_card_flow.png" alt="모바일 배송 카드 및 출발지 현황 화면" class="w-full h-auto object-cover">
+              </div>
+              <div class="space-y-2 text-xs text-slate-600">
+                <div class="p-3 bg-white rounded-xl border border-slate-200 space-y-1">
+                  <b class="text-slate-800">현장 순서 변경 (▲/▼ 버튼)</b>
+                  <p class="text-[11px]">고객 요청이나 도로 정체로 인해 순서를 바꿔야 할 때는 각 배송 카드 우측 상단의 <b>[▲] / [▼]</b> 버튼을 눌러 순서를 즉시 조정합니다. 변경 즉시 관제 PC 화면에도 실시간 반영됩니다.</p>
+                </div>
+                <div class="p-3 bg-indigo-50 rounded-xl border border-indigo-200 text-indigo-950 space-y-1">
+                  <b class="text-indigo-900">출발지 카드 자동 안내</b>
+                  <p class="text-[11px]">타임라인 최상단에 오늘 설정된 출발지(가산 센터 또는 등록 거점)가 고정 표시되어 동선의 시작점을 직관적으로 파악할 수 있습니다.</p>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -285,65 +296,70 @@
               모든 배송을 마치고 가산 센터로 복귀하면 상단 우측의 <b>[운행마감]</b> (초록색 깃발) 버튼을 누르고 아래 3단계를 순서대로 진행합니다.
             </p>
 
-            <!-- 1, 2, 3번 세부 화면 예시 카드 -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
-              <!-- 예시 1 -->
-              <div class="p-3.5 bg-white rounded-xl border border-emerald-200 space-y-2 shadow-xs">
-                <div class="flex items-center gap-1.5 font-black text-emerald-900">
-                  <span class="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px]">1</span>
-                  <span>종료 계기판 입력</span>
-                </div>
-                <div class="p-2 bg-slate-50 rounded-lg border border-slate-200 font-mono text-[11px] space-y-1">
-                  <div class="flex justify-between text-slate-500">
-                    <span>시작 계기판:</span>
-                    <b>58,751 km</b>
-                  </div>
-                  <div class="flex justify-between text-indigo-700 font-bold">
-                    <span>종료 계기판:</span>
-                    <span class="bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-200 font-black">58,820 km</span>
-                  </div>
-                  <div class="flex justify-between text-emerald-700 font-black pt-1 border-t border-slate-200">
-                    <span>오늘 실주행거리:</span>
-                    <span>69 km 자동 계산</span>
-                  </div>
-                </div>
-                <p class="text-[11px] text-slate-600">차량 계기판에 표시된 현재 최종 Km 숫자만 입력하면 오늘 달린 거리가 자동 계산됩니다.</p>
+            <!-- 1, 2, 3번 실제 모달 화면 캡처 & 세부 예시 안내 -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+              <div class="lg:col-span-5 rounded-2xl overflow-hidden border-2 border-emerald-300 shadow-md max-w-xs mx-auto lg:mx-0">
+                <img src="./docs_images/mobile_closing_modal.png" alt="센터 복귀 후 운행마감 모달 실제 화면" class="w-full h-auto object-cover">
               </div>
+              <div class="lg:col-span-7 space-y-3 text-xs">
+                <!-- 예시 1 -->
+                <div class="p-3.5 bg-white rounded-xl border border-emerald-200 space-y-2 shadow-xs">
+                  <div class="flex items-center gap-1.5 font-black text-emerald-900">
+                    <span class="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px]">1</span>
+                    <span>1단계: 종료 계기판 입력 (실주행거리 자동 계산)</span>
+                  </div>
+                  <div class="p-2 bg-slate-50 rounded-lg border border-slate-200 font-mono text-[11px] space-y-1">
+                    <div class="flex justify-between text-slate-500">
+                      <span>시작 계기판:</span>
+                      <b>71,298 km</b>
+                    </div>
+                    <div class="flex justify-between text-indigo-700 font-bold">
+                      <span>종료 계기판:</span>
+                      <span class="bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-200 font-black">71,365 km</span>
+                    </div>
+                    <div class="flex justify-between text-emerald-700 font-black pt-1 border-t border-slate-200">
+                      <span>오늘 실주행거리:</span>
+                      <span>67 km 자동 계산</span>
+                    </div>
+                  </div>
+                  <p class="text-[11px] text-slate-600">차량 계기판에 표시된 현재 최종 Km 숫자만 입력하면 오늘 달린 거리가 자동 계산됩니다.</p>
+                </div>
 
-              <!-- 예시 2 -->
-              <div class="p-3.5 bg-white rounded-xl border border-emerald-200 space-y-2 shadow-xs">
-                <div class="flex items-center gap-1.5 font-black text-emerald-900">
-                  <span class="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px]">2</span>
-                  <span>주차비 / 주유비 입력 (선택)</span>
+                <!-- 예시 2 -->
+                <div class="p-3.5 bg-white rounded-xl border border-emerald-200 space-y-2 shadow-xs">
+                  <div class="flex items-center gap-1.5 font-black text-emerald-900">
+                    <span class="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px]">2</span>
+                    <span>2단계: 주차비 / 주유비 영수증 금액 입력 (선택)</span>
+                  </div>
+                  <div class="p-2 bg-slate-50 rounded-lg border border-slate-200 font-mono text-[11px] space-y-1">
+                    <div class="flex justify-between text-amber-900">
+                      <span>주차비 총액:</span>
+                      <b>5,000 원</b>
+                    </div>
+                    <div class="flex justify-between text-rose-900">
+                      <span>주유비 총액:</span>
+                      <b>50,000 원</b>
+                    </div>
+                    <div class="text-[10px] text-slate-500 pt-0.5 truncate">
+                      메모: GS칼텍스 가산주유소 주유
+                    </div>
+                  </div>
+                  <p class="text-[11px] text-slate-600">오늘 발생한 영수증 지출 금액과 주유소명 메모를 입력합니다. (비용이 없으면 0원 그대로 유지)</p>
                 </div>
-                <div class="p-2 bg-slate-50 rounded-lg border border-slate-200 font-mono text-[11px] space-y-1">
-                  <div class="flex justify-between text-amber-900">
-                    <span>주차비 총액:</span>
-                    <b>5,000 원</b>
-                  </div>
-                  <div class="flex justify-between text-rose-900">
-                    <span>주유비 총액:</span>
-                    <b>50,000 원</b>
-                  </div>
-                  <div class="text-[10px] text-slate-500 pt-0.5 truncate">
-                    메모: GS칼텍스 가산주유소 주유
-                  </div>
-                </div>
-                <p class="text-[11px] text-slate-600">오늘 발생한 영수증 지출 금액과 주유소명 메모를 입력합니다. (비용이 없으면 0원 그대로 유지)</p>
-              </div>
 
-              <!-- 예시 3 -->
-              <div class="p-3.5 bg-white rounded-xl border border-emerald-200 space-y-2 shadow-xs">
-                <div class="flex items-center gap-1.5 font-black text-emerald-900">
-                  <span class="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px]">3</span>
-                  <span>[오늘 운행일지 저장 및 마감]</span>
+                <!-- 예시 3 -->
+                <div class="p-3.5 bg-white rounded-xl border border-emerald-200 space-y-2 shadow-xs">
+                  <div class="flex items-center gap-1.5 font-black text-emerald-900">
+                    <span class="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px]">3</span>
+                    <span>3단계: [오늘 운행일지 저장 및 마감] 원클릭</span>
+                  </div>
+                  <div class="pt-2">
+                    <button class="w-full py-2 bg-gradient-to-r from-indigo-600 to-teal-600 text-white font-black text-xs rounded-xl pointer-events-none shadow-xs">
+                      <i class="fa-solid fa-check"></i> 오늘 운행일지 저장 및 마감
+                    </button>
+                  </div>
+                  <p class="text-[11px] text-slate-600 pt-1">버튼 클릭 즉시 법인차량 운행일지 시스템으로 오늘 주행 데이터와 경유지가 일괄 전송되며 오늘 일과가 공식 마감됩니다.</p>
                 </div>
-                <div class="pt-2">
-                  <button class="w-full py-2 bg-gradient-to-r from-indigo-600 to-teal-600 text-white font-black text-xs rounded-xl pointer-events-none shadow-xs">
-                    <i class="fa-solid fa-check"></i> 오늘 운행일지 저장 및 마감
-                  </button>
-                </div>
-                <p class="text-[11px] text-slate-600 pt-1">버튼 클릭 즉시 법인차량 운행일지 시스템으로 오늘 주행 데이터와 경유지가 일괄 전송되며 오늘 일과가 공식 마감됩니다.</p>
               </div>
             </div>
 
