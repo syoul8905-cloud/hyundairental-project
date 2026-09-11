@@ -5593,6 +5593,7 @@
         var isPickupRow = (currentMethod === '방문수령');
         var isArrived = !!times.arrive || r.의뢰상태 === '도착완료' || r.의뢰상태 === '수령완료' || r.의뢰상태 === '퀵출발';
         var isDriving = !isArrived && (!!times.depart || r.의뢰상태 === '운행중' || r.의뢰상태 === '접수완료');
+        var durMin = calculateDurationMinutes(times.depart, times.arrive);
 
         var card = document.createElement('div');
         card.className = 'bg-white rounded-2xl p-3.5 border ' + (isArrived ? 'border-emerald-200 bg-emerald-50/20' : isDriving ? 'border-indigo-300 ring-2 ring-indigo-500/20 shadow-sm' : 'border-slate-200 shadow-xs') + ' space-y-2.5 transition';
