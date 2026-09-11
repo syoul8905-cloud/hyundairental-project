@@ -3752,16 +3752,26 @@
       times.depart = nowStr;
       var jsonStr = JSON.stringify(times);
       r.추후일정_특이사항 = jsonStr;
+      r.memo_special = jsonStr;
       r.의뢰상태 = '운행중';
+      r.status = '운행중';
       r.depart_time = nowStr;
+
+      if (r.ID) pendingSyncIds.add(r.ID);
 
       if (supabaseClient && r.ID) {
         supabaseClient.from('delivery_schedules').update({
           memo_special: jsonStr,
-          status: '운행중',
-          depart_time: nowStr
+          status: '운행중'
         }).eq('id', r.ID).then(function(res) {
-          if (res.error) console.error('Cloud departure update error:', res.error);
+          if (res.error) {
+            console.error('Cloud departure update error:', res.error);
+            showToast('⚠️ 클라우드 출발 시각 저장 오류: ' + (res.error.message || res.error));
+          } else {
+            lastDataHash = '';
+          }
+        }).finally(function() {
+          pendingSyncIds.delete(r.ID);
         });
       }
       renderRouteMap();
@@ -3782,16 +3792,26 @@
       var dur = calculateDurationMinutes(times.depart, times.arrive);
       var jsonStr = JSON.stringify(times);
       r.추후일정_특이사항 = jsonStr;
+      r.memo_special = jsonStr;
       r.의뢰상태 = '도착완료';
+      r.status = '도착완료';
       r.arrive_time = nowStr;
+
+      if (r.ID) pendingSyncIds.add(r.ID);
 
       if (supabaseClient && r.ID) {
         supabaseClient.from('delivery_schedules').update({
           memo_special: jsonStr,
-          status: '도착완료',
-          arrive_time: nowStr
+          status: '도착완료'
         }).eq('id', r.ID).then(function(res) {
-          if (res.error) console.error('Cloud arrival update error:', res.error);
+          if (res.error) {
+            console.error('Cloud arrival update error:', res.error);
+            showToast('⚠️ 클라우드 도착 완료 저장 오류: ' + (res.error.message || res.error));
+          } else {
+            lastDataHash = '';
+          }
+        }).finally(function() {
+          pendingSyncIds.delete(r.ID);
         });
       }
       renderRouteMap();
@@ -3811,16 +3831,26 @@
       times.depart = nowStr;
       var jsonStr = JSON.stringify(times);
       r.추후일정_특이사항 = jsonStr;
+      r.memo_special = jsonStr;
       r.의뢰상태 = '접수완료';
+      r.status = '접수완료';
       r.depart_time = nowStr;
+
+      if (r.ID) pendingSyncIds.add(r.ID);
 
       if (supabaseClient && r.ID) {
         supabaseClient.from('delivery_schedules').update({
           memo_special: jsonStr,
-          status: '접수완료',
-          depart_time: nowStr
+          status: '접수완료'
         }).eq('id', r.ID).then(function(res) {
-          if (res.error) console.error('Cloud quick receipt update error:', res.error);
+          if (res.error) {
+            console.error('Cloud quick receipt update error:', res.error);
+            showToast('⚠️ 클라우드 퀵 접수 저장 오류: ' + (res.error.message || res.error));
+          } else {
+            lastDataHash = '';
+          }
+        }).finally(function() {
+          pendingSyncIds.delete(r.ID);
         });
       }
       renderRouteMap();
@@ -3842,16 +3872,26 @@
       var dur = calculateDurationMinutes(times.depart, times.arrive);
       var jsonStr = JSON.stringify(times);
       r.추후일정_특이사항 = jsonStr;
+      r.memo_special = jsonStr;
       r.의뢰상태 = '퀵출발';
+      r.status = '퀵출발';
       r.arrive_time = nowStr;
+
+      if (r.ID) pendingSyncIds.add(r.ID);
 
       if (supabaseClient && r.ID) {
         supabaseClient.from('delivery_schedules').update({
           memo_special: jsonStr,
-          status: '퀵출발',
-          arrive_time: nowStr
+          status: '퀵출발'
         }).eq('id', r.ID).then(function(res) {
-          if (res.error) console.error('Cloud quick departure update error:', res.error);
+          if (res.error) {
+            console.error('Cloud quick departure update error:', res.error);
+            showToast('⚠️ 클라우드 퀵 출발 저장 오류: ' + (res.error.message || res.error));
+          } else {
+            lastDataHash = '';
+          }
+        }).finally(function() {
+          pendingSyncIds.delete(r.ID);
         });
       }
       renderRouteMap();
@@ -3871,16 +3911,26 @@
       times.arrive = nowStr;
       var jsonStr = JSON.stringify(times);
       r.추후일정_특이사항 = jsonStr;
+      r.memo_special = jsonStr;
       r.의뢰상태 = '수령완료';
+      r.status = '수령완료';
       r.arrive_time = nowStr;
+
+      if (r.ID) pendingSyncIds.add(r.ID);
 
       if (supabaseClient && r.ID) {
         supabaseClient.from('delivery_schedules').update({
           memo_special: jsonStr,
-          status: '수령완료',
-          arrive_time: nowStr
+          status: '수령완료'
         }).eq('id', r.ID).then(function(res) {
-          if (res.error) console.error('Cloud pickup completion update error:', res.error);
+          if (res.error) {
+            console.error('Cloud pickup completion update error:', res.error);
+            showToast('⚠️ 클라우드 방문수령 저장 오류: ' + (res.error.message || res.error));
+          } else {
+            lastDataHash = '';
+          }
+        }).finally(function() {
+          pendingSyncIds.delete(r.ID);
         });
       }
       renderRouteMap();
@@ -5073,6 +5123,11 @@
       // Supabase 클라우드 일괄 저장
       if (supabaseClient) {
         var payload = records.map(function(r) {
+          var times = getStopTimes(r);
+          if (!times.depart && (r.depart_time || r.출발시각)) times.depart = r.depart_time || r.출발시각;
+          if (!times.arrive && (r.arrive_time || r.도착시각)) times.arrive = r.arrive_time || r.도착시각;
+          var memoSpecialStr = (times.depart || times.arrive || times.issue || times.photo) ? JSON.stringify(times) : (r.memo_special || '');
+
           return {
             delivery_date: r.배송일자,
             contract_no: r.계약번호,
@@ -5086,11 +5141,8 @@
             status: r.의뢰상태,
             delivery_method: r.배송방법,
             memo_full: r.비고_전문,
-            memo_special: r.memo_special || '',
+            memo_special: memoSpecialStr,
             stop_order: r.stop_order || null,
-            depart_time: r.depart_time || r.출발시각 || null,
-            arrive_time: r.arrive_time || r.도착시각 || null,
-            vehicle_no: r.vehicle_no || r.운행차량 || '',
             source_sheet: r.source_sheet || r.원본시트 || (r.isManual ? '직접추가' : 'CSV업로드')
           };
         });

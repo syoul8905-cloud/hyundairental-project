@@ -2763,8 +2763,7 @@
         try {
           var res = await supabaseClient.from('delivery_schedules').update({
             memo_special: jsonStr,
-            status: '접수완료',
-            depart_time: nowStr
+            status: '접수완료'
           }).eq('id', r.id);
           if (res.error) throw res.error;
 
@@ -2806,8 +2805,7 @@
         try {
           var res = await supabaseClient.from('delivery_schedules').update({
             memo_special: jsonStr,
-            status: '퀵출발',
-            arrive_time: nowStr
+            status: '퀵출발'
           }).eq('id', r.id);
           if (res.error) throw res.error;
 
@@ -2847,8 +2845,7 @@
         try {
           var res = await supabaseClient.from('delivery_schedules').update({
             memo_special: jsonStr,
-            status: '수령완료',
-            arrive_time: nowStr
+            status: '수령완료'
           }).eq('id', r.id);
           if (res.error) throw res.error;
 
