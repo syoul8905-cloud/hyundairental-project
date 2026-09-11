@@ -356,10 +356,18 @@
         </div>
 
         <!-- Row 2: Driver & Unoperated Toggle -->
-        <div class="grid grid-cols-2 gap-2.5 items-center">
+        <div class="grid grid-cols-2 gap-2.5 items-start">
           <div>
-            <label class="block text-[11px] font-bold text-slate-500 mb-1">운전자 (복수 기사 쉼표 입력 가능)</label>
-            <input type="text" id="modalDriverName" required placeholder="예: 조경찬 또는 현민혁, 최두성" class="w-full bg-slate-50 font-bold text-slate-800 px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            <label class="block text-[11px] font-bold text-slate-500 mb-1">운전자 (복수 기사/교대 시 쉼표 구분)</label>
+            <input type="text" id="modalDriverName" required placeholder="예: 조경찬 또는 조경찬, 1팀 박담당" class="w-full bg-slate-50 font-bold text-slate-800 px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            <!-- Quick Driver Select Buttons -->
+            <div class="flex items-center gap-1 mt-1 flex-wrap">
+              <button type="button" onclick="appendDriverNameToModal('조경찬')" class="px-1.5 py-0.5 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 rounded text-[10px] font-bold text-slate-600 border border-slate-200 transition">+조경찬</button>
+              <button type="button" onclick="appendDriverNameToModal('현민혁')" class="px-1.5 py-0.5 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 rounded text-[10px] font-bold text-slate-600 border border-slate-200 transition">+현민혁</button>
+              <button type="button" onclick="appendDriverNameToModal('최두성')" class="px-1.5 py-0.5 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 rounded text-[10px] font-bold text-slate-600 border border-slate-200 transition">+최두성</button>
+              <button type="button" onclick="appendDriverNameToModal('김승지')" class="px-1.5 py-0.5 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 rounded text-[10px] font-bold text-slate-600 border border-slate-200 transition">+김승지</button>
+              <button type="button" onclick="appendDriverNameToModal('1팀 담당자')" class="px-1.5 py-0.5 bg-amber-50 hover:bg-amber-100 text-amber-800 rounded text-[10px] font-black border border-amber-200 transition">+1팀 담당자</button>
+            </div>
           </div>
           <div class="pt-4 flex items-center gap-2">
             <label class="relative inline-flex items-center cursor-pointer">
@@ -432,17 +440,44 @@
               <span class="font-black text-slate-800 text-xs">방문 경로 및 배송 순서 관리</span>
               <span id="modalStopsBadge" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800">0곳</span>
             </div>
-            <button type="button" onclick="addManualStopToModal()" class="px-2.5 py-1 bg-white hover:bg-indigo-50 text-indigo-600 border border-indigo-200 hover:border-indigo-300 rounded-lg text-[10px] font-bold shadow-2xs transition flex items-center gap-1">
+            <button type="button" onclick="toggleModalAddStopBox()" class="px-2.5 py-1 bg-white hover:bg-indigo-50 text-indigo-600 border border-indigo-200 hover:border-indigo-300 rounded-lg text-[10px] font-bold shadow-2xs transition flex items-center gap-1">
               <i class="fa-solid fa-plus text-[9px]"></i>
-              <span>배송지 수기 추가</span>
+              <span>경유지/1팀 업무지 추가</span>
             </button>
           </div>
 
+          <!-- Inline Add Stop Input Form (Collapsible) -->
+          <div id="modalAddStopBox" class="hidden p-2.5 bg-white rounded-xl border border-indigo-200 shadow-xs space-y-2 animate-in fade-in zoom-in-95 duration-150">
+            <div class="flex items-center justify-between">
+              <span class="text-[11px] font-bold text-indigo-900 flex items-center gap-1">
+                <i class="fa-solid fa-location-dot text-indigo-600"></i> 새 방문지(경유지) 직접 등록
+              </span>
+              <button type="button" onclick="toggleModalAddStopBox()" class="text-slate-400 hover:text-slate-600 text-xs">
+                <i class="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+            <div class="grid grid-cols-3 gap-1.5">
+              <input type="text" id="newStopNameInput" placeholder="방문지/업무명 (예: 1팀 마포거래처)" class="col-span-2 px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold focus:outline-none focus:border-indigo-500">
+              <select id="newStopTypeSelect" class="px-2 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold focus:outline-none">
+                <option value="delivery">📦 배송지</option>
+                <option value="team1">🏢 1팀 업무</option>
+                <option value="gas">⛽ 주유소</option>
+                <option value="custom">📍 일반 경유</option>
+              </select>
+            </div>
+            <div class="flex gap-1.5">
+              <input type="text" id="newStopAddrInput" placeholder="도로명 또는 지번 주소 입력" class="flex-1 px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium focus:outline-none focus:border-indigo-500">
+              <button type="button" onclick="confirmAddManualStopToModal()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg text-xs shrink-0 shadow-xs">
+                등록
+              </button>
+            </div>
+          </div>
+
           <!-- Stops List Container -->
-          <div id="modalStopsContainer" class="space-y-1.5 max-h-40 overflow-y-auto custom-scroll pr-1">
+          <div id="modalStopsContainer" class="space-y-1.5 max-h-48 overflow-y-auto custom-scroll pr-1">
             <!-- Dynamically rendered stops with up/down/delete controls -->
           </div>
-          <p class="text-[10px] text-slate-400">▲/▼ 버튼으로 배송 순서를 변경하거나 수기 배송지를 추가하여 저장할 수 있습니다.</p>
+          <p class="text-[10px] text-slate-400">▲/▼ 버튼으로 방문 순서를 자유롭게 조정하거나 수기 경유지를 추가/삭제할 수 있습니다.</p>
         </div>
 
         <!-- Row 5: Memo -->
@@ -1658,13 +1693,92 @@
       syncModalTotalFees();
     }
 
+    function appendDriverNameToModal(drvName) {
+      var inp = document.getElementById('modalDriverName');
+      if (!inp) return;
+      var cur = inp.value.trim();
+      if (!cur || cur === '미운행' || cur === '조경찬') {
+        inp.value = drvName;
+      } else {
+        var parts = cur.split(',').map(function(s) { return s.trim(); });
+        if (parts.indexOf(drvName) === -1) {
+          parts.push(drvName);
+          inp.value = parts.join(', ');
+        }
+      }
+      showToast(`👤 운전자에 [${drvName}] 추가됨`);
+    }
+
+    function toggleModalAddStopBox() {
+      var box = document.getElementById('modalAddStopBox');
+      if (!box) return;
+      var isHidden = box.classList.contains('hidden');
+      if (isHidden) {
+        box.classList.remove('hidden');
+        var nameInput = document.getElementById('newStopNameInput');
+        if (nameInput) {
+          nameInput.value = '';
+          nameInput.focus();
+        }
+        var addrInput = document.getElementById('newStopAddrInput');
+        if (addrInput) addrInput.value = '';
+      } else {
+        box.classList.add('hidden');
+      }
+    }
+
+    function confirmAddManualStopToModal() {
+      var nameInp = document.getElementById('newStopNameInput');
+      var addrInp = document.getElementById('newStopAddrInput');
+      var typeSel = document.getElementById('newStopTypeSelect');
+      var name = nameInp ? nameInp.value.trim() : '';
+      var addr = addrInp ? addrInp.value.trim() : '';
+      var stopType = typeSel ? typeSel.value : 'delivery';
+
+      if (!name) {
+        alert('방문지(고객사 또는 업무명)를 입력해주세요.');
+        if (nameInp) nameInp.focus();
+        return;
+      }
+      if (!addr) {
+        alert('방문지 주소를 입력해주세요.');
+        if (addrInp) addrInp.focus();
+        return;
+      }
+
+      var insertIdx = Math.max(1, modalStops.length - 1);
+      var typeLabel = (stopType === 'team1') ? '1팀 업무' : (stopType === 'gas') ? '주유소' : (stopType === 'custom') ? '일반 경유' : '배송지';
+
+      var newStop = {
+        id: 'stop_manual_' + Date.now(),
+        type: stopType,
+        order: insertIdx,
+        name: name,
+        addr: addr,
+        time: '',
+        memo: `[${typeLabel}] 수기 추가`
+      };
+
+      modalStops.splice(insertIdx, 0, newStop);
+      renumberModalStops();
+      renderModalStops();
+
+      var recDist = calcRouteDistanceForStops(modalStops);
+      if (recDist > 0) {
+        document.getElementById('modalSuggestedKm').innerText = recDist.toFixed(1) + ' km';
+      }
+
+      toggleModalAddStopBox();
+      showToast(`📍 [${name}] 경유지가 추가되었습니다.`);
+    }
+
     function renderModalStops() {
       var container = document.getElementById('modalStopsContainer');
       var badge = document.getElementById('modalStopsBadge');
       if (!container) return;
 
-      var delivCount = modalStops.filter(function(s) { return s.type === 'delivery'; }).length;
-      if (badge) badge.innerText = `${modalStops.length}곳 (배송 ${delivCount}건)`;
+      var delivCount = modalStops.filter(function(s) { return s.type !== 'origin' && s.type !== 'return'; }).length;
+      if (badge) badge.innerText = `${modalStops.length}곳 (경유 ${delivCount}곳)`;
 
       if (modalStops.length === 0) {
         container.innerHTML = '<div class="py-3 text-center text-slate-400 text-xs">등록된 경유지가 없습니다.</div>';
@@ -1674,16 +1788,22 @@
       container.innerHTML = modalStops.map(function(s, idx) {
         var isOrigin = (s.type === 'origin');
         var isReturn = (s.type === 'return');
-        var isDeliv = (s.type === 'delivery');
+        var isMovable = !isOrigin && !isReturn;
 
         var badgeHtml = isOrigin
           ? '<span class="px-1.5 py-0.5 rounded text-[9.5px] font-bold bg-indigo-100 text-indigo-700 shrink-0">출발</span>'
           : isReturn
           ? '<span class="px-1.5 py-0.5 rounded text-[9.5px] font-bold bg-teal-100 text-teal-800 shrink-0">도착</span>'
+          : (s.type === 'team1')
+          ? `<span class="px-1.5 py-0.5 rounded text-[9.5px] font-black bg-purple-100 text-purple-900 border border-purple-200 shrink-0">1팀 #${s.order || idx}</span>`
+          : (s.type === 'gas')
+          ? `<span class="px-1.5 py-0.5 rounded text-[9.5px] font-black bg-rose-100 text-rose-900 border border-rose-200 shrink-0">주유 #${s.order || idx}</span>`
+          : (s.type === 'custom')
+          ? `<span class="px-1.5 py-0.5 rounded text-[9.5px] font-bold bg-slate-100 text-slate-700 border border-slate-200 shrink-0">경유 #${s.order || idx}</span>`
           : `<span class="px-1.5 py-0.5 rounded text-[9.5px] font-bold bg-amber-100 text-amber-900 shrink-0">배송 #${s.order || idx}</span>`;
 
-        var canMoveUp = isDeliv && (idx > 1 && modalStops[idx - 1].type === 'delivery');
-        var canMoveDown = isDeliv && (idx < modalStops.length - 2 && modalStops[idx + 1].type === 'delivery');
+        var canMoveUp = isMovable && (idx > 1);
+        var canMoveDown = isMovable && (idx < modalStops.length - 2);
 
         var curParking = Number(s.parking_fee || 0);
         var curFuel = Number(s.fuel_fee || 0);
@@ -1694,19 +1814,19 @@
               <div class="flex items-center gap-2 min-w-0 flex-1">
                 ${badgeHtml}
                 <div class="min-w-0 flex-1">
-                  <p class="font-bold text-slate-900 text-[11px] truncate">${s.name || '배송지'}</p>
+                  <p class="font-bold text-slate-900 text-[11px] truncate">${s.name || '경유지'}</p>
                   <p class="text-[10px] text-slate-500 truncate" title="${s.addr || ''}">${s.addr || '주소 미입력'}</p>
                 </div>
               </div>
               <div class="flex items-center gap-1 shrink-0">
-                ${isDeliv ? `
-                  <button type="button" onclick="moveModalStop(${idx}, -1)" class="w-6 h-6 rounded bg-slate-100 hover:bg-indigo-50 text-slate-600 hover:text-indigo-600 flex items-center justify-center text-[10px]" title="순서 위로" ${!canMoveUp ? 'disabled style="opacity:0.3; cursor:default;"' : ''}>
+                ${isMovable ? `
+                  <button type="button" onclick="moveModalStop(${idx}, -1)" class="w-6 h-6 rounded bg-slate-100 hover:bg-indigo-50 text-slate-600 hover:text-indigo-600 flex items-center justify-center text-[10px] transition active:scale-95" title="순서 위로" ${!canMoveUp ? 'disabled style="opacity:0.25; cursor:default;"' : ''}>
                     <i class="fa-solid fa-chevron-up"></i>
                   </button>
-                  <button type="button" onclick="moveModalStop(${idx}, 1)" class="w-6 h-6 rounded bg-slate-100 hover:bg-indigo-50 text-slate-600 hover:text-indigo-600 flex items-center justify-center text-[10px]" title="순서 아래로" ${!canMoveDown ? 'disabled style="opacity:0.3; cursor:default;"' : ''}>
+                  <button type="button" onclick="moveModalStop(${idx}, 1)" class="w-6 h-6 rounded bg-slate-100 hover:bg-indigo-50 text-slate-600 hover:text-indigo-600 flex items-center justify-center text-[10px] transition active:scale-95" title="순서 아래로" ${!canMoveDown ? 'disabled style="opacity:0.25; cursor:default;"' : ''}>
                     <i class="fa-solid fa-chevron-down"></i>
                   </button>
-                  <button type="button" onclick="removeModalStop(${idx})" class="w-6 h-6 rounded bg-slate-100 hover:bg-rose-50 text-slate-400 hover:text-rose-600 flex items-center justify-center text-[10px]" title="배송지 삭제">
+                  <button type="button" onclick="removeModalStop(${idx})" class="w-6 h-6 rounded bg-slate-100 hover:bg-rose-50 text-slate-400 hover:text-rose-600 flex items-center justify-center text-[10px] transition active:scale-95" title="경유지 삭제">
                     <i class="fa-solid fa-trash-can"></i>
                   </button>
                 ` : ''}
@@ -1732,36 +1852,12 @@
     }
 
     function addManualStopToModal() {
-      var name = prompt('추가할 배송지(고객사) 이름을 입력하세요:', '신규 배송지');
-      if (!name) return;
-      var addr = prompt('배송지 주소를 입력하세요:', '서울시 ');
-      if (!addr) return;
-
-      var insertIdx = Math.max(1, modalStops.length - 1);
-      var newStop = {
-        id: 'stop_manual_' + Date.now(),
-        type: 'delivery',
-        order: insertIdx,
-        name: name.trim(),
-        addr: addr.trim(),
-        time: '',
-        memo: '관리자 수기 추가'
-      };
-
-      modalStops.splice(insertIdx, 0, newStop);
-      renumberModalStops();
-      renderModalStops();
-
-      var recDist = calcRouteDistanceForStops(modalStops);
-      if (recDist > 0) {
-        document.getElementById('modalSuggestedKm').innerText = recDist.toFixed(1) + ' km';
-      }
-      showToast(`📍 [${name}] 배송지가 추가되었습니다.`);
+      toggleModalAddStopBox();
     }
 
     function moveModalStop(idx, delta) {
       var targetIdx = idx + delta;
-      if (targetIdx < 1 || targetIdx >= modalStops.length - 1) return;
+      if (targetIdx < 1 || targetIdx > modalStops.length - 2) return;
       var tmp = modalStops[idx];
       modalStops[idx] = modalStops[targetIdx];
       modalStops[targetIdx] = tmp;
@@ -1775,7 +1871,11 @@
     }
 
     function removeModalStop(idx) {
-      if (modalStops[idx].type !== 'delivery') return;
+      if (idx < 0 || idx >= modalStops.length) return;
+      if (modalStops[idx].type === 'origin' || modalStops[idx].type === 'return') {
+        alert('출발지 및 도착지는 삭제할 수 없습니다.');
+        return;
+      }
       var removedName = modalStops[idx].name;
       modalStops.splice(idx, 1);
       renumberModalStops();
@@ -1785,7 +1885,7 @@
       if (recDist > 0) {
         document.getElementById('modalSuggestedKm').innerText = recDist.toFixed(1) + ' km';
       }
-      showToast(`🗑️ [${removedName}] 배송지가 삭제되었습니다.`);
+      showToast(`🗑️ [${removedName}] 경유지가 삭제되었습니다.`);
     }
 
     function renumberModalStops() {

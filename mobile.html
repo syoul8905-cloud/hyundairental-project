@@ -450,7 +450,11 @@
         <!-- Injected via JS -->
       </div>
 
-      <div class="flex justify-end pt-1" id="mobileVehicleSelectFooter">
+      <div class="flex justify-between items-center pt-1" id="mobileVehicleSelectFooter">
+        <button id="mobileVehicleUnselectBtn" type="button" onclick="unselectMobileVehicle()" class="px-3 py-2 bg-rose-50 text-rose-700 font-bold rounded-xl text-xs hover:bg-rose-100 flex items-center gap-1 border border-rose-200">
+          <i class="fa-solid fa-ban text-[11px]"></i>
+          <span>선택 취소 (미운행)</span>
+        </button>
         <button id="mobileVehicleSelectCloseBtn" onclick="closeMobileVehicleSelectModal()" class="px-4 py-2 bg-slate-100 text-slate-600 font-bold rounded-xl text-xs hover:bg-slate-200">
           닫기
         </button>
@@ -1342,20 +1346,32 @@
       var container = document.getElementById('mobileVehicleOptionsContainer');
       if (!container) return;
 
+      var unselectBtn = document.getElementById('mobileVehicleUnselectBtn');
+      if (unselectBtn) {
+        if (isVehicleConfirmedForToday()) {
+          unselectBtn.classList.remove('hidden');
+        } else {
+          unselectBtn.classList.add('hidden');
+        }
+      }
+
       container.innerHTML = mobileVehiclesMaster.filter(function(v) { return v.is_active !== false; }).map(function(v) {
         var isSelected = (v.vehicle_no === currentMobileVehicleNo && isVehicleConfirmedForToday());
         return `
-          <div onclick="selectMobileVehicle('${v.vehicle_no}')" class="p-3 rounded-2xl border ${isSelected ? 'border-indigo-600 bg-indigo-50/70 shadow-xs' : 'border-slate-200 bg-white hover:bg-slate-50'} cursor-pointer flex items-center justify-between transition active:scale-98">
+          <div onclick="selectMobileVehicle('${v.vehicle_no}')" class="p-3 rounded-2xl border ${isSelected ? 'border-indigo-600 bg-indigo-50/80 ring-2 ring-indigo-500/20 shadow-xs' : 'border-slate-200 bg-white hover:bg-slate-50'} cursor-pointer flex items-center justify-between transition active:scale-98">
             <div class="flex items-center gap-2.5">
-              <div class="w-8 h-8 rounded-xl ${isSelected ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500'} flex items-center justify-center text-xs">
+              <div class="w-8 h-8 rounded-xl ${isSelected ? 'bg-indigo-600 text-white shadow-xs' : 'bg-slate-100 text-slate-500'} flex items-center justify-center text-xs">
                 <i class="fa-solid fa-car-side"></i>
               </div>
               <div>
-                <h4 class="font-black text-xs text-slate-900">${v.vehicle_no} (${v.model_name})</h4>
-                <p class="text-[10px] text-slate-500 font-mono">최신 계기판: ${(v.current_km || v.initial_km || 0).toLocaleString()} km / 담당: ${v.default_driver || '-'}</p>
+                <div class="flex items-center gap-1.5 flex-wrap">
+                  <h4 class="font-black text-xs text-slate-900">${v.vehicle_no} (${v.model_name})</h4>
+                  ${isSelected ? '<span class="text-[9.5px] px-1.5 py-0.2 bg-indigo-600 text-white font-black rounded-md shadow-2xs">선택됨 (터치 시 취소)</span>' : ''}
+                </div>
+                <p class="text-[10px] text-slate-500 font-mono mt-0.5">최신 계기판: ${(v.current_km || v.initial_km || 0).toLocaleString()} km / 담당: ${v.default_driver || '-'}</p>
               </div>
             </div>
-            ${isSelected ? '<span class="text-indigo-600 text-sm font-bold"><i class="fa-solid fa-circle-check"></i></span>' : '<span class="text-xs text-indigo-600 font-bold px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 rounded-lg border border-indigo-200">선택</span>'}
+            ${isSelected ? '<span class="text-xs text-rose-600 font-bold px-2 py-1 bg-rose-50 hover:bg-rose-100 rounded-lg border border-rose-200 flex items-center gap-1 shrink-0"><i class="fa-solid fa-xmark"></i> 취소</span>' : '<span class="text-xs text-indigo-600 font-bold px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 rounded-lg border border-indigo-200 shrink-0">선택</span>'}
           </div>
         `;
       }).join('');
@@ -1364,14 +1380,16 @@
     }
 
     function closeMobileVehicleSelectModal() {
-      if (!isVehicleConfirmedForToday()) {
-        alert('오늘 운행할 법인차량을 반드시 먼저 선택해주세요.');
-        return;
-      }
       document.getElementById('mobileVehicleSelectModal').classList.add('hidden');
     }
 
     function selectMobileVehicle(vNo) {
+      // [토글 기능] 이미 선택된 차량을 다시 누르면 선택 취소(해제)
+      if (currentMobileVehicleNo === vNo && isVehicleConfirmedForToday()) {
+        unselectMobileVehicle();
+        return;
+      }
+
       currentMobileVehicleNo = vNo;
       localStorage.setItem('DELIVERY_TODAY_VEHICLE_NO_V1', vNo);
       localStorage.setItem('DELIVERY_TODAY_VEHICLE_DATE_V1', currentDate);
@@ -1379,6 +1397,16 @@
       document.getElementById('mobileVehicleSelectModal').classList.add('hidden');
       showToast(`🚗 오늘 운행 차량이 [${vNo}]로 확정되었습니다. 배송지가 운행일지에 연동됩니다.`);
       syncTodayScheduleToVehicleLog(vNo);
+    }
+
+    function unselectMobileVehicle() {
+      var prevVeh = currentMobileVehicleNo;
+      currentMobileVehicleNo = '';
+      localStorage.removeItem('DELIVERY_TODAY_VEHICLE_NO_V1');
+      localStorage.removeItem('DELIVERY_TODAY_VEHICLE_DATE_V1');
+      updateMobileVehicleWidgetUI();
+      document.getElementById('mobileVehicleSelectModal').classList.add('hidden');
+      showToast(prevVeh ? `🚫 [${prevVeh}] 차량 선택이 취소되었습니다.` : '🚫 차량 선택이 취소되었습니다.');
     }
 
     async function syncTodayScheduleToVehicleLog(vNo) {
