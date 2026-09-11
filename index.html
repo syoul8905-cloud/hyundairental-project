@@ -2074,7 +2074,7 @@
     function calcRecordsHash(recs) {
       if (!recs || recs.length === 0) return 'empty';
       return recs.map(function(r) {
-        return (r.ID || '') + ':' + (r.담당기사 || '') + ':' + (r.의뢰상태 || '') + ':' + (r.추후일정_특이사항 || '') + ':' + (r.stop_order || '') + ':' + (r.방문시간 || '');
+        return (r.ID || '') + ':' + (r.담당기사 || '') + ':' + (r.의뢰상태 || '') + ':' + (r.구분 || '') + ':' + (r.배송방법 || '') + ':' + (r.추후일정_특이사항 || '') + ':' + (r.stop_order || '') + ':' + (r.방문시간 || '');
       }).join('|');
     }
 
@@ -5319,9 +5319,14 @@
         `;
 
         // 배송방법 인라인 셀렉트 (직배송, 방문수령, 퀵배송)
-        var currentMethod = r.배송방법 || '직배송';
-        var isQuickRow = (currentMethod === '퀵배송' || currentMethod === '퀵' || r.담당기사 === '퀵' || (r.구분 && r.구분.indexOf('퀵') !== -1));
-        var isPickupRow = (currentMethod === '방문수령' || r.담당기사 === '방문수령' || r.구분 === '수령');
+        var currentMethod = r.배송방법;
+        if (!currentMethod) {
+          if (r.담당기사 === '방문수령') currentMethod = '방문수령';
+          else if (r.담당기사 === '퀵') currentMethod = '퀵배송';
+          else currentMethod = '직배송';
+        }
+        var isQuickRow = (currentMethod === '퀵배송' || currentMethod === '퀵');
+        var isPickupRow = (currentMethod === '방문수령');
         var methodStyle = isQuickRow 
           ? 'bg-purple-50 text-purple-700 border-purple-200'
           : isPickupRow 
@@ -5581,9 +5586,14 @@
         var contactName = contactObj.name;
         var contactDisplay = contactName ? (contactName + (phoneNum ? ' (' + phoneNum + ')' : '')) : (phoneNum || '');
         var times = getStopTimes(r);
-        var durMin = calculateDurationMinutes(times.depart, times.arrive);
-        var isQuickRow = (r.배송방법 === '퀵배송' || r.배송방법 === '퀵' || r.담당기사 === '퀵' || (r.구분 && r.구분.indexOf('퀵') !== -1));
-        var isPickupRow = (r.배송방법 === '방문수령' || r.담당기사 === '방문수령' || r.구분 === '수령');
+        var currentMethod = r.배송방법;
+        if (!currentMethod) {
+          if (r.담당기사 === '방문수령') currentMethod = '방문수령';
+          else if (r.담당기사 === '퀵') currentMethod = '퀵배송';
+          else currentMethod = '직배송';
+        }
+        var isQuickRow = (currentMethod === '퀵배송' || currentMethod === '퀵');
+        var isPickupRow = (currentMethod === '방문수령');
         var isArrived = !!times.arrive || r.의뢰상태 === '도착완료' || r.의뢰상태 === '수령완료' || r.의뢰상태 === '퀵출발';
         var isDriving = !isArrived && (!!times.depart || r.의뢰상태 === '운행중' || r.의뢰상태 === '접수완료');
 
@@ -5917,13 +5927,25 @@
       }
     }
 
-    function onInlineMethodChange(realIdx, newMethod) {
+    async function onInlineMethodChange(realIdx, newMethod) {
       if (realIdx < 0 || realIdx >= records.length) return;
       var r = records[realIdx];
       r.배송방법 = newMethod;
-      if (newMethod === '방문수령' && (!r.담당기사 || r.담당기사 === '미배정')) {
-        r.담당기사 = '방문수령';
+      if (newMethod === '방문수령') {
+        if (!r.담당기사 || r.담당기사 === '미배정' || r.담당기사 === '퀵') {
+          r.담당기사 = '방문수령';
+        }
+      } else if (newMethod === '퀵배송') {
+        if (!r.담당기사 || r.담당기사 === '미배정' || r.담당기사 === '방문수령') {
+          r.담당기사 = '퀵';
+        }
+      } else if (newMethod === '직배송') {
+        // 방문수령이나 퀵에서 직배송으로 전환 시, 기사명이 '방문수령' 또는 '퀵'이면 기사 미배정으로 초기화 (실제 기사 배정 가능)
+        if (r.담당기사 === '방문수령' || r.담당기사 === '퀵') {
+          r.담당기사 = '';
+        }
       }
+      lastDataHash = '';
       updateKPIs();
       renderRouteMap({ fitBounds: false, isSilent: true });
       renderTable();
@@ -5931,12 +5953,19 @@
       showToast('📦 [' + r.고객사 + '] 배송방법이 "' + newMethod + '"(으)로 변경되었습니다!');
 
       if (supabaseClient && r.ID) {
-        supabaseClient.from('delivery_schedules').update({ 
-          delivery_method: newMethod,
-          driver_name: r.담당기사 
-        }).eq('id', r.ID).then(function(res) {
-          if (res.error) console.error('DB Update error:', res.error);
-        });
+        pendingSyncIds.add(r.ID);
+        try {
+          var res = await supabaseClient.from('delivery_schedules').update({ 
+            delivery_method: newMethod,
+            driver_name: r.담당기사 
+          }).eq('id', r.ID);
+          if (res.error) throw res.error;
+        } catch(e) {
+          console.error('DB Update error:', e);
+          showToast('❌ 배송방법 저장 실패: ' + (e.message || e));
+        } finally {
+          setTimeout(function() { pendingSyncIds.delete(r.ID); }, 2000);
+        }
       }
     }
 
@@ -6060,7 +6089,7 @@
       var contractInput = document.getElementById('editContractNo');
       if (contractInput) contractInput.value = r.계약번호 || '';
       document.getElementById('editCustName').value = r.고객사 || '';
-      document.getElementById('editType').value = (r.구분 && r.구분.indexOf('회수') !== -1) ? '회수' : '배송';
+      document.getElementById('editType').value = r.구분 || '배송';
       document.getElementById('editMethod').value = r.배송방법 || '직배송';
       document.getElementById('editTime').value = r.방문시간 || '';
       document.getElementById('editAddr').value = r.기본주소 || r.주소 || '';
@@ -6500,6 +6529,8 @@
               r.추후일정_특이사항 = local.추후일정_특이사항;
               r.의뢰상태 = local.의뢰상태;
               r.stop_order = local.stop_order;
+              r.배송방법 = local.배송방법;
+              r.구분 = local.구분;
             }
           });
         }
