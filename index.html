@@ -4767,7 +4767,10 @@
                 memo_special: row.memo_special || '',
                 status: row.status || '',
                 driver_name: row.driver_name || '',
-                stop_order: row.stop_order || null
+                stop_order: row.stop_order || null,
+                depart_time: row.depart_time || null,
+                arrive_time: row.arrive_time || null,
+                vehicle_no: row.vehicle_no || ''
               };
 
               if (key1) existingTrackingMap[key1] = trackInfo;
@@ -4876,7 +4879,6 @@
         if (matchedTrack) {
           if (matchedTrack.memo_special) {
             r.memo_special = matchedTrack.memo_special;
-            restoredTimeCount++;
           }
           if (matchedTrack.status && (matchedTrack.status === '완료' || matchedTrack.status === '배송완료' || matchedTrack.status === '운행중')) {
             r.의뢰상태 = matchedTrack.status;
@@ -4887,6 +4889,19 @@
           }
           if (matchedTrack.stop_order) {
             r.stop_order = matchedTrack.stop_order;
+          }
+          if (matchedTrack.depart_time) {
+            r.depart_time = matchedTrack.depart_time;
+            r.출발시각 = matchedTrack.depart_time;
+            restoredTimeCount++;
+          }
+          if (matchedTrack.arrive_time) {
+            r.arrive_time = matchedTrack.arrive_time;
+            r.도착시각 = matchedTrack.arrive_time;
+          }
+          if (matchedTrack.vehicle_no) {
+            r.vehicle_no = matchedTrack.vehicle_no;
+            r.운행차량 = matchedTrack.vehicle_no;
           }
         }
       });
@@ -4956,6 +4971,9 @@
             memo_full: r.비고_전문,
             memo_special: r.memo_special || '',
             stop_order: r.stop_order || null,
+            depart_time: r.depart_time || r.출발시각 || null,
+            arrive_time: r.arrive_time || r.도착시각 || null,
+            vehicle_no: r.vehicle_no || r.운행차량 || '',
             source_sheet: r.source_sheet || r.원본시트 || (r.isManual ? '직접추가' : 'CSV업로드')
           };
         });
