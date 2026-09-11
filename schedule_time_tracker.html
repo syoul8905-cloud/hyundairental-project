@@ -160,7 +160,7 @@
             <tr>
               <th class="py-2.5 px-3 text-center">순번 (순서조정)</th>
 
-              <th class="py-2.5 px-3">담당기사</th>
+              <th class="py-2.5 px-3">담당기사 / 운행차량</th>
               <th class="py-2.5 px-3">고객사명</th>
               <th class="py-2.5 px-3">배송지 주소</th>
               <th class="py-2.5 px-2.5 text-center">희망시간 (ERP)</th>
@@ -331,6 +331,7 @@
     }
 
     var records = [];
+    var vehicleDriverMap = {};
     var currentDate = getTodayLocalDate();
 
     // ==========================================
@@ -564,9 +565,33 @@
         if (res.error) throw res.error;
 
         var rawData = res.data || [];
+
+        // 당일 기사별 운행 차량 매핑 (VEHICLE_TRIP_LOGS 에서 추출)
+        vehicleDriverMap = {};
+        rawData.forEach(function(row) {
+          if (row.source_sheet === 'VEHICLE_TRIP_LOGS') {
+            var vNo = row.customer_name;
+            var dName = row.driver_name;
+            try {
+              var p = JSON.parse(row.memo_full || '{}');
+              if (p.vehicle_no) vNo = p.vehicle_no;
+              if (p.driver_name) dName = p.driver_name;
+            } catch(e) {}
+            if (dName && vNo) {
+              dName.split(',').forEach(function(d) {
+                var cleanD = d.trim();
+                if (cleanD) vehicleDriverMap[cleanD] = vNo;
+              });
+            }
+          }
+        });
+
         records = rawData.filter(function(row) {
           return row.source_sheet !== 'SYSTEM_CONFIG_USERS' &&
+                 row.source_sheet !== 'SYSTEM_CONFIG_VEHICLES' &&
+                 row.source_sheet !== 'VEHICLE_TRIP_LOGS' &&
                  row.customer_name !== 'SYSTEM_CONFIG_USERS' &&
+                 row.customer_name !== 'SYSTEM_CONFIG_VEHICLES' &&
                  row.customer_name !== '시스템_계정_설정' &&
                  row.delivery_date !== '2099-12-31' &&
                  row.delivery_date !== '1970-01-01';
@@ -684,7 +709,9 @@
         var cellClickAction = isAdmin ? `openEditTimeModal(${r.id})` : `triggerAdminTimeEdit(${r.id})`;
         var cellTitle = isAdmin ? '클릭하여 출발/도착 시각 수정' : '시간 수정은 관리자만 가능합니다 (클릭 시 인증)';
 
-        tr.innerHTML = `
+          var assignedVehicle = r.vehicle_no || (r.driver_name ? vehicleDriverMap[r.driver_name.trim()] : '');
+
+          tr.innerHTML = `
           <td class="py-2.5 px-2 text-center">
             <div class="inline-flex items-center gap-1">
               <button type="button" onclick="moveRecordOrder(${idx}, -1)" ${idx === 0 ? 'disabled' : ''} class="w-5 h-5 flex items-center justify-center rounded bg-slate-100 hover:bg-violet-100 text-slate-500 hover:text-violet-700 disabled:opacity-25 disabled:hover:bg-slate-100 disabled:cursor-not-allowed transition text-[9px]" title="순번 위로 이동">
@@ -697,7 +724,19 @@
             </div>
           </td>
           <td class="py-2.5 px-3 font-bold text-slate-800">
-            ${r.driver_name ? `<span class="bg-amber-50 text-amber-800 border border-amber-200 px-2 py-0.5 rounded-lg text-xs font-black">🚗 ${r.driver_name}</span>` : '<span class="text-slate-300">미배정</span>'}
+            ${r.driver_name ? `
+              <div class="flex flex-col gap-0.5">
+                <span class="text-slate-900 font-black text-xs flex items-center gap-1">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block"></span>
+                  ${r.driver_name}
+                </span>
+                ${assignedVehicle ? `
+                  <span class="bg-indigo-50 text-indigo-700 border border-indigo-200 px-1.5 py-0.2 rounded text-[10px] font-mono font-bold flex items-center gap-1 w-max" title="오늘 배정 운행차량">
+                    <i class="fa-solid fa-car-side text-[9px]"></i> ${assignedVehicle}
+                  </span>
+                ` : '<span class="text-[10px] text-slate-400 font-normal">차량 미배정</span>'}
+              </div>
+            ` : '<span class="text-slate-300">미배정</span>'}
           </td>
           <td class="py-2.5 px-3 font-black text-slate-900">${r.customer_name || '-'}</td>
           <td class="py-2.5 px-3 text-slate-600 truncate max-w-xs" title="${r.address || ''}">${r.address || '-'}</td>
@@ -1012,17 +1051,19 @@
         return;
       }
       var csvRows = [
-        ["순번", "배송일자", "담당기사", "고객사명", "배송지 주소", "희망배송시간", "출발시각", "도착시각", "소요시간(분)", "상태"]
+        ["순번", "배송일자", "담당기사", "운행차량", "고객사명", "배송지 주소", "희망배송시간", "출발시각", "도착시각", "소요시간(분)", "상태"]
       ];
 
       records.forEach(function(r, i) {
         var times = getStopTimes(r);
         var dur = calculateDurationMinutes(times.depart, times.arrive);
         var st = times.arrive ? '도착완료' : (times.depart ? '운행중' : '대기');
+        var veh = r.vehicle_no || (r.driver_name ? vehicleDriverMap[r.driver_name.trim()] : '') || '-';
         csvRows.push([
           i + 1,
           r.delivery_date,
           r.driver_name || '미배정',
+          veh,
           `"${(r.customer_name || '').replace(/"/g, '""')}"`,
           `"${(r.address || '').replace(/"/g, '""')}"`,
           r.visit_time || '',
