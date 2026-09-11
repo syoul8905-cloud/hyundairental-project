@@ -4561,14 +4561,14 @@
     }
 
     async function saveCurrentStopOrderToCloud(isSilent) {
-      var activeRecords = getFilteredRecords();
-      if (!activeRecords || activeRecords.length === 0) {
+      if (!records || records.length === 0) {
         if (!isSilent) showToast('⚠️ 순서를 저장할 배송 건이 없습니다.');
         return;
       }
 
-      // Update in-memory stop_order for activeRecords
-      activeRecords.forEach(function(r, idx) {
+      // Update in-memory stop_order for ALL records based on current records array order
+      // This ensures stop_order is globally consistent regardless of driver filter
+      records.forEach(function(r, idx) {
         r.stop_order = idx + 1;
       });
 
@@ -4578,17 +4578,17 @@
       }
 
       try {
-        var updates = activeRecords.filter(function(r) { return r.ID; }).map(function(r, idx) {
+        var updates = records.filter(function(r) { return r.ID; }).map(function(r) {
           return supabaseClient.from('delivery_schedules').update({
-            stop_order: idx + 1
+            stop_order: r.stop_order
           }).eq('id', r.ID);
         });
 
         await Promise.all(updates);
         if (!isSilent) {
-          showToast('☁️ 방문 순서 ' + activeRecords.length + '건이 클라우드에 영구 저장 및 실시간 동기화되었습니다!');
+          showToast('☁️ 방문 순서 ' + records.length + '건이 클라우드에 영구 저장 및 실시간 동기화되었습니다!');
           var currDriver = getCurrentViewingDriver();
-          openAssignmentNotifyModal(currDriver, activeRecords.length);
+          openAssignmentNotifyModal(currDriver, records.length);
         }
       } catch (err) {
         console.error('saveCurrentStopOrderToCloud error:', err);
@@ -4622,14 +4622,11 @@
     }
 
     async function resetOrder() {
-      // 시간순 오름차순으로 재정렬
+      // 시간순 오름차순으로 재정렬 (전체 records 기준)
       records.sort(function(a, b) {
         return parseVisitMinutes(a.방문시간) - parseVisitMinutes(b.방문시간);
       });
-      var activeRecords = getFilteredRecords();
-      activeRecords.forEach(function(r, idx) {
-        r.stop_order = idx + 1;
-      });
+      // saveCurrentStopOrderToCloud가 이제 records 전체를 기준으로 stop_order 부여
       cachedRoadRouteData = null; // 시간순 복원 시 경로 캐시 무효화
       renderRouteMap();
       renderTable();
@@ -6177,10 +6174,11 @@
           if (res.error) throw res.error;
           lastDataHash = '';
           showToast('💾 Supabase DB에 성공적으로 저장되었습니다!');
+          // 2초 후 잠금 해제 (폴링이 DB 저장 직후 이전 값으로 덮어쓰는 것 방지)
+          setTimeout(function() { pendingSyncIds.delete(r.ID); }, 2000);
         } catch(err) {
           console.error('DB Update error:', err);
           showToast('❌ 배송지 저장 실패: ' + (err.message || err));
-        } finally {
           pendingSyncIds.delete(r.ID);
         }
       } else {
@@ -6309,10 +6307,11 @@
           }).eq('id', r.ID);
           if (res.error) throw res.error;
           lastDataHash = ''; // 다음 동기화 시 갱신 반영
+          // 2초 후 잠금 해제 (폴링이 DB 저장 직후 이전 값으로 덮어쓰는 것 방지)
+          setTimeout(function() { pendingSyncIds.delete(r.ID); }, 2000);
         } catch(err) {
           console.error('Time update error:', err);
           showToast('❌ 클라우드 시간 저장 실패: ' + (err.message || err));
-        } finally {
           pendingSyncIds.delete(r.ID);
         }
       }
@@ -6531,6 +6530,8 @@
               r.stop_order = local.stop_order;
               r.배송방법 = local.배송방법;
               r.구분 = local.구분;
+              r.방문시간 = local.방문시간;
+              r.비고_전문 = local.비고_전문;
             }
           });
         }
