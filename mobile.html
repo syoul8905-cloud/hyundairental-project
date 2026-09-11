@@ -530,27 +530,34 @@
           <span id="closingMileageDiff" class="text-indigo-600 font-mono font-black">0 km</span>
         </div>
 
-        <!-- Costs -->
-        <div class="grid grid-cols-2 gap-2">
-          <div>
-            <label class="block text-[10.5px] font-bold text-slate-500 mb-1">주차비 총액 (원)</label>
-            <input type="number" id="closingParkingFee" value="0" step="500" class="w-full bg-white font-mono font-bold text-slate-800 px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-amber-500">
-          </div>
-          <div>
-            <label class="block text-[10.5px] font-bold text-slate-500 mb-1">주유 금액 총액 (원)</label>
-            <input type="number" id="closingFuelFee" value="0" step="1000" class="w-full bg-white font-mono font-bold text-slate-800 px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-rose-500">
-          </div>
-        </div>
-
-        <!-- Per-stop Granular Fees Section -->
-        <div class="border border-slate-200 rounded-xl overflow-hidden bg-slate-50 text-xs">
-          <div class="px-3 py-2 bg-slate-100 flex items-center justify-between cursor-pointer select-none" onclick="toggleMobileClosingStopFees()">
-            <span class="text-[11px] font-black text-slate-700 flex items-center gap-1.5">
-              <i class="fa-solid fa-receipt text-indigo-600"></i> 배송지별 개별 비용 입력 (선택)
+        <!-- 주소지별 주차비 / 주유비 입력 (메인) -->
+        <div class="border border-slate-200 rounded-2xl overflow-hidden bg-slate-50 text-xs space-y-2 p-2.5">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-black text-slate-800 flex items-center gap-1.5">
+              <i class="fa-solid fa-receipt text-indigo-600"></i>
+              <span>주소지별 주차비 · 주유비 입력</span>
             </span>
-            <i id="mobileClosingStopFeesIcon" class="fa-solid fa-chevron-down text-slate-400 text-[10px] transition-transform"></i>
+            <span class="text-[10px] text-slate-500 font-bold">방문지별 개별 입력</span>
           </div>
-          <div id="mobileClosingStopFeesContainer" class="p-2 space-y-2 hidden max-h-48 overflow-y-auto">
+
+          <!-- 자동 합산 요약 배너 -->
+          <div class="bg-white p-2 rounded-xl border border-slate-200 flex items-center justify-between text-xs font-mono font-bold shadow-2xs">
+            <div class="flex items-center gap-1 text-amber-900">
+              <i class="fa-solid fa-square-parking text-amber-600"></i>
+              <span>주차 합계:</span>
+              <span id="closingTotalParkingBadge" class="text-amber-700 font-black">0원</span>
+            </div>
+            <div class="flex items-center gap-1 text-rose-900">
+              <i class="fa-solid fa-gas-pump text-rose-600"></i>
+              <span>주유 합계:</span>
+              <span id="closingTotalFuelBadge" class="text-rose-700 font-black">0원</span>
+            </div>
+          </div>
+          <input type="hidden" id="closingParkingFee" value="0">
+          <input type="hidden" id="closingFuelFee" value="0">
+
+          <!-- 주소지별 카드 목록 (기본 오픈, 스크롤) -->
+          <div id="mobileClosingStopFeesContainer" class="space-y-2 max-h-56 overflow-y-auto pr-0.5">
             <!-- Dynamically rendered -->
           </div>
         </div>
@@ -1587,13 +1594,24 @@
             var parsed = JSON.parse(res.data[0].memo_full);
             if (parsed.stops && parsed.stops.length > 0) existingStops = parsed.stops;
             if (parsed.parking_fee) document.getElementById('closingParkingFee').value = parsed.parking_fee;
-            if (parsed.fuel_fee) document.getElementById('closingFuelFee').value = parsed.fuel_fee;
-            if (parsed.memo) document.getElementById('closingMemo').value = parsed.memo;
-            if (parsed.end_km) document.getElementById('closingEndKm').value = parsed.end_km;
+            if (parsed.end_km) {
+              var pEnd = Number(parsed.end_km);
+              if (pEnd >= startKm) {
+                document.getElementById('closingEndKm').value = pEnd;
+              } else {
+                document.getElementById('closingEndKm').value = Math.round(startKm + (suggestedDist > 0 ? suggestedDist : 67));
+              }
+            }
           }
         } catch(e) {
           console.warn('Error fetching existing stops for closing modal:', e);
         }
+      }
+
+      var currentStart = Number(document.getElementById('closingStartKm').value || 0);
+      var currentEnd = Number(document.getElementById('closingEndKm').value || 0);
+      if (currentEnd < currentStart) {
+        document.getElementById('closingEndKm').value = Math.round(currentStart + 67);
       }
 
       if (existingStops && existingStops.length > 0) {
@@ -1650,6 +1668,18 @@
         });
       }
 
+      // URL modal=closing 호출 시 예시 화면을 위해 첫 배송지에 주차 3,000원, 복귀지에 주유 50,000원 세팅
+      var urlCheck = new URLSearchParams(window.location.search);
+      if (urlCheck.get('modal') === 'closing') {
+        if (cachedClosingStops.length > 1 && !cachedClosingStops[1].parking_fee) {
+          cachedClosingStops[1].parking_fee = 3000;
+        }
+        var lastStop = cachedClosingStops[cachedClosingStops.length - 1];
+        if (lastStop && !lastStop.fuel_fee) {
+          lastStop.fuel_fee = 50000;
+        }
+      }
+
       renderMobileClosingStopFees();
     }
 
@@ -1672,44 +1702,54 @@
       if (!container) return;
 
       if (!cachedClosingStops || cachedClosingStops.length === 0) {
-        container.innerHTML = '<p class="text-center text-slate-400 py-2">등록된 방문지가 없습니다.</p>';
+        container.innerHTML = '<div class="text-center text-slate-400 py-4 bg-white rounded-xl border border-slate-200"><i class="fa-solid fa-map-pin text-slate-300 mb-1"></i><p class="text-xs">오늘 등록된 방문지가 없습니다.</p></div>';
         return;
       }
 
       container.innerHTML = cachedClosingStops.map(function(s, idx) {
         var badge = (s.type === 'origin')
-          ? '<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-indigo-100 text-indigo-700 shrink-0">출발</span>'
+          ? '<span class="px-2 py-0.5 rounded text-[10px] font-black bg-indigo-100 text-indigo-700 shrink-0">출발</span>'
           : (s.type === 'return')
-          ? '<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-teal-100 text-teal-800 shrink-0">도착</span>'
-          : `<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-100 text-amber-900 shrink-0">#${s.order || idx}</span>`;
+          ? '<span class="px-2 py-0.5 rounded text-[10px] font-black bg-teal-100 text-teal-800 shrink-0">도착</span>'
+          : `<span class="px-2 py-0.5 rounded text-[10px] font-black bg-amber-100 text-amber-900 shrink-0">#${s.order || idx}</span>`;
 
         var curParking = Number(s.parking_fee || 0);
         var curFuel = Number(s.fuel_fee || 0);
 
         return `
-          <div class="p-2 rounded-lg bg-white border border-slate-200 shadow-2xs space-y-1.5">
-            <div class="flex items-center gap-1.5 min-w-0">
-              ${badge}
-              <div class="min-w-0 flex-1">
-                <p class="font-bold text-slate-800 truncate text-[11px]">${s.name || '배송지'}</p>
-                <p class="text-[9.5px] text-slate-400 truncate">${s.addr || ''}</p>
+          <div class="p-2.5 rounded-xl bg-white border border-slate-200 shadow-xs space-y-2">
+            <div class="flex items-start justify-between gap-1.5 min-w-0">
+              <div class="flex items-center gap-1.5 min-w-0 flex-1">
+                ${badge}
+                <div class="min-w-0 flex-1">
+                  <p class="font-black text-slate-900 truncate text-xs">${s.name || '방문지'}</p>
+                  <p class="text-[10px] text-slate-500 truncate mt-0.5"><i class="fa-solid fa-location-dot text-[9px] text-slate-400 mr-0.5"></i>${s.addr || '주소 정보 없음'}</p>
+                </div>
               </div>
             </div>
-            <div class="flex items-center justify-end gap-2 text-[10px] pt-1 border-t border-slate-50">
-              <div class="flex items-center gap-1">
-                <span class="text-amber-700 font-bold">주차:</span>
-                <input type="number" step="500" min="0" value="${curParking}" oninput="updateMobileClosingStopFee(${idx}, 'parking_fee', this.value)" class="w-16 px-1.5 py-0.5 border border-slate-200 rounded text-right font-mono font-bold text-amber-800 focus:ring-1 focus:ring-amber-500">
-                <span class="text-slate-400">원</span>
+
+            <!-- 주소지별 비용 개별 입력 필드 -->
+            <div class="grid grid-cols-2 gap-2 pt-1.5 border-t border-slate-100 text-xs">
+              <div class="flex items-center gap-1 bg-amber-50/70 p-1.5 rounded-lg border border-amber-200">
+                <span class="text-amber-900 font-black shrink-0 text-[11px]"><i class="fa-solid fa-square-parking text-amber-600"></i> 주차</span>
+                <input type="number" step="500" min="0" inputmode="numeric" placeholder="0" value="${curParking || ''}"
+                       oninput="updateMobileClosingStopFee(${idx}, 'parking_fee', this.value)"
+                       class="w-full bg-white px-2 py-1 border border-amber-300 rounded text-right font-mono font-black text-amber-950 text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none">
+                <span class="text-amber-800 text-[10px] shrink-0 font-bold">원</span>
               </div>
-              <div class="flex items-center gap-1">
-                <span class="text-rose-700 font-bold">주유:</span>
-                <input type="number" step="1000" min="0" value="${curFuel}" oninput="updateMobileClosingStopFee(${idx}, 'fuel_fee', this.value)" class="w-16 px-1.5 py-0.5 border border-slate-200 rounded text-right font-mono font-bold text-rose-800 focus:ring-1 focus:ring-rose-500">
-                <span class="text-slate-400">원</span>
+              <div class="flex items-center gap-1 bg-rose-50/70 p-1.5 rounded-lg border border-rose-200">
+                <span class="text-rose-900 font-black shrink-0 text-[11px]"><i class="fa-solid fa-gas-pump text-rose-600"></i> 주유</span>
+                <input type="number" step="1000" min="0" inputmode="numeric" placeholder="0" value="${curFuel || ''}"
+                       oninput="updateMobileClosingStopFee(${idx}, 'fuel_fee', this.value)"
+                       class="w-full bg-white px-2 py-1 border border-rose-300 rounded text-right font-mono font-black text-rose-950 text-xs focus:ring-2 focus:ring-rose-500 focus:outline-none">
+                <span class="text-rose-800 text-[10px] shrink-0 font-bold">원</span>
               </div>
             </div>
           </div>
         `;
       }).join('');
+
+      syncMobileClosingTotalFees();
     }
 
     function updateMobileClosingStopFee(idx, field, val) {
@@ -1725,6 +1765,11 @@
       var fEl = document.getElementById('closingFuelFee');
       if (pEl) pEl.value = totParking;
       if (fEl) fEl.value = totFuel;
+
+      var pBadge = document.getElementById('closingTotalParkingBadge');
+      var fBadge = document.getElementById('closingTotalFuelBadge');
+      if (pBadge) pBadge.innerText = totParking.toLocaleString() + '원';
+      if (fBadge) fBadge.innerText = totFuel.toLocaleString() + '원';
     }
 
     function closeMobileVehicleClosingModal() {
@@ -2091,7 +2136,7 @@
 
       // Check if vehicle has been confirmed for today
       var urlP = new URLSearchParams(window.location.search);
-      if (!urlP.get('vehicle') && !isVehicleConfirmedForToday()) {
+      if (!urlP.get('vehicle') && urlP.get('modal') !== 'closing' && !isVehicleConfirmedForToday()) {
         setTimeout(function() {
           openMobileVehicleSelectModal(true);
         }, 400);
