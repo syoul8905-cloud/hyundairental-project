@@ -399,16 +399,28 @@
 
             <div class="grid grid-cols-2 gap-2.5">
               <div>
-                <label class="block text-[11px] font-bold text-slate-500 mb-1">운행 시작 / Km</label>
-                <input type="number" id="modalStartKm" required oninput="calcModalMileage()" class="w-full bg-white font-mono font-black text-slate-900 px-3 py-2 rounded-xl border border-indigo-200 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                <div class="flex items-center justify-between mb-1">
+                  <label class="block text-[11px] font-bold text-slate-700">운행 시작 / Km *</label>
+                  <button type="button" onclick="syncStartKmFromPrevDay()" class="text-[9.5px] font-bold text-indigo-600 hover:text-indigo-800 bg-white hover:bg-indigo-50 px-1.5 py-0.5 rounded-md border border-indigo-200 transition flex items-center gap-1 shadow-2xs">
+                    <i class="fa-solid fa-rotate-left text-[8.5px]"></i>
+                    <span>전일 종료 Km 적용</span>
+                  </button>
+                </div>
+                <input type="number" id="modalStartKm" required oninput="calcModalMileage()" class="w-full bg-white font-mono font-black text-slate-900 px-3 py-2 rounded-xl border border-indigo-200 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none shadow-2xs">
               </div>
               <div>
-                <label class="block text-[11px] font-bold text-slate-500 mb-1">운행 종료 / Km</label>
-                <input type="number" id="modalEndKm" required oninput="calcModalMileage()" class="w-full bg-white font-mono font-black text-slate-900 px-3 py-2 rounded-xl border border-indigo-200 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                <div class="flex items-center justify-between mb-1">
+                  <label class="block text-[11px] font-bold text-slate-700">운행 종료 / Km *</label>
+                  <button type="button" onclick="applyNaviDistanceSuggestion()" class="text-[9.5px] font-bold text-emerald-600 hover:text-emerald-800 bg-white hover:bg-emerald-50 px-1.5 py-0.5 rounded-md border border-emerald-200 transition flex items-center gap-1 shadow-2xs">
+                    <i class="fa-solid fa-wand-magic-sparkles text-[8.5px]"></i>
+                    <span>추천거리 합산</span>
+                  </button>
+                </div>
+                <input type="number" id="modalEndKm" required oninput="calcModalMileage()" class="w-full bg-white font-mono font-black text-slate-900 px-3 py-2 rounded-xl border border-indigo-200 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none shadow-2xs">
               </div>
             </div>
 
-            <div class="flex items-center justify-between text-[11px] pt-1 border-t border-indigo-100">
+            <div class="flex items-center justify-between text-[11px] pt-1.5 border-t border-indigo-100">
               <span class="text-slate-500">당일 실주행거리: <b id="modalDistanceCalc" class="text-indigo-700 font-mono font-black text-xs">0 km</b></span>
               <span class="text-slate-500">네비 추천거리: <b id="modalSuggestedKm" class="text-emerald-700 font-mono font-black text-xs">미측정</b></span>
             </div>
@@ -2295,6 +2307,36 @@
       showToast('✅ 네비 경로 추천 주행거리(+' + suggestedDist + 'km)가 반영되었습니다!');
     }
 
+    function syncStartKmFromPrevDay() {
+      var tripDate = document.getElementById('modalTripDate').value;
+      if (!tripDate) return;
+
+      // Find the most recent log before tripDate for current vehicle
+      var prevLogs = tripLogs.filter(function(l) {
+        return l.trip_date < tripDate && l.vehicle_no === currentSelectedVehicleNo;
+      }).sort(function(a, b) {
+        return a.trip_date.localeCompare(b.trip_date);
+      });
+
+      if (prevLogs.length > 0) {
+        var lastPrev = prevLogs[prevLogs.length - 1];
+        var targetKm = lastPrev.end_km || lastPrev.start_km;
+        document.getElementById('modalStartKm').value = targetKm;
+        calcModalMileage();
+        showToast(`🔄 전일(${lastPrev.trip_date}) 종료 계기판 ${targetKm.toLocaleString()}km가 시작 Km로 적용되었습니다.`);
+      } else {
+        var veh = vehiclesMaster.find(function(v) { return v.vehicle_no === currentSelectedVehicleNo; }) || {};
+        var initialKm = veh.initial_km || 0;
+        if (initialKm > 0) {
+          document.getElementById('modalStartKm').value = initialKm;
+          calcModalMileage();
+          showToast(`🔄 차량 초기 등록 계기판 ${initialKm.toLocaleString()}km가 적용되었습니다.`);
+        } else {
+          alert('이전 날짜의 운행일지 기록을 찾을 수 없습니다.');
+        }
+      }
+    }
+
     async function handleTripLogSubmit(e) {
       e.preventDefault();
 
@@ -2322,9 +2364,21 @@
         }
       }
 
+      var hasActualStops = Array.isArray(modalStops) && modalStops.some(function(s) {
+        return s.type === 'delivery' || s.type === 'custom' || s.type === 'team1' || s.type === 'gas';
+      });
+
+      // Guard: If there are stops, auto-uncheck unoperated
+      if (isUnoperated && hasActualStops) {
+        if (confirm('⚠️ [확인] 방문 배송지/경유지가 등록되어 있습니다.\n미운행 체크를 해제하고 실제 주행거리로 저장하시겠습니까?')) {
+          isUnoperated = false;
+          document.getElementById('modalIsUnoperated').checked = false;
+        }
+      }
+
       // Validation Guard
       if (endKm < startKm) {
-        alert('⚠️ [입력 오류] 운행 종료 계기판 Km는 운행 시작 Km보다 작을 수 없습니다. (계기판 역전 방지)');
+        alert('⚠️ [입력 오류] 운행 종료 계기판 Km(' + endKm + ')는 운행 시작 Km(' + startKm + ')보다 작을 수 없습니다. (계기판 역전 방지)');
         return;
       }
 
@@ -2377,10 +2431,22 @@
               memo_full: JSON.stringify(logPayload)
             }]);
           }
+
+          // Recalibrate vehicleMaster current_km to match the true latest odometer
+          var vIdx = vehiclesMaster.findIndex(function(v) { return v.vehicle_no === vehicleNo; });
+          if (vIdx !== -1) {
+            var allOtherLogs = tripLogs.filter(function(l) { return l.vehicle_no === vehicleNo && (logId ? l.id !== Number(logId) : true); });
+            var maxEnd = endKm;
+            allOtherLogs.forEach(function(l) {
+              if (l.end_km > maxEnd) maxEnd = l.end_km;
+            });
+            vehiclesMaster[vIdx].current_km = maxEnd;
+            await saveVehiclesMaster();
+          }
         }
 
         closeTripLogModal();
-        showToast('✅ 운행일지가 성공적으로 저장되었습니다.');
+        showToast('✅ 운행일지가 성공적으로 저장되고 최신 계기판이 동기화되었습니다.');
         await loadVehicleData(false);
       } catch(err) {
         console.error('Error saving trip log:', err);

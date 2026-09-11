@@ -516,11 +516,17 @@
         <!-- Mileage Fields -->
         <div class="grid grid-cols-2 gap-2">
           <div>
-            <label class="block text-[10.5px] font-bold text-slate-500 mb-1">시작 계기판 / Km</label>
-            <input type="number" id="closingStartKm" readonly class="w-full bg-slate-100 font-mono font-bold text-slate-800 px-3 py-2 rounded-xl border border-slate-200 text-xs">
+            <div class="flex items-center justify-between mb-1">
+              <label class="block text-[10.5px] font-bold text-slate-700">시작 계기판 / Km</label>
+              <button type="button" onclick="syncMobileStartKmFromPrevLog()" class="text-[9px] font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-1.5 py-0.5 rounded border border-indigo-200 transition flex items-center gap-0.5">
+                <i class="fa-solid fa-rotate-left text-[8px]"></i>
+                <span>어제 마감값</span>
+              </button>
+            </div>
+            <input type="number" id="closingStartKm" oninput="calcClosingMileageDiff()" class="w-full bg-white font-mono font-bold text-slate-800 px-3 py-2 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-indigo-500">
           </div>
           <div>
-            <label class="block text-[10.5px] font-bold text-slate-500 mb-1">종료 계기판 / Km</label>
+            <label class="block text-[10.5px] font-bold text-slate-700 mb-1">종료 계기판 / Km *</label>
             <input type="number" id="closingEndKm" required oninput="calcClosingMileageDiff()" class="w-full bg-white font-mono font-black text-indigo-700 px-3 py-2 rounded-xl border border-indigo-300 text-xs focus:ring-2 focus:ring-indigo-500">
           </div>
         </div>
@@ -1776,6 +1782,43 @@
       document.getElementById('mobileVehicleClosingModal').classList.add('hidden');
     }
 
+    async function syncMobileStartKmFromPrevLog() {
+      if (!supabaseClient || !currentMobileVehicleNo) return;
+      try {
+        showToast('🔍 이전 운행일지 계기판 조회 중...');
+        var res = await supabaseClient.from('delivery_schedules')
+          .select('delivery_date, memo_full')
+          .eq('source_sheet', 'VEHICLE_TRIP_LOGS')
+          .eq('customer_name', currentMobileVehicleNo)
+          .lt('delivery_date', currentDate)
+          .order('delivery_date', { ascending: false })
+          .limit(1);
+
+        if (res.data && res.data.length > 0 && res.data[0].memo_full) {
+          var parsed = JSON.parse(res.data[0].memo_full);
+          var prevEnd = Number(parsed.end_km || parsed.start_km || 0);
+          if (prevEnd > 0) {
+            document.getElementById('closingStartKm').value = prevEnd;
+            calcClosingMileageDiff();
+            showToast(`🔄 전일(${res.data[0].delivery_date}) 종료 계기판 ${prevEnd.toLocaleString()}km가 적용되었습니다.`);
+            return;
+          }
+        }
+
+        var veh = mobileVehiclesMaster.find(function(v) { return v.vehicle_no === currentMobileVehicleNo; }) || {};
+        var initKm = veh.initial_km || 0;
+        if (initKm > 0) {
+          document.getElementById('closingStartKm').value = initKm;
+          calcClosingMileageDiff();
+          showToast(`🔄 차량 초기 등록 계기판 ${initKm.toLocaleString()}km가 적용되었습니다.`);
+        } else {
+          showToast('⚠️ 이전 운행일지 기록을 찾을 수 없습니다.');
+        }
+      } catch(e) {
+        console.warn('Error fetching prev log for mobile:', e);
+      }
+    }
+
     function calcClosingMileageDiff() {
       var s = Number(document.getElementById('closingStartKm').value || 0);
       var e = Number(document.getElementById('closingEndKm').value || 0);
@@ -1809,18 +1852,21 @@
       var destName = dest.name || DEFAULT_GASAN_ORIGIN.name;
 
       // Ensure stops have continuous start/end km calculated
+      var hasDelivery = false;
       if (cachedClosingStops && cachedClosingStops.length > 0) {
+        hasDelivery = cachedClosingStops.some(function(s) { return s.type === 'delivery'; });
         var legCount = cachedClosingStops.length;
         var curK = startKm;
-        var dPerLeg = Math.floor(distKm / legCount);
-        var remD = distKm % legCount;
-        cachedClosingStops.forEach(function(st, sIdx) {
-          var legD = dPerLeg + (sIdx < remD ? 1 : 0);
-          st.start_km = curK;
-          st.end_km = curK + legD;
-          st.distance_km = legD;
-          curK += legD;
-        });
+        for (var i = 0; i < legCount; i++) {
+          var stop = cachedClosingStops[i];
+          stop.start_km = curK;
+          if (i === legCount - 1) {
+            stop.end_km = endKm;
+          } else {
+            curK = Math.round(curK + (distKm / (legCount - 1)));
+            stop.end_km = curK;
+          }
+        }
       }
 
       var logPayload = {
@@ -1837,7 +1883,7 @@
         stops: cachedClosingStops,
         parking_fee: parkingFee,
         fuel_fee: fuelFee,
-        is_unoperated: (distKm === 0),
+        is_unoperated: (distKm === 0 && !hasDelivery),
         memo: memo
       };
 
