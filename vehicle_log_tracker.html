@@ -326,10 +326,10 @@
   <!-- ========================================== -->
   <!-- Modal 1: Edit / Create Trip Log Modal      -->
   <!-- ========================================== -->
-  <div id="tripLogModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 hidden flex items-center justify-center p-3 animate-in fade-in duration-150">
-    <div class="bg-white rounded-2xl w-full max-w-lg shadow-2xl border border-slate-200 overflow-hidden animate-in zoom-in-95 duration-200">
+  <div id="tripLogModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 hidden flex items-center justify-center p-2 sm:p-4 animate-in fade-in duration-150">
+    <div class="bg-white rounded-2xl w-full max-w-lg shadow-2xl border border-slate-200 overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
       <!-- Modal Header -->
-      <div class="px-4 py-3.5 bg-slate-900 text-white flex items-center justify-between">
+      <div class="px-4 py-3 bg-slate-900 text-white flex items-center justify-between shrink-0">
         <div class="flex items-center gap-2">
           <i class="fa-solid fa-car-tunnel text-indigo-400"></i>
           <h3 class="font-black text-sm" id="modalTitle">운행일지 등록 / 수정</h3>
@@ -340,155 +340,161 @@
       </div>
 
       <!-- Modal Body Form -->
-      <form id="tripLogForm" onsubmit="handleTripLogSubmit(event)" class="p-4 space-y-3.5">
+      <form id="tripLogForm" onsubmit="handleTripLogSubmit(event)" class="flex flex-col flex-1 min-h-0 overflow-hidden">
         <input type="hidden" id="editLogId" value="">
         
-        <!-- Row 1: Vehicle & Date -->
-        <div class="grid grid-cols-2 gap-2.5">
-          <div>
-            <label class="block text-[11px] font-bold text-slate-500 mb-1">운행 차량</label>
-            <input type="text" id="modalVehicleNo" readonly class="w-full bg-slate-100 font-black text-slate-800 px-3 py-2 rounded-xl border border-slate-200 text-xs font-mono">
-          </div>
-          <div>
-            <label class="block text-[11px] font-bold text-slate-500 mb-1">운행 일자</label>
-            <input type="date" id="modalTripDate" required onchange="onModalDateChanged(this.value)" class="w-full bg-slate-50 font-bold text-slate-800 px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-          </div>
-        </div>
-
-        <!-- Row 2: Driver & Unoperated Toggle -->
-        <div class="grid grid-cols-2 gap-2.5 items-start">
-          <div>
-            <label class="block text-[11px] font-bold text-slate-500 mb-1">운전자 (복수 기사/교대 시 쉼표 구분)</label>
-            <input type="text" id="modalDriverName" required placeholder="예: 조경찬 또는 조경찬, 1팀 박담당" class="w-full bg-slate-50 font-bold text-slate-800 px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-            <!-- Quick Driver Select Buttons -->
-            <div class="flex items-center gap-1 mt-1 flex-wrap">
-              <button type="button" onclick="appendDriverNameToModal('조경찬')" class="px-1.5 py-0.5 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 rounded text-[10px] font-bold text-slate-600 border border-slate-200 transition">+조경찬</button>
-              <button type="button" onclick="appendDriverNameToModal('현민혁')" class="px-1.5 py-0.5 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 rounded text-[10px] font-bold text-slate-600 border border-slate-200 transition">+현민혁</button>
-              <button type="button" onclick="appendDriverNameToModal('최두성')" class="px-1.5 py-0.5 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 rounded text-[10px] font-bold text-slate-600 border border-slate-200 transition">+최두성</button>
-              <button type="button" onclick="appendDriverNameToModal('김승지')" class="px-1.5 py-0.5 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 rounded text-[10px] font-bold text-slate-600 border border-slate-200 transition">+김승지</button>
-              <button type="button" onclick="appendDriverNameToModal('1팀 담당자')" class="px-1.5 py-0.5 bg-amber-50 hover:bg-amber-100 text-amber-800 rounded text-[10px] font-black border border-amber-200 transition">+1팀 담당자</button>
-            </div>
-          </div>
-          <div class="pt-4 flex items-center gap-2">
-            <label class="relative inline-flex items-center cursor-pointer">
-              <input type="checkbox" id="modalIsUnoperated" onchange="toggleUnoperatedState(this.checked)" class="sr-only peer">
-              <div class="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-slate-600"></div>
-            </label>
-            <span class="text-xs font-bold text-slate-700">미운행 처리 (주행거리 0km)</span>
-          </div>
-        </div>
-
-        <!-- Row 3: Start Km & End Km & Quick Suggestion -->
-        <div class="p-3 bg-indigo-50/50 rounded-xl border border-indigo-100 space-y-2.5">
-          <div class="flex items-center justify-between">
-            <span class="font-black text-indigo-900 text-xs">계기판 주행거리 입력</span>
-            <button type="button" onclick="applyNaviDistanceSuggestion()" id="btnApplyNaviDistance" class="px-2 py-0.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[10px] font-bold shadow-xs transition flex items-center gap-1">
-              <i class="fa-solid fa-wand-magic-sparkles text-[9px]"></i>
-              <span>네비 추천거리 적용</span>
-            </button>
-          </div>
-
+        <!-- Scrollable Form Body Content -->
+        <div class="p-4 space-y-3 flex-1 overflow-y-auto custom-scroll">
+          <!-- Row 1: Vehicle & Date -->
           <div class="grid grid-cols-2 gap-2.5">
             <div>
-              <label class="block text-[11px] font-bold text-slate-500 mb-1">운행 시작 / Km</label>
-              <input type="number" id="modalStartKm" required oninput="calcModalMileage()" class="w-full bg-white font-mono font-black text-slate-900 px-3 py-2 rounded-xl border border-indigo-200 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+              <label class="block text-[11px] font-bold text-slate-500 mb-1">운행 차량</label>
+              <input type="text" id="modalVehicleNo" readonly class="w-full bg-slate-100 font-black text-slate-800 px-3 py-2 rounded-xl border border-slate-200 text-xs font-mono">
             </div>
             <div>
-              <label class="block text-[11px] font-bold text-slate-500 mb-1">운행 종료 / Km</label>
-              <input type="number" id="modalEndKm" required oninput="calcModalMileage()" class="w-full bg-white font-mono font-black text-slate-900 px-3 py-2 rounded-xl border border-indigo-200 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+              <label class="block text-[11px] font-bold text-slate-500 mb-1">운행 일자</label>
+              <input type="date" id="modalTripDate" required onchange="onModalDateChanged(this.value)" class="w-full bg-slate-50 font-bold text-slate-800 px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none">
             </div>
           </div>
 
-          <div class="flex items-center justify-between text-[11px] pt-1 border-t border-indigo-100">
-            <span class="text-slate-500">당일 실주행거리: <b id="modalDistanceCalc" class="text-indigo-700 font-mono font-black text-xs">0 km</b></span>
-            <span class="text-slate-500">네비 추천거리: <b id="modalSuggestedKm" class="text-emerald-700 font-mono font-black text-xs">미측정</b></span>
-          </div>
-        </div>
-
-        <!-- Row 4: Parking & Fuel Costs -->
-        <div class="grid grid-cols-2 gap-2.5">
-          <div>
-            <label class="block text-[11px] font-bold text-slate-500 mb-1">주차비 (원)</label>
-            <input type="number" id="modalParkingFee" value="0" step="500" class="w-full bg-slate-50 font-mono font-bold text-slate-800 px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none">
-          </div>
-          <div>
-            <label class="block text-[11px] font-bold text-slate-500 mb-1">주유 금액 (원)</label>
-            <input type="number" id="modalFuelFee" value="0" step="1000" class="w-full bg-slate-50 font-mono font-bold text-slate-800 px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-rose-500 focus:outline-none">
-          </div>
-        </div>
-
-        <!-- Row 4.5: Destination -->
-        <div class="grid grid-cols-3 gap-2.5">
-          <div>
-            <label class="block text-[11px] font-bold text-slate-500 mb-1">도착지 선택</label>
-            <select id="modalDestType" onchange="onModalDestTypeChange(this.value)" class="w-full bg-slate-50 font-bold text-slate-800 px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-teal-500 focus:outline-none">
-              <option value="gasan">🏢 가산 센터 복귀</option>
-              <option value="custom">📍 도착지 직접 입력</option>
-            </select>
-          </div>
-          <div class="col-span-2">
-        <label class="block text-[11px] font-bold text-slate-500 mb-1">도착지 주소</label>
-            <input type="text" id="modalDestAddr" value="서울 금천구 벚꽃로 278 (가산 센터)" placeholder="도착지 주소 입력" class="w-full bg-slate-50 text-slate-800 px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-teal-500 focus:outline-none">
-          </div>
-        </div>
-
-        <!-- Row 4.8: Stops Management (방문 경로 및 배송지 순서 관리) -->
-        <div class="p-3 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-1.5">
-              <i class="fa-solid fa-route text-indigo-600"></i>
-              <span class="font-black text-slate-800 text-xs">방문 경로 및 배송 순서 관리</span>
-              <span id="modalStopsBadge" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800">0곳</span>
+          <!-- Row 2: Driver & Unoperated Toggle -->
+          <div class="grid grid-cols-2 gap-2.5 items-start">
+            <div>
+              <label class="block text-[11px] font-bold text-slate-500 mb-1">운전자 (복수 기사/교대 시 쉼표 구분)</label>
+              <input type="text" id="modalDriverName" required placeholder="예: 조경찬 또는 조경찬, 기타" class="w-full bg-slate-50 font-bold text-slate-800 px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+              <!-- Quick Driver Select Buttons -->
+              <div class="flex items-center gap-1 mt-1.5 flex-wrap">
+                <button type="button" onclick="appendDriverNameToModal('조경찬')" class="px-1.5 py-0.5 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 rounded text-[10px] font-bold text-slate-600 border border-slate-200 transition">+조경찬</button>
+                <button type="button" onclick="appendDriverNameToModal('김승지')" class="px-1.5 py-0.5 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 rounded text-[10px] font-bold text-slate-600 border border-slate-200 transition">+김승지</button>
+                <button type="button" onclick="appendDriverNameToModal('이성호')" class="px-1.5 py-0.5 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 rounded text-[10px] font-bold text-slate-600 border border-slate-200 transition">+이성호</button>
+                <button type="button" onclick="appendDriverNameToModal('장종순')" class="px-1.5 py-0.5 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 rounded text-[10px] font-bold text-slate-600 border border-slate-200 transition">+장종순</button>
+                <button type="button" onclick="appendDriverNameToModal('박종환')" class="px-1.5 py-0.5 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 rounded text-[10px] font-bold text-slate-600 border border-slate-200 transition">+박종환</button>
+                <button type="button" onclick="appendDriverNameToModal('현민혁')" class="px-1.5 py-0.5 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 rounded text-[10px] font-bold text-slate-600 border border-slate-200 transition">+현민혁</button>
+                <button type="button" onclick="appendDriverNameToModal('최두성')" class="px-1.5 py-0.5 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 rounded text-[10px] font-bold text-slate-600 border border-slate-200 transition">+최두성</button>
+                <button type="button" onclick="appendDriverNameToModal('기타')" class="px-1.5 py-0.5 bg-amber-50 hover:bg-amber-100 text-amber-800 rounded text-[10px] font-black border border-amber-200 transition">+기타</button>
+              </div>
             </div>
-            <button type="button" onclick="toggleModalAddStopBox()" class="px-2.5 py-1 bg-white hover:bg-indigo-50 text-indigo-600 border border-indigo-200 hover:border-indigo-300 rounded-lg text-[10px] font-bold shadow-2xs transition flex items-center gap-1">
-              <i class="fa-solid fa-plus text-[9px]"></i>
-              <span>경유지/1팀 업무지 추가</span>
-            </button>
+            <div class="pt-4 flex items-center gap-2">
+              <label class="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" id="modalIsUnoperated" onchange="toggleUnoperatedState(this.checked)" class="sr-only peer">
+                <div class="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-slate-600"></div>
+              </label>
+              <span class="text-xs font-bold text-slate-700">미운행 처리 (주행거리 0km)</span>
+            </div>
           </div>
 
-          <!-- Inline Add Stop Input Form (Collapsible) -->
-          <div id="modalAddStopBox" class="hidden p-2.5 bg-white rounded-xl border border-indigo-200 shadow-xs space-y-2 animate-in fade-in zoom-in-95 duration-150">
+          <!-- Row 3: Start Km & End Km & Quick Suggestion -->
+          <div class="p-3 bg-indigo-50/50 rounded-xl border border-indigo-100 space-y-2.5">
             <div class="flex items-center justify-between">
-              <span class="text-[11px] font-bold text-indigo-900 flex items-center gap-1">
-                <i class="fa-solid fa-location-dot text-indigo-600"></i> 새 방문지(경유지) 직접 등록
-              </span>
-              <button type="button" onclick="toggleModalAddStopBox()" class="text-slate-400 hover:text-slate-600 text-xs">
-                <i class="fa-solid fa-xmark"></i>
+              <span class="font-black text-indigo-900 text-xs">계기판 주행거리 입력</span>
+              <button type="button" onclick="applyNaviDistanceSuggestion()" id="btnApplyNaviDistance" class="px-2 py-0.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[10px] font-bold shadow-xs transition flex items-center gap-1">
+                <i class="fa-solid fa-wand-magic-sparkles text-[9px]"></i>
+                <span>네비 추천거리 적용</span>
               </button>
             </div>
-            <div class="grid grid-cols-3 gap-1.5">
-              <input type="text" id="newStopNameInput" placeholder="방문지/업무명 (예: 1팀 마포거래처)" class="col-span-2 px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold focus:outline-none focus:border-indigo-500">
-              <select id="newStopTypeSelect" class="px-2 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold focus:outline-none">
-                <option value="delivery">📦 배송지</option>
-                <option value="team1">🏢 1팀 업무</option>
-                <option value="gas">⛽ 주유소</option>
-                <option value="custom">📍 일반 경유</option>
+
+            <div class="grid grid-cols-2 gap-2.5">
+              <div>
+                <label class="block text-[11px] font-bold text-slate-500 mb-1">운행 시작 / Km</label>
+                <input type="number" id="modalStartKm" required oninput="calcModalMileage()" class="w-full bg-white font-mono font-black text-slate-900 px-3 py-2 rounded-xl border border-indigo-200 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+              </div>
+              <div>
+                <label class="block text-[11px] font-bold text-slate-500 mb-1">운행 종료 / Km</label>
+                <input type="number" id="modalEndKm" required oninput="calcModalMileage()" class="w-full bg-white font-mono font-black text-slate-900 px-3 py-2 rounded-xl border border-indigo-200 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+              </div>
+            </div>
+
+            <div class="flex items-center justify-between text-[11px] pt-1 border-t border-indigo-100">
+              <span class="text-slate-500">당일 실주행거리: <b id="modalDistanceCalc" class="text-indigo-700 font-mono font-black text-xs">0 km</b></span>
+              <span class="text-slate-500">네비 추천거리: <b id="modalSuggestedKm" class="text-emerald-700 font-mono font-black text-xs">미측정</b></span>
+            </div>
+          </div>
+
+          <!-- Row 4: Parking & Fuel Costs -->
+          <div class="grid grid-cols-2 gap-2.5">
+            <div>
+              <label class="block text-[11px] font-bold text-slate-500 mb-1">주차비 (원)</label>
+              <input type="number" id="modalParkingFee" value="0" step="500" class="w-full bg-slate-50 font-mono font-bold text-slate-800 px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none">
+            </div>
+            <div>
+              <label class="block text-[11px] font-bold text-slate-500 mb-1">주유 금액 (원)</label>
+              <input type="number" id="modalFuelFee" value="0" step="1000" class="w-full bg-slate-50 font-mono font-bold text-slate-800 px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-rose-500 focus:outline-none">
+            </div>
+          </div>
+
+          <!-- Row 4.5: Destination -->
+          <div class="grid grid-cols-3 gap-2.5">
+            <div>
+              <label class="block text-[11px] font-bold text-slate-500 mb-1">도착지 선택</label>
+              <select id="modalDestType" onchange="onModalDestTypeChange(this.value)" class="w-full bg-slate-50 font-bold text-slate-800 px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-teal-500 focus:outline-none">
+                <option value="gasan">🏢 가산 센터 복귀</option>
+                <option value="custom">📍 도착지 직접 입력</option>
               </select>
             </div>
-            <div class="flex gap-1.5">
-              <input type="text" id="newStopAddrInput" placeholder="도로명 또는 지번 주소 입력" class="flex-1 px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium focus:outline-none focus:border-indigo-500">
-              <button type="button" onclick="confirmAddManualStopToModal()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg text-xs shrink-0 shadow-xs">
-                등록
-              </button>
+            <div class="col-span-2">
+              <label class="block text-[11px] font-bold text-slate-500 mb-1">도착지 주소</label>
+              <input type="text" id="modalDestAddr" value="서울 금천구 벚꽃로 278 (가산 센터)" placeholder="도착지 주소 입력" class="w-full bg-slate-50 text-slate-800 px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-teal-500 focus:outline-none">
             </div>
           </div>
 
-          <!-- Stops List Container -->
-          <div id="modalStopsContainer" class="space-y-1.5 max-h-48 overflow-y-auto custom-scroll pr-1">
-            <!-- Dynamically rendered stops with up/down/delete controls -->
+          <!-- Row 4.8: Stops Management (방문 경로 및 배송 순서 관리) -->
+          <div class="p-3 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-1.5">
+                <i class="fa-solid fa-route text-indigo-600"></i>
+                <span class="font-black text-slate-800 text-xs">방문 경로 및 배송 순서 관리</span>
+                <span id="modalStopsBadge" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800">0곳</span>
+              </div>
+              <button type="button" onclick="toggleModalAddStopBox()" class="px-2.5 py-1 bg-white hover:bg-indigo-50 text-indigo-600 border border-indigo-200 hover:border-indigo-300 rounded-lg text-[10px] font-bold shadow-2xs transition flex items-center gap-1">
+                <i class="fa-solid fa-plus text-[9px]"></i>
+                <span>경유지/기타 업무지 추가</span>
+              </button>
+            </div>
+
+            <!-- Inline Add Stop Input Form (Collapsible) -->
+            <div id="modalAddStopBox" class="hidden p-2.5 bg-white rounded-xl border border-indigo-200 shadow-xs space-y-2 animate-in fade-in zoom-in-95 duration-150">
+              <div class="flex items-center justify-between">
+                <span class="text-[11px] font-bold text-indigo-900 flex items-center gap-1">
+                  <i class="fa-solid fa-location-dot text-indigo-600"></i> 새 방문지(경유지) 직접 등록
+                </span>
+                <button type="button" onclick="toggleModalAddStopBox()" class="text-slate-400 hover:text-slate-600 text-xs">
+                  <i class="fa-solid fa-xmark"></i>
+                </button>
+              </div>
+              <div class="grid grid-cols-3 gap-1.5">
+                <input type="text" id="newStopNameInput" placeholder="방문지/업무명 (예: 기타 외부 업무)" class="col-span-2 px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold focus:outline-none focus:border-indigo-500">
+                <select id="newStopTypeSelect" class="px-2 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold focus:outline-none">
+                  <option value="delivery">📦 배송지</option>
+                  <option value="other">🏢 기타 업무</option>
+                  <option value="gas">⛽ 주유소</option>
+                  <option value="custom">📍 일반 경유</option>
+                </select>
+              </div>
+              <div class="flex gap-1.5">
+                <input type="text" id="newStopAddrInput" placeholder="도로명 또는 지번 주소 입력" class="flex-1 px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium focus:outline-none focus:border-indigo-500">
+                <button type="button" onclick="confirmAddManualStopToModal()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg text-xs shrink-0 shadow-xs">
+                  등록
+                </button>
+              </div>
+            </div>
+
+            <!-- Stops List Container -->
+            <div id="modalStopsContainer" class="space-y-1.5 max-h-48 overflow-y-auto custom-scroll pr-1">
+              <!-- Dynamically rendered stops with up/down/delete controls -->
+            </div>
+            <p class="text-[10px] text-slate-400">▲/▼ 버튼으로 방문 순서를 자유롭게 조정하거나 수기 경유지를 추가/삭제할 수 있습니다.</p>
           </div>
-          <p class="text-[10px] text-slate-400">▲/▼ 버튼으로 방문 순서를 자유롭게 조정하거나 수기 경유지를 추가/삭제할 수 있습니다.</p>
+
+          <!-- Row 5: Memo -->
+          <div>
+            <label class="block text-[11px] font-bold text-slate-500 mb-1">비고 / 특이사항 (주유소명, 영수증 번호 등)</label>
+            <input type="text" id="modalMemo" placeholder="예: GS칼텍스 주유 10만원, 고객사 지하주차장 등" class="w-full bg-slate-50 text-slate-800 px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+          </div>
         </div>
 
-        <!-- Row 5: Memo -->
-        <div>
-          <label class="block text-[11px] font-bold text-slate-500 mb-1">비고 / 특이사항 (주유소명, 영수증 번호 등)</label>
-          <input type="text" id="modalMemo" placeholder="예: GS칼텍스 주유 10만원, 고객사 지하주차장 등" class="w-full bg-slate-50 text-slate-800 px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-        </div>
-
-        <!-- Submit & Cancel Buttons -->
-        <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
-          <button type="button" onclick="closeTripLogModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-xl text-xs transition">
+        <!-- Submit & Cancel Buttons (Fixed Bottom Footer) -->
+        <div class="flex items-center justify-end gap-2 px-4 py-3 border-t border-slate-100 shrink-0 bg-slate-50/90 shadow-2xs">
+          <button type="button" onclick="closeTripLogModal()" class="px-4 py-2 bg-white hover:bg-slate-100 text-slate-700 font-bold rounded-xl text-xs border border-slate-200 transition">
             취소
           </button>
           <button type="submit" id="btnSaveTripLog" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl text-xs shadow-md shadow-indigo-600/20 transition flex items-center gap-1.5">
@@ -504,8 +510,8 @@
   <!-- Modal 2: Vehicle Management Modal          -->
   <!-- ========================================== -->
   <div id="vehicleManageModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 hidden flex items-center justify-center p-3 animate-in fade-in duration-150">
-    <div class="bg-white rounded-2xl w-full max-w-lg shadow-2xl border border-slate-200 overflow-hidden animate-in zoom-in-95 duration-200">
-      <div class="px-4 py-3.5 bg-slate-900 text-white flex items-center justify-between">
+    <div class="bg-white rounded-2xl w-full max-w-lg shadow-2xl border border-slate-200 overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
+      <div class="px-4 py-3.5 bg-slate-900 text-white flex items-center justify-between shrink-0">
         <div class="flex items-center gap-2">
           <i class="fa-solid fa-gears text-amber-400"></i>
           <h3 class="font-black text-sm">운영 법인차량 마스터 관리</h3>
@@ -515,7 +521,7 @@
         </button>
       </div>
 
-      <div class="p-4 space-y-4">
+      <div class="p-4 space-y-4 flex-1 overflow-y-auto custom-scroll">
         <!-- Add New Vehicle Section -->
         <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
           <h4 class="font-black text-slate-800 text-xs flex items-center gap-1">
@@ -1828,7 +1834,7 @@
       }
 
       var insertIdx = Math.max(1, modalStops.length - 1);
-      var typeLabel = (stopType === 'team1') ? '1팀 업무' : (stopType === 'gas') ? '주유소' : (stopType === 'custom') ? '일반 경유' : '배송지';
+      var typeLabel = (stopType === 'team1' || stopType === 'other') ? '기타 업무' : (stopType === 'gas') ? '주유소' : (stopType === 'custom') ? '일반 경유' : '배송지';
 
       var newStop = {
         id: 'stop_manual_' + Date.now(),
@@ -1875,8 +1881,8 @@
           ? '<span class="px-1.5 py-0.5 rounded text-[9.5px] font-bold bg-indigo-100 text-indigo-700 shrink-0">출발</span>'
           : isReturn
           ? '<span class="px-1.5 py-0.5 rounded text-[9.5px] font-bold bg-teal-100 text-teal-800 shrink-0">도착</span>'
-          : (s.type === 'team1')
-          ? `<span class="px-1.5 py-0.5 rounded text-[9.5px] font-black bg-purple-100 text-purple-900 border border-purple-200 shrink-0">1팀 #${s.order || idx}</span>`
+          : (s.type === 'team1' || s.type === 'other')
+          ? `<span class="px-1.5 py-0.5 rounded text-[9.5px] font-black bg-amber-100 text-amber-900 border border-amber-200 shrink-0">기타 #${s.order || idx}</span>`
           : (s.type === 'gas')
           ? `<span class="px-1.5 py-0.5 rounded text-[9.5px] font-black bg-rose-100 text-rose-900 border border-rose-200 shrink-0">주유 #${s.order || idx}</span>`
           : (s.type === 'custom')

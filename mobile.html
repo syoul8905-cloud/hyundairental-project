@@ -191,10 +191,16 @@
           </p>
         </div>
       </div>
-      <button onclick="openMobileVehicleSelectModal()" class="px-2.5 py-1.5 bg-white hover:bg-indigo-100 text-indigo-800 font-bold rounded-xl border border-indigo-300 text-xs shadow-xs transition flex items-center gap-1 shrink-0">
-        <i class="fa-solid fa-repeat text-indigo-600"></i>
-        <span>차량선택</span>
-      </button>
+      <div class="flex items-center gap-1.5 shrink-0">
+        <button onclick="openMobileVehicleClosingModal()" class="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold rounded-xl text-xs shadow-xs transition flex items-center gap-1">
+          <i class="fa-solid fa-flag-checkered"></i>
+          <span>운행마감</span>
+        </button>
+        <button onclick="openMobileVehicleSelectModal()" class="px-2.5 py-1.5 bg-white hover:bg-indigo-100 text-indigo-800 font-bold rounded-xl border border-indigo-300 text-xs shadow-xs transition flex items-center gap-1">
+          <i class="fa-solid fa-repeat text-indigo-600"></i>
+          <span>차량선택</span>
+        </button>
+      </div>
     </div>
   </div>
 
