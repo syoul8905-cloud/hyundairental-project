@@ -455,6 +455,11 @@
           <option value="퀵배송">⚡ 퀵배송</option>
         </select>
 
+        <select id="tableHistoryFilter" onchange="renderTable()" class="py-1.5 px-3 bg-slate-50 border border-slate-200 rounded-lg font-medium text-xs">
+          <option value="all">전체 이력 상태</option>
+          <option value="has_history">🕒 과거이력 보유건만</option>
+        </select>
+
         <button onclick="openAddStopModal()" class="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl transition flex items-center gap-1.5 shadow-sm text-xs">
           <i class="fa-solid fa-plus"></i>
           <span>배송지 직접 추가</span>
@@ -2071,6 +2076,63 @@
       return recs.map(function(r) {
         return (r.ID || '') + ':' + (r.담당기사 || '') + ':' + (r.의뢰상태 || '') + ':' + (r.추후일정_특이사항 || '') + ':' + (r.stop_order || '') + ':' + (r.방문시간 || '');
       }).join('|');
+    }
+
+    // ==========================================
+    // Contract History & Past Delivery Detection Engine
+    // ==========================================
+    var contractHistoryIndexMap = new Map();
+
+    async function fetchContractHistoryIndex() {
+      if (!supabaseClient) return;
+      try {
+        var res = await supabaseClient
+          .from('delivery_schedules')
+          .select('id, contract_no, delivery_date, customer_name, driver_name, category, status')
+          .not('contract_no', 'is', null)
+          .neq('contract_no', '')
+          .neq('contract_no', '신규등록')
+          .order('delivery_date', { ascending: false });
+
+        if (res.error) throw res.error;
+        var map = new Map();
+        (res.data || []).forEach(function(row) {
+          var cNo = (row.contract_no || '').trim();
+          if (!cNo || cNo === '신규등록') return;
+          if (!map.has(cNo)) map.set(cNo, []);
+          map.get(cNo).push({
+            id: row.id,
+            delivery_date: row.delivery_date || '',
+            customer_name: row.customer_name || '',
+            driver_name: row.driver_name || '',
+            category: row.category || '',
+            status: row.status || ''
+          });
+        });
+        contractHistoryIndexMap = map;
+        if (records && records.length > 0) {
+          renderTable();
+        }
+      } catch(e) {
+        console.warn('Failed to load contract history index:', e);
+      }
+    }
+
+    function getContractPastHistoryInfo(contractNo, currentId, currentDate) {
+      if (!contractNo || contractNo === '신규등록' || contractNo === '-') {
+        return { count: 0, items: [] };
+      }
+      var key = contractNo.trim();
+      var allItems = contractHistoryIndexMap.get(key) || [];
+      // 현재 레코드(currentId)는 제외하고 과거/타 일자 출고 이력 추출
+      var pastItems = allItems.filter(function(item) {
+        if (currentId && item.id === currentId) return false;
+        return true;
+      });
+      return {
+        count: pastItems.length,
+        items: pastItems
+      };
     }
 
     // Kakao Maps Instance & Geocoder & Places
@@ -5195,11 +5257,16 @@
       var kw = (document.getElementById('tableSearchInput').value || '').toLowerCase().trim();
       var typeFilter = document.getElementById('tableTypeFilter').value;
       var methodFilter = document.getElementById('tableMethodFilter') ? document.getElementById('tableMethodFilter').value : 'all';
+      var historyFilter = document.getElementById('tableHistoryFilter') ? document.getElementById('tableHistoryFilter').value : 'all';
       var driverFilter = document.getElementById('driverFilterSelect') ? document.getElementById('driverFilterSelect').value : 'all';
 
       var filtered = records.filter(function(r) {
         if (typeFilter !== 'all' && (r.구분 || '').indexOf(typeFilter) === -1) return false;
         if (methodFilter !== 'all' && (r.배송방법 || '직배송') !== methodFilter) return false;
+        if (historyFilter === 'has_history') {
+          var h = getContractPastHistoryInfo(r.계약번호, r.ID, r.배송일자);
+          if (h.count === 0) return false;
+        }
         if (driverFilter !== 'all') {
           var d = (r.담당기사 || '').trim();
           if (driverFilter === '' && d !== '') return false;
@@ -5292,6 +5359,8 @@
           </select>
         `;
 
+        var histInfo = getContractPastHistoryInfo(r.계약번호, r.ID, r.배송일자);
+
         tr.innerHTML = `
           <td class="py-2.5 px-3 text-center">
             <input type="checkbox" class="row-checkbox w-4 h-4 rounded text-indigo-600 cursor-pointer" data-id="${r.ID || ''}" data-idx="${realIdx}" onchange="onRowCheckboxChange()">
@@ -5308,6 +5377,14 @@
                 <i class="fa-solid fa-pen-to-square text-[11px]"></i>
               </button>
             </div>
+            ${histInfo.count > 0 ? `
+              <div class="mt-1">
+                <button type="button" onclick="openContractHistoryModal('${r.계약번호}')" class="px-1.5 py-0.5 bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 rounded font-black text-[9.5px] inline-flex items-center gap-1 transition shadow-2xs cursor-pointer" title="과거 출고/배송 이력 ${histInfo.count}건 존재 (클릭 시 상세 이력 조회)">
+                  <i class="fa-solid fa-clock-rotate-left text-amber-700 text-[8.5px]"></i>
+                  <span>과거이력 ${histInfo.count}건</span>
+                </button>
+              </div>
+            ` : ''}
           </td>
           <td class="py-2.5 px-2">${categorySelectHtml}</td>
           <td class="py-2.5 px-2">${methodSelectHtml}</td>
@@ -5531,10 +5608,11 @@
         `;
 
         var memoEscaped = (r.비고_전문 || '').replace(/"/g, '&quot;');
+        var histInfo = getContractPastHistoryInfo(r.계약번호, r.ID, r.배송일자);
 
         card.innerHTML = `
           <div class="flex items-center justify-between gap-2">
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-2 flex-wrap">
               <input type="checkbox" class="row-checkbox w-4 h-4 rounded text-indigo-600 cursor-pointer" data-id="${r.ID || ''}" data-idx="${realIdx}" onchange="onRowCheckboxChange()">
               ${r.계약번호 ? `
                 <div class="flex items-center gap-1">
@@ -5554,6 +5632,12 @@
                   </button>
                 </div>
               `}
+              ${histInfo.count > 0 ? `
+                <button type="button" onclick="openContractHistoryModal('${r.계약번호}')" class="px-1.5 py-0.5 bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 rounded font-black text-[9px] inline-flex items-center gap-0.5 shadow-2xs cursor-pointer" title="과거 출고/배송 이력 ${histInfo.count}건 존재">
+                  <i class="fa-solid fa-clock-rotate-left text-amber-700 text-[8px]"></i>
+                  <span>이력 ${histInfo.count}건</span>
+                </button>
+              ` : ''}
               ${catSelectHtml}
               <span class="px-2 py-0.5 rounded-lg text-[10px] font-bold ${isQuickRow ? 'bg-purple-50 text-purple-700 border border-purple-200' : isPickupRow ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-blue-50 text-blue-700 border border-blue-200'}">
                 ${isQuickRow ? '⚡ 퀵배송' : isPickupRow ? '🏢 방문수령' : (r.배송방법 || '직배송')}
@@ -6458,6 +6542,10 @@
           renderRouteMap({ fitBounds: false, isSilent: isSilent });
         }
 
+        if (!isSilent || contractHistoryIndexMap.size === 0) {
+          fetchContractHistoryIndex();
+        }
+
         if (syncIcon) syncIcon.classList.remove('fa-spin');
         var nowStr = new Date().toLocaleTimeString('ko-KR', { hour12: false });
         if (statusEl) statusEl.innerText = '⚡ 실시간 연동 (' + nowStr + ')';
@@ -6749,6 +6837,7 @@
         var driverSelect = document.getElementById('driverFilterSelect');
         if (driverSelect) driverSelect.value = reqDriver;
       }
+      await fetchContractHistoryIndex();
       await triggerSync(false);
       initSupabaseRealtimeSync();
     }
