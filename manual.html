@@ -15,15 +15,16 @@
     /* 인쇄 / PDF 저장 전용 스타일 */
     @media print {
       header, .no-print, #searchBarContainer, #tabButtonsContainer { display: none !important; }
-      body { background: white !important; color: black !important; padding: 0 !important; font-size: 10.5pt !important; }
+      body { background: white !important; color: black !important; padding: 0 !important; font-size: 10pt !important; }
       .tab-content { display: block !important; }
       .print-break-before { page-break-before: always; }
-      .card-box { border: 1px solid #cbd5e1 !important; box-shadow: none !important; margin-bottom: 1.25rem !important; break-inside: avoid; }
+      .card-box { border: 1px solid #cbd5e1 !important; box-shadow: none !important; margin-bottom: 1rem !important; break-inside: avoid; }
+      img { max-width: 100% !important; }
     }
     
     .smooth-scroll { scroll-behavior: smooth; }
     .badge { display: inline-flex; align-items: center; gap: 0.25rem; font-weight: 700; border-radius: 0.5rem; padding: 0.2rem 0.55rem; font-size: 0.75rem; }
-    .step-circle { width: 1.75rem; height: 1.75rem; border-radius: 9999px; display: inline-flex; align-items: center; justify-content: center; font-weight: 900; font-size: 0.8rem; shrink-0: 0; }
+    .step-num { width: 1.6rem; height: 1.6rem; border-radius: 9999px; display: inline-flex; align-items: center; justify-content: center; font-weight: 900; font-size: 0.8rem; shrink-0: 0; }
   </style>
 </head>
 <body class="bg-slate-100 text-slate-800 antialiased min-h-screen smooth-scroll text-xs sm:text-sm">
@@ -41,9 +42,9 @@
         <div>
           <div class="flex items-center gap-2">
             <h1 class="text-base sm:text-lg font-black tracking-tight">현대렌탈 시스템 통합 실무 매뉴얼</h1>
-            <span class="bg-amber-400 text-slate-900 text-[10px] font-black px-2 py-0.5 rounded-full">v2.6 실무개정판</span>
+            <span class="bg-amber-400 text-slate-900 text-[10px] font-black px-2 py-0.5 rounded-full">v2.7 현업표준</span>
           </div>
-          <p class="text-[11px] text-indigo-200">기사 모바일웹 · 관리자 PC 관제 대시보드 · 법인차량 운행일지 통합 운영서</p>
+          <p class="text-[11px] text-indigo-200">기사 모바일웹 · PC 관제 대시보드 · 법인차량 운행일지 실무 운영서</p>
         </div>
       </div>
 
@@ -81,14 +82,14 @@
       <div class="relative max-w-2xl mx-auto">
         <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3 text-slate-400 text-sm"></i>
         <input type="text" id="manualSearchInput" oninput="handleManualSearch(this.value)"
-               placeholder="궁금한 기능이나 키워드를 검색해보세요 (예: 차량 취소, 티맵, 운행마감, 1팀 공유, 퀵, CSV 등록)"
+               placeholder="궁금한 기능이나 키워드를 검색해보세요 (예: 순서 확정, 티맵 안내, 운행마감, 주차비, 주유비, 퀵, CSV 등록)"
                class="w-full pl-10 pr-10 py-2 bg-slate-100 focus:bg-white border border-slate-200 focus:border-indigo-600 rounded-xl text-xs sm:text-sm font-semibold focus:outline-none transition">
         <button id="searchClearBtn" onclick="clearSearch()" class="hidden absolute right-3 top-2.5 text-slate-400 hover:text-slate-600">
           <i class="fa-solid fa-xmark text-sm"></i>
         </button>
       </div>
 
-      <!-- Tab Buttons (3대 통합 섹션) -->
+      <!-- Tab Buttons -->
       <div class="flex items-center justify-center gap-1 sm:gap-2 overflow-x-auto pb-1" id="tabButtonsContainer">
         <button onclick="switchTab('tab-mobile')" id="btn-tab-mobile" class="tab-btn px-4 py-2 rounded-xl font-black text-xs transition flex items-center gap-1.5 whitespace-nowrap bg-indigo-600 text-white shadow-xs">
           <i class="fa-solid fa-mobile-screen"></i>
@@ -108,7 +109,7 @@
 
   <!-- Search Results Overlay Indicator -->
   <div id="searchResultsBanner" class="hidden bg-amber-50 border-b border-amber-200 px-4 py-2 text-center text-xs font-bold text-amber-900">
-    <span id="searchResultCount">0</span>개의 관련 매뉴얼 항목이 검색되었습니다.
+    <span id="searchResultCount">0</span>개의 관련 항목이 검색되었습니다.
   </div>
 
   <!-- ========================================== -->
@@ -125,7 +126,7 @@
         <div>
           <span class="bg-white/20 text-white text-[11px] font-black px-2.5 py-0.5 rounded-full">현장 배송기사용 실무 가이드</span>
           <h2 class="text-xl font-black mt-1">배송기사 스마트폰 모바일웹 (`mobile.html`)</h2>
-          <p class="text-xs text-indigo-100 mt-0.5">스마트폰 하나로 출근, 티맵 안내, 도착 완료, 순서 변경, 센터 복귀 후 1분 운행마감까지 완벽 가이드</p>
+          <p class="text-xs text-indigo-100 mt-0.5">출근 차량 탑승부터 티맵 내비 연동, 도착 처리, 센터 복귀 후 1분 운행마감까지 실제 화면과 함께 안내합니다.</p>
         </div>
         <a href="mobile.html" target="_blank" class="px-4 py-2 bg-white text-indigo-900 font-black rounded-xl text-xs shadow-md hover:bg-indigo-50 transition flex items-center gap-1.5">
           <i class="fa-solid fa-arrow-up-right-from-square"></i>
@@ -133,195 +134,224 @@
         </a>
       </div>
 
-      <!-- 1. 바탕화면 앱 설치 & 로그인 -->
-      <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs card-box space-y-4">
+      <!-- 1. 바탕화면 앱 설치 & 빠른 접속 -->
+      <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs card-box space-y-3">
         <h3 class="text-base font-black text-slate-900 flex items-center gap-2">
-          <span class="step-circle bg-indigo-600 text-white">1</span>
-          <span>스마트폰 바탕화면 앱(PWA) 추가 & 4자리 PIN 로그인</span>
+          <span class="step-num bg-indigo-600 text-white">1</span>
+          <span>스마트폰 바탕화면 앱(PWA) 추가 (1터치 즉시 실행)</span>
         </h3>
-        
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div class="bg-slate-50 rounded-xl p-4 border border-slate-200 space-y-2">
-            <h4 class="font-black text-xs text-indigo-900 flex items-center gap-1.5">
-              <i class="fa-solid fa-mobile-screen-button text-indigo-600"></i>
-              <span>바탕화면에 앱(바로가기) 1초 설치</span>
-            </h4>
-            <p class="text-xs text-slate-600 leading-relaxed">
-              기사님이 매번 긴 인터넷 주소를 입력할 필요 없이 일반 스마트폰 어플처럼 <b>트럭 아이콘 앱</b>으로 실행할 수 있습니다.
-            </p>
-            <ol class="list-decimal list-inside text-xs text-slate-700 space-y-1 font-medium">
-              <li>스마트폰 브라우저로 모바일 웹 접속</li>
-              <li>상단 노란색 <b>[바로가기]</b> 버튼 터치</li>
-              <li>안드로이드: <b>[홈 화면에 추가]</b> / 아이폰: 사파리 공유창 ➔ <b>[홈 화면에 추가]</b></li>
-              <li>바탕화면에 <b>"현대렌탈배송"</b> 앱이 설치되어 1터치로 즉시 열립니다.</li>
-            </ol>
+        <p class="text-xs text-slate-600 leading-relaxed">
+          기사님이 매번 인터넷 주소를 칠 필요 없이 스마트폰 바탕화면의 <b>현대렌탈 트럭 아이콘 앱</b>으로 즉시 실행할 수 있습니다.
+        </p>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+          <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
+            <b class="text-indigo-900">안드로이드 (갤럭시)</b>
+            <p class="text-slate-600 text-[11px]">모바일웹 상단 노란색 <b>[바로가기]</b> 터치 ➔ "홈 화면에 추가" ➔ <b>[설치]</b> 터치</p>
           </div>
-
-          <div class="bg-slate-50 rounded-xl p-4 border border-slate-200 space-y-2">
-            <h4 class="font-black text-xs text-indigo-900 flex items-center gap-1.5">
-              <i class="fa-solid fa-key text-indigo-600"></i>
-              <span>숫자 4자리 PIN 로그인</span>
-            </h4>
-            <p class="text-xs text-slate-600 leading-relaxed">
-              복잡한 영문 비밀번호 대신 현장에서 빠르고 편하게 <b>숫자 4자리</b>로 인증합니다.
-            </p>
-            <ul class="list-disc list-inside text-xs text-slate-700 space-y-1 font-medium">
-              <li><b>이름</b>: 본인 성명 입력 (예: <code class="bg-slate-200 px-1 py-0.5 rounded font-bold">김승지</code>, <code class="bg-slate-200 px-1 py-0.5 rounded font-bold">조경찬</code>)</li>
-              <li><b>비밀번호</b>: <b>숫자 4자리</b> (초기 공통 비밀번호: <code class="bg-slate-200 px-1 py-0.5 rounded font-bold text-indigo-700">1234</code>)</li>
-              <li><b>[자동 로그인] 체크</b>: 다음 접속 시 로그인 창을 건너뛰고 오늘 배송 건이 바로 뜹니다.</li>
-            </ul>
-          </div>
-        </div>
-
-        <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 flex flex-col sm:flex-row items-center gap-4">
-          <div class="w-full sm:w-48 shrink-0 rounded-lg overflow-hidden border border-slate-300 shadow-xs">
-            <img src="./docs_images/mobile_driver.png" alt="모바일 로그인 화면" class="w-full h-auto object-cover">
-          </div>
-          <div class="text-xs text-slate-600 space-y-1.5">
-            <p class="font-bold text-slate-800">📱 실제 모바일 로그인 화면</p>
-            <p>• 성명과 4자리 비밀번호(1234)를 입력하고 <b>[자동 로그인]</b>에 체크해두면 하루 종일 재로그인 없이 즉시 배송 화면으로 진입합니다.</p>
-            <p>• 비밀번호 변경이 필요할 경우 관제 PC 대시보드 우측 상단 메뉴의 [사용자 설정]에서 변경 가능합니다.</p>
+          <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
+            <b class="text-indigo-900">아이폰 (iOS)</b>
+            <p class="text-slate-600 text-[11px]">사파리 하단 공유 버튼(네모+화살표) 터치 ➔ <b>[홈 화면에 추가]</b> 선택</p>
           </div>
         </div>
       </div>
 
-      <!-- 2. 기사 하루 업무 전체 프로세스 및 1분 운행마감 (기존 4번 -> 2번으로 승격 및 전면 상세화) -->
-      <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs card-box space-y-5">
-        <div class="flex items-center justify-between flex-wrap gap-2">
-          <h3 class="text-base font-black text-slate-900 flex items-center gap-2">
-            <span class="step-circle bg-indigo-600 text-white">2</span>
-            <span>★ 기사 하루 업무 전체 프로세스 & 1분 운행마감 (필독)</span>
-          </h3>
-          <span class="badge bg-rose-100 text-rose-800 border border-rose-300">★ 현장 필수 준수 사항</span>
+      <!-- 2. 기사 하루 업무 전체 프로세스 & 1분 운행마감 (핵심) -->
+      <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs card-box space-y-6">
+        <div class="flex items-center justify-between flex-wrap gap-2 border-b border-slate-100 pb-3">
+          <div>
+            <h3 class="text-base font-black text-slate-900 flex items-center gap-2">
+              <span class="step-num bg-indigo-600 text-white">2</span>
+              <span>★ 기사 하루 배송업무 전체 프로세스 & 1분 운행마감 (상세 화면 예시)</span>
+            </h3>
+            <p class="text-xs text-slate-500 mt-0.5">출근부터 배송 완료, 센터 복귀 및 운행마감까지 실제 모바일 화면 캡처와 함께 확인하세요.</p>
+          </div>
+          <span class="badge bg-rose-100 text-rose-800 border border-rose-300">★ 기사 필수 준수사항</span>
         </div>
-        <p class="text-xs text-slate-600 leading-relaxed">
-          배송기사의 출근부터 배송 완료, 센터 복귀 및 퇴근 마감까지의 실제 5단계 업무 순서입니다.
-        </p>
 
-        <!-- 5단계 업무 프로세스 카드 -->
-        <div class="space-y-4">
-          <!-- Step 1 -->
-          <div class="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+        <!-- 5대 단계별 세부 가이드 & 화면 첨부 -->
+        <div class="space-y-6">
+
+          <!-- Step 1: 차량 선택 및 취소 -->
+          <div class="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
             <div class="flex items-center justify-between">
-              <span class="font-black text-indigo-700 flex items-center gap-1.5 text-xs">
-                <span class="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px]">①</span>
-                <span>출근 및 법인차량 선택 (시작 계기판 확인)</span>
+              <span class="font-black text-indigo-800 text-xs sm:text-sm flex items-center gap-1.5">
+                <span class="step-num bg-indigo-600 text-white text-xs">①</span>
+                <span>오전 08:30 출근: 법인차량 선택 및 시작 계기판 확인</span>
               </span>
-              <span class="badge bg-indigo-100 text-indigo-800">오전 08:30</span>
+              <span class="badge bg-indigo-100 text-indigo-800">출근 단계</span>
             </div>
             <p class="text-xs text-slate-700 leading-relaxed">
-              모바일웹 상단 <b>[차량선택]</b>을 누른 뒤 오늘 탑승할 스타리아(예: <code class="font-bold">801부8744</code>)를 선택합니다. 차량을 선택하면 이전 운행자(1팀 또는 기사)가 마감한 최종 계기판 Km가 내 <b>시작 계기판</b>으로 자동 연동됩니다.
+              모바일 화면 상단의 <b>[차량선택]</b> 버튼을 누른 후 오늘 탑승할 스타리아(예: <code class="font-bold">801부8744</code>) 카드를 터치합니다.
             </p>
-            <div class="p-2.5 bg-amber-50 rounded-lg border border-amber-200 text-[11px] text-amber-900">
-              💡 <b>차량을 잘못 선택했거나 배차를 취소할 때</b>: [차량선택] 팝업에서 현재 선택된 초록색 체크 카드를 <b>한 번 더 터치</b>하면 선택이 취소되어 '미배차 대기' 상태로 돌아갑니다.
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
+              <div class="rounded-xl overflow-hidden border border-slate-300 shadow-xs max-w-xs mx-auto md:mx-0">
+                <img src="./docs_images/mobile_vehicle_select.png" alt="모바일 차량 선택 화면" class="w-full h-auto object-cover">
+              </div>
+              <div class="space-y-2 text-xs text-slate-600">
+                <div class="p-3 bg-white rounded-xl border border-slate-200 space-y-1">
+                  <b class="text-indigo-900">시작 계기판 자동 승계</b>
+                  <p class="text-[11px]">이전 운행자(1팀 또는 다른 기사)가 마감한 최종 누적 Km가 내 시작 계기판으로 자동 로드되어 수기 입력 오차가 없습니다.</p>
+                </div>
+                <div class="p-3 bg-amber-50 rounded-xl border border-amber-200 space-y-1 text-amber-950">
+                  <b class="text-amber-900">💡 차량 선택 취소 (토글)</b>
+                  <p class="text-[11px]">차량을 잘못 골랐거나 미배차로 돌릴 때는, 이미 초록색 체크가 표시된 차량 카드를 <b>한 번 더 터치</b>하거나 하단의 <b>[선택 취소 (미운행)]</b>을 누르면 즉시 해제됩니다.</p>
+                </div>
+              </div>
             </div>
           </div>
 
-          <!-- Step 2 -->
-          <div class="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+          <!-- Step 2: 배송 순서 및 전체 지도 동선 확인 -->
+          <div class="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
             <div class="flex items-center justify-between">
-              <span class="font-black text-indigo-700 flex items-center gap-1.5 text-xs">
-                <span class="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px]">②</span>
-                <span>배송 목록 순서 확인 & 도로 동선 파악</span>
+              <span class="font-black text-indigo-800 text-xs sm:text-sm flex items-center gap-1.5">
+                <span class="step-num bg-indigo-600 text-white text-xs">②</span>
+                <span>배송 목록 순서 확인 & 전체 지도 동선 파악</span>
               </span>
-              <span class="badge bg-slate-200 text-slate-700">출발 전</span>
+              <span class="badge bg-slate-200 text-slate-700">출발 전 점검</span>
             </div>
             <p class="text-xs text-slate-700 leading-relaxed">
-              오늘 나에게 배정된 배송지 목록을 확인합니다. 상단의 <b>[🗺️ 전체 배송 지도 보기 & 실제 주행 경로]</b> 버튼을 누르면 오늘 방문할 전체 경유지와 추천 도로 주행선을 지도에서 한눈에 볼 수 있습니다.
+              나에게 배정된 배송지 목록을 확인합니다. 상단 파란색 <b>[🗺️ 전체 배송 지도 보기 & 실제 주행 경로]</b> 버튼을 누르면 오늘 방문할 전체 경유지와 추천 도로 주행선이 지도 위에 시원하게 펼쳐집니다.
             </p>
-            <p class="text-[11px] text-slate-600">
-              • 고객의 긴급 요청이나 교통 상황에 따라 각 카드의 <b>[▲] / [▼]</b> 버튼을 눌러 방문 순서를 즉시 바꿀 수 있으며, 변경 즉시 관제 PC 화면에도 동기화됩니다.
-            </p>
-          </div>
-
-          <!-- Step 3 (★ 필독 사항 강력 부착) -->
-          <div class="p-4 bg-rose-50/50 rounded-xl border-2 border-rose-300 space-y-2">
-            <div class="flex items-center justify-between">
-              <span class="font-black text-rose-800 flex items-center gap-1.5 text-xs">
-                <span class="w-5 h-5 rounded-full bg-rose-600 text-white flex items-center justify-center text-[10px]">③</span>
-                <span>배송지 출발: [티맵 안내] 원클릭 실행 (필수!)</span>
-              </span>
-              <span class="badge bg-rose-600 text-white font-black">★ 기사 필수 준수</span>
+            <div class="p-3 bg-white rounded-xl border border-slate-200 text-xs text-slate-600 space-y-1">
+              <b class="text-slate-800">현장 순서 변경 (▲/▼ 버튼)</b>
+              <p class="text-[11px]">고객 요청이나 도로 정체로 인해 순서를 바꿔야 할 때는 각 배송 카드 우측 상단의 <b>[▲] / [▼]</b> 버튼을 눌러 순서를 즉시 조정합니다. 변경 즉시 관제 PC 화면에도 실시간 반영됩니다.</p>
             </div>
-            <p class="text-xs text-rose-950 font-bold leading-relaxed">
-              배송지로 출발할 때는 스마트폰 티맵 앱을 따로 켜지 마시고, 반드시 모바일웹의 로즈레드 색상 <span class="bg-rose-500 text-white px-2 py-0.5 rounded font-bold">[티맵 안내]</span> 버튼을 터치하여 출발하십시오!
-            </p>
-            <ul class="list-disc list-inside text-xs text-rose-900 space-y-1 leading-relaxed">
-              <li><b>버튼 터치 즉시</b>: 관제 대시보드와 시간 관리 시스템에 기사님의 <b>출발 시각이 초 단위로 자동 전송</b>됩니다.</li>
-              <li><b>내비게이션 자동 실행</b>: 고객사의 도로명 주소가 티맵 내비게이션 목적지로 자동 입력되어 즉시 길안내가 시작됩니다.</li>
-            </ul>
           </div>
 
-          <!-- Step 4 -->
-          <div class="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+          <!-- Step 3: 배송지 출발 (★ 티맵 안내 원클릭 - 필독 사항) -->
+          <div class="p-4 bg-rose-50/70 rounded-2xl border-2 border-rose-400 space-y-3">
             <div class="flex items-center justify-between">
-              <span class="font-black text-indigo-700 flex items-center gap-1.5 text-xs">
-                <span class="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px]">④</span>
-                <span>배송지 도착 완료 처리 & 사진/메모 기록</span>
+              <span class="font-black text-rose-900 text-xs sm:text-sm flex items-center gap-1.5">
+                <span class="step-num bg-rose-600 text-white text-xs">③</span>
+                <span>배송지 출발: [티맵 안내] 원클릭 실행 (★ 기사 필독 사항)</span>
               </span>
-              <span class="badge bg-emerald-100 text-emerald-800 font-bold">현장 도착</span>
+              <span class="badge bg-rose-600 text-white font-black">필수 준수</span>
+            </div>
+            
+            <div class="p-3 bg-white rounded-xl border border-rose-200 space-y-1.5 text-xs">
+              <div class="font-black text-rose-700 flex items-center gap-1 text-sm">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+                <span>출발 전 절대 스마트폰 티맵 앱을 따로 켜지 마세요!</span>
+              </div>
+              <p class="text-slate-700 leading-relaxed">
+                배송지로 출발할 때는 모바일 배송 카드 좌측 하단의 로즈레드 색상 <span class="bg-rose-500 text-white px-2 py-0.5 rounded font-bold text-[11px]"><i class="fa-solid fa-location-arrow"></i> 티맵 안내</span> 버튼을 터치하여 출발해야 합니다.
+              </p>
+              <ul class="list-disc list-inside text-[11px] text-slate-600 space-y-0.5 pt-1">
+                <li><b>출발 시각 자동 기록</b>: 버튼을 누르는 즉시 관제 대시보드와 시간 관리 시스템에 출발 시각이 자동 전송됩니다.</li>
+                <li><b>내비 목적지 자동 입력</b>: 고객사의 상세 도로명 주소가 티맵 내비에 자동 세팅되어 길안내가 바로 시작됩니다.</li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- Step 4: 배송지 도착 및 완료 처리 -->
+          <div class="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
+            <div class="flex items-center justify-between">
+              <span class="font-black text-indigo-800 text-xs sm:text-sm flex items-center gap-1.5">
+                <span class="step-num bg-indigo-600 text-white text-xs">④</span>
+                <span>현장 도착: [배송지 도착] 클릭 & 현장 사진/메모 기록</span>
+              </span>
+              <span class="badge bg-emerald-100 text-emerald-800 font-bold">도착 완료</span>
             </div>
             <p class="text-xs text-slate-700 leading-relaxed">
-              고객사 현장에 도착하면 즉시 <span class="bg-emerald-600 text-white px-2 py-0.5 rounded font-bold">[배송지 도착]</span> 버튼을 누릅니다.
+              고객사에 도착하면 우측 하단의 <span class="bg-slate-100 text-slate-700 border border-slate-300 px-2 py-0.5 rounded font-bold text-[11px]"><i class="fa-solid fa-flag-checkered"></i> 배송지 도착</span> 버튼을 누릅니다.
             </p>
-            <ul class="list-disc list-inside text-xs text-slate-600 space-y-1">
-              <li><b>소요 시간 자동 산출</b>: 출발 시각부터 도착 시각까지의 주행 소요시간(예: 35분 소요)이 시스템에 기록됩니다.</li>
-              <li><b>현장 사진 첨부</b>: 부재중 문 앞 보관 사진이나 설치 완료 사진은 <code class="font-bold">[📷 사진 첨부]</code>로 등록 시 데이터 절약을 위해 자동 압축되어 클라우드에 영구 저장됩니다.</li>
-              <li><b>고객 통화</b>: 초록색 전화기 버튼을 누르면 오발신 방지 확인 후 스마트폰 통화 화면으로 바로 연결됩니다.</li>
-            </ul>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+              <div class="p-2.5 bg-white rounded-xl border border-slate-200">
+                <b class="text-slate-900">도착 시각 & 소요시간</b>
+                <p class="text-[11px] text-slate-500 mt-0.5">출발부터 도착까지 걸린 주행 시간(예: 35분 소요)이 전산에 자동 기록됩니다.</p>
+              </div>
+              <div class="p-2.5 bg-white rounded-xl border border-slate-200">
+                <b class="text-slate-900">현장 사진 압축 첨부</b>
+                <p class="text-[11px] text-slate-500 mt-0.5">문 앞 배송 사진 등록 시 데이터 절약을 위해 자동 압축되어 클라우드에 영구 저장됩니다.</p>
+              </div>
+              <div class="p-2.5 bg-white rounded-xl border border-slate-200">
+                <b class="text-slate-900">안심 전화 통화</b>
+                <p class="text-[11px] text-slate-500 mt-0.5">초록색 전화 버튼을 누르면 오발신 방지 확인 후 즉시 스마트폰 통화 화면으로 연결됩니다.</p>
+              </div>
+            </div>
           </div>
 
-          <!-- Step 5 (운행마감) -->
-          <div class="p-4 bg-emerald-50 rounded-xl border-2 border-emerald-400 space-y-3">
+          <!-- Step 5: 센터 복귀 후 1분 운행마감 (1, 2, 3번 세부 예시 화면) -->
+          <div class="p-4 bg-emerald-50/80 rounded-2xl border-2 border-emerald-400 space-y-4">
             <div class="flex items-center justify-between">
-              <span class="font-black text-emerald-900 flex items-center gap-1.5 text-xs">
-                <span class="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px]">⑤</span>
-                <span>센터 복귀 후 [운행마감] (단 1분 소요!)</span>
+              <span class="font-black text-emerald-950 text-xs sm:text-sm flex items-center gap-1.5">
+                <span class="step-num bg-emerald-600 text-white text-xs">⑤</span>
+                <span>센터 복귀 후 [운행마감] 3단계 세부 예시 (단 1분 완료!)</span>
               </span>
               <span class="badge bg-emerald-700 text-white font-black">하루 일과 종료</span>
             </div>
             <p class="text-xs text-emerald-950 leading-relaxed">
-              모든 배송을 마치고 가산 센터로 복귀하면 상단 운행차량 카드 우측의 <b>[운행마감]</b> (초록색 깃발) 버튼을 누릅니다.
+              모든 배송을 마치고 가산 센터로 복귀하면 상단 우측의 <b>[운행마감]</b> (초록색 깃발) 버튼을 누르고 아래 3단계를 순서대로 진행합니다.
             </p>
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
-              <div class="p-2.5 bg-white rounded-lg border border-emerald-200">
-                <b class="text-emerald-900">1. 종료 계기판 입력</b>
-                <p class="text-[11px] text-slate-600 mt-0.5">차량 계기판에 표시된 현재 최종 Km 숫자만 입력 (당일 실주행거리 자동 계산)</p>
+
+            <!-- 1, 2, 3번 세부 화면 예시 카드 -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+              <!-- 예시 1 -->
+              <div class="p-3.5 bg-white rounded-xl border border-emerald-200 space-y-2 shadow-xs">
+                <div class="flex items-center gap-1.5 font-black text-emerald-900">
+                  <span class="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px]">1</span>
+                  <span>종료 계기판 입력</span>
+                </div>
+                <div class="p-2 bg-slate-50 rounded-lg border border-slate-200 font-mono text-[11px] space-y-1">
+                  <div class="flex justify-between text-slate-500">
+                    <span>시작 계기판:</span>
+                    <b>58,751 km</b>
+                  </div>
+                  <div class="flex justify-between text-indigo-700 font-bold">
+                    <span>종료 계기판:</span>
+                    <span class="bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-200 font-black">58,820 km</span>
+                  </div>
+                  <div class="flex justify-between text-emerald-700 font-black pt-1 border-t border-slate-200">
+                    <span>오늘 실주행거리:</span>
+                    <span>69 km 자동 계산</span>
+                  </div>
+                </div>
+                <p class="text-[11px] text-slate-600">차량 계기판에 표시된 현재 최종 Km 숫자만 입력하면 오늘 달린 거리가 자동 계산됩니다.</p>
               </div>
-              <div class="p-2.5 bg-white rounded-lg border border-emerald-200">
-                <b class="text-emerald-900">2. 주차비/주유비 (선택)</b>
-                <p class="text-[11px] text-slate-600 mt-0.5">오늘 지출한 영수증 금액과 특이사항 메모 입력</p>
+
+              <!-- 예시 2 -->
+              <div class="p-3.5 bg-white rounded-xl border border-emerald-200 space-y-2 shadow-xs">
+                <div class="flex items-center gap-1.5 font-black text-emerald-900">
+                  <span class="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px]">2</span>
+                  <span>주차비 / 주유비 입력 (선택)</span>
+                </div>
+                <div class="p-2 bg-slate-50 rounded-lg border border-slate-200 font-mono text-[11px] space-y-1">
+                  <div class="flex justify-between text-amber-900">
+                    <span>주차비 총액:</span>
+                    <b>5,000 원</b>
+                  </div>
+                  <div class="flex justify-between text-rose-900">
+                    <span>주유비 총액:</span>
+                    <b>50,000 원</b>
+                  </div>
+                  <div class="text-[10px] text-slate-500 pt-0.5 truncate">
+                    메모: GS칼텍스 가산주유소 주유
+                  </div>
+                </div>
+                <p class="text-[11px] text-slate-600">오늘 발생한 영수증 지출 금액과 주유소명 메모를 입력합니다. (비용이 없으면 0원 그대로 유지)</p>
               </div>
-              <div class="p-2.5 bg-white rounded-lg border border-emerald-200">
-                <b class="text-emerald-900">3. [저장 및 마감] 클릭</b>
-                <p class="text-[11px] text-slate-600 mt-0.5">법인차량 운행일지로 일괄 전송되며 오늘 배송 완료!</p>
+
+              <!-- 예시 3 -->
+              <div class="p-3.5 bg-white rounded-xl border border-emerald-200 space-y-2 shadow-xs">
+                <div class="flex items-center gap-1.5 font-black text-emerald-900">
+                  <span class="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px]">3</span>
+                  <span>[오늘 운행일지 저장 및 마감]</span>
+                </div>
+                <div class="pt-2">
+                  <button class="w-full py-2 bg-gradient-to-r from-indigo-600 to-teal-600 text-white font-black text-xs rounded-xl pointer-events-none shadow-xs">
+                    <i class="fa-solid fa-check"></i> 오늘 운행일지 저장 및 마감
+                  </button>
+                </div>
+                <p class="text-[11px] text-slate-600 pt-1">버튼 클릭 즉시 법인차량 운행일지 시스템으로 오늘 주행 데이터와 경유지가 일괄 전송되며 오늘 일과가 공식 마감됩니다.</p>
               </div>
             </div>
-            <p class="text-[11px] text-emerald-800">
-              * 만약 센터로 복귀하지 않고 현지(자택)로 바로 퇴근할 경우, 마감 팝업의 <b>[도착지 변경]</b>을 눌러 자택 주소로 설정 후 마감하시면 됩니다.
+
+            <p class="text-[11px] text-emerald-900">
+              * <b>현지(자택) 퇴근 시</b>: 센터로 복귀하지 않고 자택으로 바로 퇴근할 때는 마감 팝업의 <b>[도착지 변경]</b>을 눌러 자택 주소를 입력하고 마감하시면 해당 위치까지의 거리로 안전하게 마감됩니다.
             </p>
           </div>
-        </div>
-      </div>
 
-      <!-- 3. 법인차량 선택 및 취소(토글) 상세 -->
-      <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs card-box space-y-3">
-        <h3 class="text-base font-black text-slate-900 flex items-center gap-2">
-          <span class="step-circle bg-indigo-600 text-white">3</span>
-          <span>법인차량 선택 및 재터치 취소(토글) 상세</span>
-        </h3>
-        <p class="text-xs text-slate-600 leading-relaxed">
-          배송기사가 당일 운행할 스타리아 차량을 지정하거나 취소하는 방법입니다.
-        </p>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-          <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
-            <h4 class="font-bold text-indigo-900">차량 선택</h4>
-            <p class="text-slate-600 text-[11px]">상단 [차량선택] 클릭 ➔ 본인 차량 카드 클릭 ➔ 시작 계기판 자동 로드 및 실시간 운행차량으로 등록됨.</p>
-          </div>
-          <div class="p-3 bg-amber-50 rounded-xl border border-amber-200 space-y-1">
-            <h4 class="font-bold text-amber-900">선택 취소 (토글)</h4>
-            <p class="text-amber-800 text-[11px]">차량을 잘못 선택했거나 미배차 상태로 돌릴 때, 이미 체크된 카드를 <b>한 번 더 터치</b>하면 배차가 즉시 해제됩니다.</p>
-          </div>
         </div>
       </div>
     </section>
@@ -334,7 +364,7 @@
         <div>
           <span class="bg-indigo-500/30 text-indigo-300 text-[11px] font-black px-2.5 py-0.5 rounded-full">사무실 관제팀 & 총괄 관리자용</span>
           <h2 class="text-xl font-black mt-1">PC 통합 관제 대시보드 실무 프로세스 (`index.html`)</h2>
-          <p class="text-xs text-slate-300 mt-0.5">배송지 엑셀/CSV 일괄 등록부터 기사 배정, 퀵/방문수령 분기, 최적 도로 경로 계산, 실시간 관제까지 순서별 완벽 안내</p>
+          <p class="text-xs text-slate-300 mt-0.5">배송지 엑셀/CSV 일괄 등록부터 기사 배정, 퀵/방문수령 분기, 최적 도로 경로 계산, 순서 확정 및 실시간 관제 총괄</p>
         </div>
         <a href="index.html" target="_blank" class="px-4 py-2 bg-indigo-600 text-white font-black rounded-xl text-xs shadow-md hover:bg-indigo-500 transition flex items-center gap-1.5">
           <i class="fa-solid fa-arrow-up-right-from-square"></i>
@@ -342,26 +372,26 @@
         </a>
       </div>
 
-      <!-- 실제 화면 스크린샷 & 메뉴 구성 번호 라벨링 -->
+      <!-- 실제 화면 스크린샷 (사용자 첨부 실제 화면) -->
       <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs card-box space-y-4">
         <h3 class="text-base font-black text-slate-900 flex items-center gap-2">
           <i class="fa-solid fa-desktop text-indigo-600"></i>
-          <span>PC 관제 대시보드 화면 구성 및 핵심 메뉴 번호 안내</span>
+          <span>PC 관제 대시보드 실제 화면 & 상단 주요 메뉴 번호 안내</span>
         </h3>
         
-        <!-- 실제 스크린샷 삽입 -->
+        <!-- 사용자 업로드 실제 관제 대시보드 화면 -->
         <div class="rounded-xl overflow-hidden border border-slate-300 shadow-md">
           <img src="./docs_images/admin_dashboard.png" alt="PC 관제 대시보드 실제 화면" class="w-full h-auto object-cover">
         </div>
 
         <!-- 메뉴 번호별 설명 그리드 -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs pt-2">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs pt-1">
           <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
             <span class="font-black text-indigo-600 flex items-center gap-1">
               <span class="w-4 h-4 rounded-full bg-indigo-600 text-white text-[10px] flex items-center justify-center">1</span>
-              <span>날짜 선택 캘린더</span>
+              <span>배송일자 선택 캘린더</span>
             </span>
-            <p class="text-[11px] text-slate-600">상단 캘린더 피커로 당일 및 과거/미래 배송 스케줄을 날짜별로 즉시 전환합니다.</p>
+            <p class="text-[11px] text-slate-600">상단 캘린더 피커와 [오늘], [◀], [▶] 버튼으로 배송일자를 자유롭게 전환합니다.</p>
           </div>
 
           <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
@@ -369,31 +399,31 @@
               <span class="w-4 h-4 rounded-full bg-indigo-600 text-white text-[10px] flex items-center justify-center">2</span>
               <span>[CSV 등록] 버튼</span>
             </span>
-            <p class="text-[11px] text-slate-600">ERP 배송 엑셀 CSV 파일을 원클릭으로 일괄 업로드합니다. (시간 보존 병합 탑재)</p>
+            <p class="text-[11px] text-slate-600">ERP 배송 엑셀 CSV 파일을 업로드합니다. (시간 보존 병합 엔진 탑재)</p>
           </div>
 
           <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
             <span class="font-black text-indigo-600 flex items-center gap-1">
               <span class="w-4 h-4 rounded-full bg-indigo-600 text-white text-[10px] flex items-center justify-center">3</span>
-              <span>[+ 직접 추가] 버튼</span>
+              <span>[+ 배송지 직접 추가] 버튼</span>
             </span>
-            <p class="text-[11px] text-slate-600">당일 낮에 급히 접수된 긴급 건이나 수기 주문을 즉시 추가 등록합니다.</p>
+            <p class="text-[11px] text-slate-600">하단 목록 우측의 파란색 버튼으로 당일 긴급 수기 주문을 즉시 등록합니다.</p>
           </div>
 
           <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
             <span class="font-black text-indigo-600 flex items-center gap-1">
               <span class="w-4 h-4 rounded-full bg-indigo-600 text-white text-[10px] flex items-center justify-center">4</span>
-              <span>[배정 알림] 버튼</span>
+              <span>[순서 확정] 버튼 (★필수)</span>
             </span>
-            <p class="text-[11px] text-slate-600">배정 완료된 배송 일정을 기사님들의 카카오톡/문자 메시지로 일괄 발송합니다.</p>
+            <p class="text-[11px] text-slate-600">좌측 배송 순서 패널 상단의 파란색 버튼으로, <b>기사 모바일에 순서를 확정 배포</b>합니다.</p>
           </div>
 
           <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
             <span class="font-black text-indigo-600 flex items-center gap-1">
               <span class="w-4 h-4 rounded-full bg-indigo-600 text-white text-[10px] flex items-center justify-center">5</span>
-              <span>[이력 조회] 버튼</span>
+              <span>[배정 알림] 버튼</span>
             </span>
-            <p class="text-[11px] text-slate-600">고객 계약번호별 과거 배송/회수 내역 및 현장 기사 메모를 신속 검색합니다.</p>
+            <p class="text-[11px] text-slate-600">배정 완료된 일정을 기사님들의 카카오톡 알림톡/문자 메시지로 일괄 발송합니다.</p>
           </div>
 
           <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
@@ -401,23 +431,23 @@
               <span class="w-4 h-4 rounded-full bg-indigo-600 text-white text-[10px] flex items-center justify-center">6</span>
               <span>우측 상단 팝업 메뉴</span>
             </span>
-            <p class="text-[11px] text-slate-600"><b>📖 시스템 매뉴얼</b>, 배송 스케줄 시간 관리, 법인차량 운행일지, 관리자 설정 진입.</p>
+            <p class="text-[11px] text-slate-600"><b>📖 시스템 매뉴얼</b>, 배송 스케줄 시간 관리, 법인차량 운행일지 바로가기 지원.</p>
           </div>
         </div>
       </div>
 
-      <!-- 관리자 하루 업무 순서 (Step 1 ~ Step 6 완벽 가이드) -->
+      <!-- 관리자 당일 배송관제 6단계 업무 진행 순서 -->
       <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs card-box space-y-5">
         <h3 class="text-base font-black text-slate-900 flex items-center gap-2">
           <i class="fa-solid fa-list-check text-indigo-600"></i>
-          <span>관리자 당일 배송관제 6단계 업무 진행 순서</span>
+          <span>관리자 당일 배송관제 6단계 업무 진행 순서 (SOP)</span>
         </h3>
 
         <!-- Step 1 -->
         <div class="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
           <div class="flex items-center justify-between">
             <span class="font-black text-indigo-700 text-xs flex items-center gap-1.5">
-              <span class="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px]">1</span>
+              <span class="step-num bg-indigo-600 text-white text-[10px]">1</span>
               <span>아침 배송 스케줄 CSV 등록 & '시간 보존 병합'</span>
             </span>
             <span class="badge bg-indigo-100 text-indigo-800">오전 08:00</span>
@@ -426,38 +456,43 @@
             ERP에서 내려받은 당일 배송 CSV 파일을 상단 <b>[CSV 등록]</b> 버튼을 통해 업로드합니다.
           </p>
           <div class="p-2.5 bg-blue-50 rounded-lg border border-blue-200 text-[11px] text-blue-900">
-            🛡️ <b>시간 보존 병합 엔진 탑재</b>: 낮에 추가 건이나 주문 변경으로 인해 CSV를 다시 덮어씌우더라도, <b>기사님이 현장에서 이미 찍은 출발 시각, 도착 시각, 현장 사진, 메모는 절대로 삭제되지 않고 100% 안전하게 유지</b>됩니다.
+            🛡️ <b>시간 보존 병합 엔진</b>: 당일 낮에 긴급 건이 추가되어 CSV를 다시 덮어씌우더라도, <b>기사님이 현장에서 이미 찍은 출발 시각, 도착 시각, 현장 사진, 메모는 절대로 삭제되지 않고 100% 안전하게 유지</b>됩니다.
           </div>
         </div>
 
-        <!-- Step 2 -->
+        <!-- Step 2 (★ 순서 확정 명시 필수 - 피드백 반영) -->
         <div class="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
           <div class="flex items-center justify-between">
             <span class="font-black text-indigo-700 text-xs flex items-center gap-1.5">
-              <span class="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px]">2</span>
-              <span>기사별 배정 & 담당 거점(출발지) 확인</span>
+              <span class="step-num bg-indigo-600 text-white text-[10px]">2</span>
+              <span>기사별 배정 & 담당 거점(출발지) 확인 & [순서 확정] (★필수!)</span>
             </span>
-            <span class="badge bg-slate-200 text-slate-700">배정 단계</span>
+            <span class="badge bg-indigo-600 text-white font-black">★ 핵심 단계</span>
           </div>
           <p class="text-xs text-slate-700 leading-relaxed">
-            메인 테이블에서 각 주문의 담당기사 드롭다운을 선택하여 배송기사별로 배정합니다.
+            메인 테이블에서 각 주문의 담당기사를 지정하고, 개별 거점에서 출발하는 기사는 우측 상단 메뉴의 [기사별 출발지/거점 관리]에서 출발지 주소를 설정합니다.
           </p>
-          <p class="text-[11px] text-slate-600">
-            • 기사별로 자택 또는 개별 거점에서 출발하는 경우, 우측 상단 메뉴의 <b>[기사별 출발지/거점 관리]</b>에서 기사별 출발지 주소를 설정해두면 해당 거점 기준으로 경로가 계산됩니다.
-          </p>
+          <div class="p-3 bg-amber-50 rounded-xl border-2 border-amber-400 text-xs text-amber-950 space-y-1">
+            <b class="text-amber-900 text-sm flex items-center gap-1">
+              <i class="fa-solid fa-circle-check text-amber-600"></i> 반드시 [순서 확정] 버튼을 눌러주셔야 합니다!
+            </b>
+            <p class="leading-relaxed">
+              기사 배정 및 순서 정렬이 끝나면, 좌측 패널 상단에 있는 파란색 <b>[순서 확정]</b> 버튼을 꼭 클릭하십시오. 이 버튼을 눌러야 확정된 방문 순서(stop_order)가 클라우드 DB에 동기화되어 <b>기사님의 모바일 화면에 번호 순서대로 정확하게 노출</b>됩니다.
+            </p>
+          </div>
         </div>
 
-        <!-- Step 3: 배송 방식 분기 (퀵배송 & 방문수령 포함 - 사용자 요청 반영) -->
+        <!-- Step 3: 배송 방식 분기 관제 (퀵배송 & 방문수령) -->
         <div class="p-4 bg-purple-50/40 rounded-xl border-2 border-purple-200 space-y-3">
           <div class="flex items-center justify-between">
             <span class="font-black text-purple-950 text-xs flex items-center gap-1.5">
-              <span class="w-5 h-5 rounded-full bg-purple-600 text-white flex items-center justify-center text-[10px]">3</span>
+              <span class="step-num bg-purple-600 text-white text-[10px]">3</span>
               <span>배송 방식 분기 관제: [⚡ 퀵 배송] 및 [🏢 방문수령] 처리</span>
             </span>
-            <span class="badge bg-purple-600 text-white font-black">관리자 전용 기능</span>
+            <span class="badge bg-purple-100 text-purple-800 font-bold">운행일지 무결성 분기</span>
           </div>
           <p class="text-xs text-purple-900 leading-relaxed">
-            모든 주문이 기사 차량 직배송이 아니므로, 주문 유형에 맞춰 관리자가 정확하게 처리해야 합니다.
+            기사가 차량으로 운전하는 일반 직배송 외에 외주 퀵과 고객 내방 건은 아래 절차대로 처리합니다.
           </p>
 
           <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
@@ -470,9 +505,9 @@
                 <span class="badge bg-purple-100 text-purple-800">외주 퀵서비스</span>
               </div>
               <p class="text-[11px] text-slate-600 leading-relaxed">
-                1. 오토바이 퀵 접수 완료 시: 메인 테이블의 <span class="bg-purple-600 text-white px-1.5 py-0.5 rounded font-bold">[접수완료]</span> 버튼 클릭 ➔ 퀵 접수 시각 자동 기록.<br>
-                2. 퀵 기사가 물품 픽업 후 출발 시: <span class="bg-slate-100 text-slate-700 border border-slate-300 px-1.5 py-0.5 rounded font-bold">[퀵 출발]</span> 버튼 클릭 ➔ 퀵 출발 시각 및 접수 후 경과시간 기록.<br>
-                <span class="text-indigo-600 font-bold">* 국세청 세무 무결성을 위해 법인차량 운행일지에서 자동 제외됩니다.</span>
+                • <b>오토바이 퀵 접수 시</b>: 메인 테이블의 <span class="bg-purple-600 text-white px-1.5 py-0.5 rounded font-bold">[접수완료]</span> 버튼 클릭 ➔ 접수 시각 자동 기록.<br>
+                • <b>퀵 기사 픽업 출발 시</b>: <span class="bg-slate-100 text-slate-700 border border-slate-300 px-1.5 py-0.5 rounded font-bold">[퀵 출발]</span> 버튼 클릭 ➔ 퀵 출발 시각 및 접수 후 경과시간 기록.<br>
+                <span class="text-indigo-600 font-bold">* 차량 운행이 아니므로 법인차량 운행일지에서 자동 제외되어 국세청 증빙이 안전하게 보호됩니다.</span>
               </p>
             </div>
 
@@ -485,8 +520,8 @@
                 <span class="badge bg-emerald-100 text-emerald-800">고객 내방</span>
               </div>
               <p class="text-[11px] text-slate-600 leading-relaxed">
-                1. 길안내 불필요: 고객이 센터로 직접 찾아오는 주문이므로 티맵 버튼이 완전 제거되어 있습니다.<br>
-                2. 고객 방문 인도 시: 초록색 <span class="bg-emerald-600 text-white px-1.5 py-0.5 rounded font-bold">[수령 완료]</span> 버튼 클릭 ➔ 수령 완료 시각이 기록되며 완료 처리됩니다.
+                • <b>길안내 불필요</b>: 고객이 센터로 직접 찾아오는 주문이므로 티맵 버튼이 숨겨져 있습니다.<br>
+                • <b>고객 방문 인도 시</b>: 초록색 <span class="bg-emerald-600 text-white px-1.5 py-0.5 rounded font-bold">[수령 완료]</span> 버튼 클릭 ➔ 수령 완료 시각 기록 및 완료 처리.
               </p>
             </div>
           </div>
@@ -496,16 +531,16 @@
         <div class="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
           <div class="flex items-center justify-between">
             <span class="font-black text-indigo-700 text-xs flex items-center gap-1.5">
-              <span class="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px]">4</span>
+              <span class="step-num bg-indigo-600 text-white text-[10px]">4</span>
               <span>카카오 도로 경로 계산 & 드래그앤드롭 순서 최적화</span>
             </span>
             <span class="badge bg-slate-200 text-slate-700">경로 최적화</span>
           </div>
           <p class="text-xs text-slate-700 leading-relaxed">
-            지도 상단의 <b>[🔄 실제 도로 경로 계산]</b> 버튼을 누르면 실시간 교통상황이 반영된 실제 주행 도로선(파란색)과 총 주행거리(km), 예상 시간이 계산됩니다.
+            우측 지도 상단의 <b>[실제 경로 계산 (교통상황 반영)]</b> 버튼을 누르면 실시간 도로망 기준 주행거리(km)와 예상 시간이 계산되어 지도 위에 파란색 경로 라인으로 표출됩니다.
           </p>
           <p class="text-[11px] text-slate-600">
-            • 테이블 행을 마우스로 끌어다 놓거나(드래그앤드롭) [▲]/[▼] 버튼을 누르면 순서가 바뀌며, 기사님의 스마트폰 화면에도 1초 만에 순서가 동기화됩니다.
+            • 테이블 행을 마우스로 끌어다 놓거나 [▲]/[▼] 버튼으로 순서를 바꾼 뒤 <b>[순서 확정]</b>을 누르면 끝납니다.
           </p>
         </div>
 
@@ -513,13 +548,13 @@
         <div class="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
           <div class="flex items-center justify-between">
             <span class="font-black text-indigo-700 text-xs flex items-center gap-1.5">
-              <span class="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px]">5</span>
+              <span class="step-num bg-indigo-600 text-white text-[10px]">5</span>
               <span>기사 배정 알림 전송 (카카오톡/SMS)</span>
             </span>
             <span class="badge bg-amber-100 text-amber-800 font-bold">알림 발송</span>
           </div>
           <p class="text-xs text-slate-700 leading-relaxed">
-            순서 정렬이 끝나면 상단의 <b>[배정 알림]</b> 버튼을 눌러 각 기사님들에게 오늘 방문할 업체 목록과 모바일웹 바로가기 링크를 카카오톡 알림톡/문자로 일괄 전송합니다.
+            상단의 <b>[배정 알림]</b> 버튼을 눌러 각 기사님들에게 오늘 방문할 업체 목록과 모바일웹 바로가기 링크를 카카오톡 알림톡/문자로 일괄 전송합니다.
           </p>
         </div>
 
@@ -527,16 +562,16 @@
         <div class="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
           <div class="flex items-center justify-between">
             <span class="font-black text-indigo-700 text-xs flex items-center gap-1.5">
-              <span class="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px]">6</span>
-              <span>실시간 관제 & 시간 관리 타임트래커 모니터링</span>
+              <span class="step-num bg-indigo-600 text-white text-[10px]">6</span>
+              <span>실시간 관제 & 배송 스케줄 시간 관리 모니터링</span>
             </span>
-            <span class="badge bg-violet-100 text-violet-800 font-bold">실시간 관제</span>
+            <span class="badge bg-violet-100 text-violet-800 font-bold">실시간 모니터링</span>
           </div>
           <p class="text-xs text-slate-700 leading-relaxed">
-            기사님들이 배송을 수행하면서 누르는 티맵 출발 시각, 도착 완료 시각, 현장 사진이 대시보드 메인 테이블과 모바일 관리자 카드에 실시간 갱신됩니다.
+            기사님들이 누르는 티맵 출발 시각, 도착 완료 시각, 현장 사진이 메인 테이블에 실시간 갱신됩니다.
           </p>
           <p class="text-[11px] text-slate-600">
-            • 상단 우측 메뉴 ➔ <b>[배송 스케줄 시간 관리]</b>를 열면 기사별 상세 출발/도착 타임라인 및 이동 소요 시간을 한눈에 대조 분석할 수 있습니다.
+            • 우측 상단 메뉴 ➔ <b>[배송 스케줄 시간 관리]</b>를 열면 기사별 상세 출발/도착 타임라인 및 이동 소요 시간을 한눈에 대조 분석할 수 있습니다.
           </p>
         </div>
       </div>
@@ -550,7 +585,7 @@
         <div>
           <span class="bg-white/20 text-white text-[11px] font-black px-2.5 py-0.5 rounded-full">국세청 법정 서식 호환 & 세무 증빙</span>
           <h2 class="text-xl font-black mt-1">법인차량 운행일지 시스템 & 1·2팀 차량 공유 (`vehicle_log_tracker.html`)</h2>
-          <p class="text-xs text-teal-100 mt-0.5">일반 직배송 연동 원리, 1·2팀 차량 공유 프로토콜, 국세청 표준 CSV 다운로드 총괄</p>
+          <p class="text-xs text-teal-100 mt-0.5">일반 직배송 연동, 경유지 추가, 주차비·주유비 입력, Km 자동 분배, 1·2팀 차량공유 및 2종 CSV 다운로드 총괄</p>
         </div>
         <a href="vehicle_log_tracker.html" target="_blank" class="px-4 py-2 bg-white text-teal-900 font-black rounded-xl text-xs shadow-md hover:bg-teal-50 transition flex items-center gap-1.5">
           <i class="fa-solid fa-arrow-up-right-from-square"></i>
@@ -558,27 +593,133 @@
         </a>
       </div>
 
-      <!-- 1. 일반 직배송과 법인차량 운행일지 연동 원리 (사용자 요청 반영) -->
-      <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs card-box space-y-3">
+      <!-- 실제 법인차량 운행일지 화면 (사용자 첨부 실제 화면) -->
+      <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs card-box space-y-4">
         <h3 class="text-base font-black text-slate-900 flex items-center gap-2">
-          <i class="fa-solid fa-truck-fast text-teal-600"></i>
-          <span>1. 일반 직배송과 법인차량 운행일지의 자동 연동 원리</span>
+          <i class="fa-solid fa-car-side text-teal-600"></i>
+          <span>법인차량 운행일지 실제 화면 & 주요 기능 안내</span>
         </h3>
-        <p class="text-xs text-slate-600 leading-relaxed">
-          현대렌탈의 '일반 직배송'은 배송기사가 회사 법인차량(스타리아 등)을 직접 운전하여 고객사에 물품을 전달하는 업무입니다.
-        </p>
-        <div class="p-3.5 bg-slate-50 rounded-xl border border-slate-200 text-xs text-slate-700 space-y-2">
-          <p>• <b>실시간 경유지 자동 기록</b>: 기사가 모바일웹에서 직배송 건의 [티맵 안내]와 [도착 완료]를 누르면, 해당 고객사의 도로명 주소와 도착 시각이 당일 법인차량의 <b>공식 경유지 목록</b>으로 자동 저장됩니다.</p>
-          <p>• <b>운행마감 시 계기판 확정</b>: 센터 복귀 후 기사가 모바일에서 [운행마감]을 누르면, 당일 주행한 모든 직배송 경유지와 최종 계기판 Km가 결합되어 <b>국세청 업무용 승용차 운행기록부</b>로 자동 완성됩니다.</p>
+
+        <!-- 사용자 첨부 실제 운행일지 화면 -->
+        <div class="rounded-xl overflow-hidden border border-slate-300 shadow-md">
+          <img src="./docs_images/vehicle_log.png" alt="법인차량 운행일지 실제 화면" class="w-full h-auto object-cover">
+        </div>
+
+        <div class="grid grid-cols-2 sm:grid-cols-5 gap-2 text-center text-xs pt-1">
+          <div class="p-2.5 bg-slate-50 rounded-xl border border-slate-200">
+            <span class="text-[10px] text-slate-400 font-bold">전월말 계기판</span>
+            <div class="font-black text-slate-800 font-mono text-sm mt-0.5">70,532 km</div>
+          </div>
+          <div class="p-2.5 bg-indigo-50 rounded-xl border border-indigo-200">
+            <span class="text-[10px] text-indigo-500 font-bold">당월말 계기판</span>
+            <div class="font-black text-indigo-700 font-mono text-sm mt-0.5">71,298 km</div>
+          </div>
+          <div class="p-2.5 bg-emerald-50 rounded-xl border border-emerald-200">
+            <span class="text-[10px] text-emerald-600 font-bold">총 주행거리</span>
+            <div class="font-black text-emerald-700 font-mono text-sm mt-0.5">766 km</div>
+          </div>
+          <div class="p-2.5 bg-amber-50 rounded-xl border border-amber-200">
+            <span class="text-[10px] text-amber-700 font-bold">주차비 합계</span>
+            <div class="font-black text-amber-900 font-mono text-sm mt-0.5">23,400 원</div>
+          </div>
+          <div class="p-2.5 bg-rose-50 rounded-xl border border-rose-200">
+            <span class="text-[10px] text-rose-700 font-bold">주유비 합계</span>
+            <div class="font-black text-rose-900 font-mono text-sm mt-0.5">100,000 원</div>
+          </div>
         </div>
       </div>
 
-      <!-- 2. 1팀과 2팀의 법인차량 공유 3대 골든 룰 (사용자 요청: 운행일지 매뉴얼로 통합) -->
+      <!-- 운행일지 핵심 기능 상세 가이드 (사용자 요청 보강 완료) -->
+      <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs card-box space-y-4">
+        <h3 class="text-base font-black text-slate-900 flex items-center gap-2">
+          <i class="fa-solid fa-sliders text-teal-600"></i>
+          <span>운행일지 핵심 실무 기능 상세 가이드</span>
+        </h3>
+
+        <div class="space-y-3 text-xs text-slate-700">
+
+          <!-- 1. 배송지/경유지 추가 -->
+          <div class="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+            <b class="text-indigo-900 text-sm flex items-center gap-1.5">
+              <i class="fa-solid fa-location-dot text-indigo-600"></i> 1. 배송지 및 경유지 직접 추가 기능
+            </b>
+            <p class="leading-relaxed">
+              기사가 모바일로 배송한 건 외에 <b>1팀의 업무 경유지, 주유소, 식당, 기타 거래처</b>가 발생했을 때 언제든 경유지를 추가할 수 있습니다.
+            </p>
+            <ul class="list-disc list-inside text-[11px] text-slate-600 space-y-0.5">
+              <li>우측 상단 <b>[+ 운행일지 직접 등록]</b> 또는 각 일자 우측의 <b>[당일 일지 수정]</b> 클릭</li>
+              <li>경유지 목록 하단의 <b>[＋ 1팀 업무 경유지]</b>, <b>[＋ 주유소]</b>, <b>[＋ 일반 경유지]</b> 버튼을 눌러 목적지명과 도로명 주소 입력</li>
+              <li>추가된 경유지는 <b>[▲] / [▼]</b> 버튼으로 원하는 방문 순서 위치로 즉시 이동 가능하며, 카카오 맵 추천 도로 거리가 자동 연동됩니다.</li>
+            </ul>
+          </div>
+
+          <!-- 2. 주차비 / 주유비 입력 및 영수증 관리 -->
+          <div class="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+            <b class="text-amber-900 text-sm flex items-center gap-1.5">
+              <i class="fa-solid fa-receipt text-amber-600"></i> 2. 주차비 · 주유비 비용 입력 및 개별 영수증 관리
+            </b>
+            <p class="leading-relaxed">
+              상단에 당월 누적 주차비(`23,400원`)와 주유비(`100,000원`)가 실시간 집계되며, 두 가지 방식으로 비용을 기록할 수 있습니다:
+            </p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+              <div class="p-2.5 bg-white rounded-lg border border-slate-200">
+                <b class="text-slate-800">일괄 입력 (모바일 마감 / 모달)</b>
+                <p class="text-slate-500 mt-0.5">기사 모바일 운행마감 시 주차비 총액과 주유비 총액을 한 번에 입력하여 일지 상단에 즉시 집계.</p>
+              </div>
+              <div class="p-2.5 bg-white rounded-lg border border-slate-200">
+                <b class="text-slate-800">배송지별 개별 비용 버튼 ([+ 비용])</b>
+                <p class="text-slate-500 mt-0.5">테이블 각 행의 <b>[+ 비용]</b> 버튼을 누르면 해당 고객사에서 발생한 개별 주차비와 영수증 메모를 지정할 수 있어 감사 증빙에 완벽 대응.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- 3. 운행종료 Km 자동 분배 -->
+          <div class="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+            <b class="text-emerald-900 text-sm flex items-center gap-1.5">
+              <i class="fa-solid fa-wand-magic-sparkles text-emerald-600"></i> 3. [운행종료 Km 자동 분배] 스마트 엔진
+            </b>
+            <p class="leading-relaxed text-[11px]">
+              상단의 초록색 <b>[운행종료 Km 자동 분배]</b> 버튼을 클릭하면, 하루 4~5군데 이상의 경유지를 방문했을 때 각 경유지별 계기판 숫자를 일일이 계산할 필요 없이, <b>카카오 모빌리티 실제 주행 도로 거리 비율로 중간 경유지 계기판 Km를 오차 없이 자동 계산하여 균등 분배</b>합니다.
+            </p>
+          </div>
+
+          <!-- 4. 운전자 명단 (한민혁 추가) & 기타 직접입력 -->
+          <div class="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+            <b class="text-indigo-900 text-sm flex items-center gap-1.5">
+              <i class="fa-solid fa-users text-indigo-600"></i> 4. 운전자 선택 (한민혁 포함 8인) & 명단 외 인원 '기타' 직접입력
+            </b>
+            <p class="leading-relaxed">
+              • <b>등록 운전자 명단</b>: <code class="bg-slate-200 px-1.5 py-0.5 rounded font-bold">강동우, 김승지, 조경찬, 이성호, 장종순, 박종환, 한민혁</code><br>
+              • <b>명단에 없는 임시 기사 및 1팀 직원</b>: 운전자 선택에서 <b>`기타`</b>를 선택한 후, <b>실제 운전자 성명을 직접 입력</b>하여 저장합니다.
+            </p>
+          </div>
+
+          <!-- 5. 국세청 표준 CSV & 배송지별 상세 CSV -->
+          <div class="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+            <b class="text-teal-900 text-sm flex items-center gap-1.5">
+              <i class="fa-solid fa-file-excel text-teal-600"></i> 5. 엑셀 / CSV 2종 다운로드
+            </b>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+              <div class="p-2.5 bg-emerald-50 rounded-lg border border-emerald-200">
+                <b class="text-emerald-900">1. 배송지별 상세 CSV (추천)</b>
+                <p class="text-emerald-800 mt-0.5">모든 경유지명, 도로명 주소, 도착 시간, 구간별 계기판 Km, 개별 주차비/주유비 수록 (내부 실사 및 정산용).</p>
+              </div>
+              <div class="p-2.5 bg-slate-50 rounded-lg border border-slate-200">
+                <b class="text-slate-900">2. 일자별 요약 CSV (국세청 표준)</b>
+                <p class="text-slate-600 mt-0.5">국세청 법정 서식(별지 제29호) 호환본으로 세무서 및 홈택스 제출용.</p>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- 1·2팀 차량 공유 3대 골든 룰 -->
       <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs card-box space-y-4">
         <div class="flex items-center justify-between flex-wrap gap-2">
           <h3 class="text-base font-black text-slate-900 flex items-center gap-2">
             <i class="fa-solid fa-handshake text-amber-500"></i>
-            <span>2. 1팀 / 2팀 법인차량 공유 3대 골든 룰 & 운영 프로토콜</span>
+            <span>1팀 / 2팀 법인차량 공유 3대 골든 룰 & 운영 프로토콜</span>
           </h3>
           <span class="badge bg-amber-100 text-amber-900 border border-amber-300">필독 운영 수칙</span>
         </div>
@@ -587,24 +728,24 @@
         </p>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
-          <div class="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
-            <div class="w-7 h-7 rounded-lg bg-amber-500 text-white flex items-center justify-center font-black">1</div>
+          <div class="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-1.5">
+            <div class="w-6 h-6 rounded-lg bg-amber-500 text-white flex items-center justify-center font-black">1</div>
             <h4 class="font-black text-slate-900">인계 시 [운행마감] 필수</h4>
             <p class="text-slate-600 text-[11px] leading-relaxed">
               오전 운행자(2팀 기사)는 센터 복귀 즉시 모바일에서 <b>[운행마감]</b>을 눌러 최종 계기판 숫자를 확정 저장합니다.
             </p>
           </div>
 
-          <div class="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
-            <div class="w-7 h-7 rounded-lg bg-amber-500 text-white flex items-center justify-center font-black">2</div>
+          <div class="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-1.5">
+            <div class="w-6 h-6 rounded-lg bg-amber-500 text-white flex items-center justify-center font-black">2</div>
             <h4 class="font-black text-slate-900">인수 시 계기판 대조</h4>
             <p class="text-slate-600 text-[11px] leading-relaxed">
               다음 탑승자(1팀 또는 오후 기사)는 차량 계기판의 실제 숫자와 화면의 시작 계기판 숫자가 일치하는지 확인 후 출발합니다.
             </p>
           </div>
 
-          <div class="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
-            <div class="w-7 h-7 rounded-lg bg-amber-500 text-white flex items-center justify-center font-black">3</div>
+          <div class="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-1.5">
+            <div class="w-6 h-6 rounded-lg bg-amber-500 text-white flex items-center justify-center font-black">3</div>
             <h4 class="font-black text-slate-900">1팀 운행은 '기타' 표기</h4>
             <p class="text-slate-600 text-[11px] leading-relaxed">
               1팀 직원이 외부 업무로 차량을 운행한 경우 운전자를 <b>`기타`</b>로 지정하고 성명을 직접 입력하여 팀별 사용 내역을 구분합니다.
@@ -612,54 +753,11 @@
           </div>
         </div>
 
-        <!-- 공유 시나리오 예시 -->
         <div class="p-3 bg-amber-50 rounded-xl border border-amber-200 text-xs text-amber-950 space-y-1">
           <b>📌 실제 차량 공유 운영 시나리오:</b>
           <p>• <b>오전 (2팀 배송)</b>: 시작 50,000 km ➔ 배송 후 50,060 km (기사 모바일웹에서 [운행마감] 처리)</p>
-          <p>• <b>오후 (1팀 업무)</b>: 1팀 직원이 50,060 km로 인수 ➔ 50,110 km 운행 후 [운행일지 직접 등록] (운전자: 기타 / 시작 50,060 / 종료 50,110)</p>
+          <p>• <b>오후 (1팀 업무)</b>: 1팀 직원이 50,060 km로 인수 ➔ 50,110 km 운행 후 [운행일지 직접 등록] (운전자: 기타 / 직접입력)</p>
           <p>• <b>익일 아침</b>: 2팀 기사 출근 시 모바일 시작 계기판이 50,110 km로 자동 승계되어 오차가 0km로 유지됩니다.</p>
-        </div>
-      </div>
-
-      <!-- 3. 법인차량 운행일지 화면 기능 & 운전자 명단/기타 직접입력 -->
-      <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs card-box space-y-4">
-        <h3 class="text-base font-black text-slate-900 flex items-center gap-2">
-          <i class="fa-solid fa-gears text-teal-600"></i>
-          <span>3. 운행일지 시스템 화면 기능 & 운전자 직접입력 가이드</span>
-        </h3>
-
-        <!-- 실제 스크린샷 삽입 -->
-        <div class="rounded-xl overflow-hidden border border-slate-300 shadow-md">
-          <img src="./docs_images/vehicle_log.png" alt="법인차량 운행일지 시스템 화면" class="w-full h-auto object-cover">
-        </div>
-
-        <div class="space-y-3 text-xs text-slate-700 pt-2">
-          <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1.5">
-            <h4 class="font-black text-indigo-900 flex items-center gap-1.5">
-              <i class="fa-solid fa-user-check text-indigo-600"></i>
-              <span>운전자 명단 및 명단 외 인원 '기타 직접입력' 규칙</span>
-            </h4>
-            <p>• 등록 운전자: <code class="bg-slate-200 px-1.5 py-0.5 rounded font-bold">강동우, 김승지, 조경찬, 이성호, 장종순, 박종환, 한민혁</code></p>
-            <p>• <b>명단에 없는 인원 및 1팀 담당자</b>: 운전자 선택에서 <b>`기타`</b>를 선택한 후, <b>실제 운전자 성명을 직접 입력</b>하여 저장합니다.</p>
-          </div>
-
-          <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1.5">
-            <h4 class="font-black text-indigo-900 flex items-center gap-1.5">
-              <i class="fa-solid fa-arrows-up-down text-indigo-600"></i>
-              <span>경유지 순서 편집 & 90vh 반응형 스크롤 최적화</span>
-            </h4>
-            <p>• <b>경유지 이동</b>: [▲]/[▼] 버튼으로 순서를 변경하거나, 중간 주유소나 1팀 경유지를 자유롭게 추가·삭제할 수 있습니다. 변경 즉시 카카오 맵 추천 도로 거리가 자동 연동됩니다.</p>
-            <p>• <b>90vh 반응형 스크롤</b>: 모달 창이 화면을 벗어나지 않도록 스크롤 영역이 최적화되어 하단 저장 버튼이 잘림 없이 항상 노출됩니다.</p>
-          </div>
-
-          <div class="p-3 bg-emerald-50 rounded-xl border border-emerald-200 space-y-1.5">
-            <h4 class="font-black text-emerald-950 flex items-center gap-1.5">
-              <i class="fa-solid fa-file-excel text-emerald-600"></i>
-              <span>국세청 표준 CSV & 배송지별 상세 CSV 다운로드</span>
-            </h4>
-            <p>• <b>1. 배송지별 상세 CSV (추천)</b>: 모든 경유지명, 도로명 주소, 도착 시간, 구간별 계기판 Km, 영수증 주차비/주유비까지 포함되어 내부 감사 및 정산에 최적화.</p>
-            <p>• <b>2. 일자별 요약 CSV (국세청 표준)</b>: 국세청 법인세 신고용 표준 서식(별지 제29호) 호환본으로 세무서 제출에 완벽 대응.</p>
-          </div>
         </div>
       </div>
     </section>
@@ -671,7 +769,7 @@
   <!-- ========================================== -->
   <footer class="bg-white border-t border-slate-200 py-6 text-center text-xs text-slate-400 space-y-1">
     <p class="font-bold text-slate-600">현대렌탈 배송관제 & 법인차량 운행일지 시스템</p>
-    <p>© 2026 Hyundai Rental. All rights reserved. Version 2.6 (개정일: 2026-09-11)</p>
+    <p>© 2026 Hyundai Rental. All rights reserved. Version 2.7 (최종 개정: 2026-09-11)</p>
   </footer>
 
   <!-- ========================================== -->
@@ -679,15 +777,12 @@
   <!-- ========================================== -->
   <script>
     function switchTab(tabId) {
-      // Hide all tabs
       document.querySelectorAll('.tab-content').forEach(function(el) {
         el.classList.add('hidden');
       });
-      // Show target tab
       var target = document.getElementById(tabId);
       if (target) target.classList.remove('hidden');
 
-      // Update button styles
       document.querySelectorAll('.tab-btn').forEach(function(btn) {
         btn.className = 'tab-btn px-4 py-2 rounded-xl font-bold text-xs transition flex items-center gap-1.5 whitespace-nowrap bg-slate-100 text-slate-600 hover:bg-slate-200';
       });
@@ -697,7 +792,6 @@
       }
     }
 
-    // Search Engine
     function handleManualSearch(query) {
       var q = (query || '').trim().toLowerCase();
       var clearBtn = document.getElementById('searchClearBtn');
@@ -713,7 +807,6 @@
 
       if (clearBtn) clearBtn.classList.remove('hidden');
 
-      // Show all tabs during search
       document.querySelectorAll('.tab-content').forEach(function(el) {
         el.classList.remove('hidden');
       });
@@ -743,7 +836,6 @@
       handleManualSearch('');
     }
 
-    // Download Single File Manual
     function downloadManualHtml() {
       var htmlContent = document.documentElement.outerHTML;
       var blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
