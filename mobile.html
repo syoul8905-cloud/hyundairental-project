@@ -1436,7 +1436,14 @@
         });
 
         if (window.driverRecords && window.driverRecords.length > 0) {
-          window.driverRecords.forEach(function(r, idx) {
+          // 법인차량 경유지는 실제 차량으로 직배송하는 건만 포함 (퀵배송, 방문수령 제외)
+          var eligibleRecords = window.driverRecords.filter(function(r) {
+            var isQuick = (r.delivery_method === '퀵배송' || r.delivery_method === '퀵' || r.driver_name === '퀵' || (r.category && r.category.indexOf('퀵') !== -1));
+            var isPickup = (r.delivery_method === '방문수령' || r.driver_name === '방문수령' || r.category === '수령');
+            return !isQuick && !isPickup;
+          });
+
+          eligibleRecords.forEach(function(r, idx) {
             var times = getStopTimes(r);
             stops.push({
               id: 'stop_deliv_' + (r.id || (idx + 1)),
@@ -1600,7 +1607,14 @@
         });
 
         if (driverRecords && driverRecords.length > 0) {
-          driverRecords.forEach(function(r, idx) {
+          // 법인차량 경유지는 실제 차량으로 직배송하는 건만 포함 (퀵배송, 방문수령 제외)
+          var eligibleRecords = driverRecords.filter(function(r) {
+            var isQuick = (r.delivery_method === '퀵배송' || r.delivery_method === '퀵' || r.driver_name === '퀵' || (r.category && r.category.indexOf('퀵') !== -1));
+            var isPickup = (r.delivery_method === '방문수령' || r.driver_name === '방문수령' || r.category === '수령');
+            return !isQuick && !isPickup;
+          });
+
+          eligibleRecords.forEach(function(r, idx) {
             var times = getStopTimes(r);
             cachedClosingStops.push({
               id: 'stop_deliv_' + (r.id || (idx + 1)),
@@ -2189,8 +2203,10 @@
         var isLast = (idx === total - 1);
         var times = getStopTimes(r);
         var durMin = calculateDurationMinutes(times.depart, times.arrive);
-        var isArrived = !!times.arrive || r.status === '도착완료';
-        var isDriving = !isArrived && (!!times.depart || r.status === '운행중');
+        var isQuick = (r.delivery_method === '퀵배송' || r.delivery_method === '퀵' || r.driver_name === '퀵' || (r.category && r.category.indexOf('퀵') !== -1));
+        var isPickup = (r.delivery_method === '방문수령' || r.driver_name === '방문수령' || r.category === '수령');
+        var isArrived = !!times.arrive || r.status === '도착완료' || r.status === '수령완료' || r.status === '퀵출발';
+        var isDriving = !isArrived && (!!times.depart || r.status === '운행중' || r.status === '접수완료');
 
         var contactObj = parseContactInfo(r.contact);
         var phoneNum = contactObj.phone;
@@ -2299,16 +2315,23 @@
           <!-- Status & Dur Badge & Local Dismissal Button -->
           <div class="flex items-center justify-between text-xs pt-1 border-t border-slate-100">
             <div class="flex items-center gap-1.5 flex-wrap">
-              ${times.depart ? `<span class="px-2 py-0.5 bg-blue-50 text-blue-700 text-[11px] font-bold rounded-md border border-blue-200">🚀 출발 ${times.depart}</span>` : ''}
-              ${times.arrive ? `<span class="px-2 py-0.5 bg-emerald-50 text-emerald-700 text-[11px] font-bold rounded-md border border-emerald-200">🏁 도착 ${times.arrive}</span>` : ''}
-              ${durMin !== null ? `<span class="px-2 py-0.5 bg-indigo-50 text-indigo-700 text-[11px] font-bold rounded-md border border-indigo-200">⏱️ ${durMin}분 소요</span>` : ''}
-              ${!times.depart && !times.arrive ? `<span class="text-slate-400 text-[11px]">대기중</span>` : ''}
+              ${isQuick ? `
+                ${times.depart ? `<span class="px-2 py-0.5 bg-purple-50 text-purple-700 text-[11px] font-bold rounded-md border border-purple-200">📋 접수 ${times.depart}</span>` : ''}
+                ${times.arrive ? `<span class="px-2 py-0.5 bg-indigo-50 text-indigo-700 text-[11px] font-bold rounded-md border border-indigo-200">🚀 퀵출발 ${times.arrive}</span>` : ''}
+              ` : isPickup ? `
+                ${times.arrive ? `<span class="px-2 py-0.5 bg-emerald-50 text-emerald-700 text-[11px] font-bold rounded-md border border-emerald-200">🏢 수령 ${times.arrive}</span>` : ''}
+              ` : `
+                ${times.depart ? `<span class="px-2 py-0.5 bg-blue-50 text-blue-700 text-[11px] font-bold rounded-md border border-blue-200">🚀 출발 ${times.depart}</span>` : ''}
+                ${times.arrive ? `<span class="px-2 py-0.5 bg-emerald-50 text-emerald-700 text-[11px] font-bold rounded-md border border-emerald-200">🏁 도착 ${times.arrive}</span>` : ''}
+              `}
+              ${durMin !== null ? `<span class="px-2 py-0.5 bg-indigo-50 text-indigo-700 text-[11px] font-bold rounded-md border border-indigo-200">⏱️ ${durMin}분${isQuick ? ' 대기' : ' 소요'}</span>` : ''}
+              ${!times.depart && !times.arrive ? `<span class="text-slate-400 text-[11px]">${isQuick ? '접수대기' : isPickup ? '수령대기' : '대기중'}</span>` : ''}
             </div>
           </div>
 
           <!-- Big Touch Action Buttons -->
           <div class="grid grid-cols-12 gap-2 pt-1">
-            <div class="col-span-4">
+            <div class="${isPickup ? 'col-span-4' : 'col-span-4'}">
               ${phoneNum ? `
                 <a href="tel:${phoneNum}" onclick="return confirmPhoneCall('${(contactName || r.customer_name).replace(/'/g, "\\'")}', '${phoneNum}', event);" class="btn-touch w-full bg-emerald-500 hover:bg-emerald-600 text-white font-black text-xs rounded-xl shadow-xs transition gap-1" title="${contactDisplay}">
                   <i class="fa-solid fa-phone"></i> ${contactName ? contactName : '통화'}
@@ -2320,17 +2343,39 @@
               `}
             </div>
 
-            <div class="col-span-4">
-              <button onclick="startTmapAndRecord(${idx})" class="btn-touch w-full ${times.depart ? 'bg-indigo-600' : 'bg-rose-500 hover:bg-rose-600'} text-white font-black text-xs rounded-xl shadow-xs transition gap-1">
-                <i class="fa-solid fa-location-arrow"></i> ${times.depart ? '티맵 재실행' : '티맵 안내'}
-              </button>
-            </div>
+            ${isQuick ? `
+              <!-- ⚡ 퀵 배송: 접수완료 / 퀵 출발 -->
+              <div class="col-span-4">
+                <button onclick="recordQuickReceiptMobile(${idx})" class="btn-touch w-full ${times.depart ? 'bg-purple-700 text-white' : 'bg-purple-600 hover:bg-purple-700 text-white'} font-black text-xs rounded-xl shadow-xs transition gap-1">
+                  <i class="fa-solid fa-clipboard-check"></i> ${times.depart ? '접수 ' + times.depart : '접수완료'}
+                </button>
+              </div>
+              <div class="col-span-4">
+                <button onclick="recordQuickDepartureMobile(${idx})" class="btn-touch w-full ${times.arrive ? 'bg-indigo-700 text-white' : 'bg-indigo-600 hover:bg-indigo-700 text-white'} font-black text-xs rounded-xl shadow-xs transition gap-1">
+                  <i class="fa-solid fa-motorcycle"></i> ${times.arrive ? '출발 ' + times.arrive : '퀵 출발'}
+                </button>
+              </div>
+            ` : isPickup ? `
+              <!-- 🏢 방문수령: 티맵 삭제(숨김), 수령 완료만 8열 배치 -->
+              <div class="col-span-8">
+                <button onclick="recordPickupArrivalMobile(${idx})" class="btn-touch w-full ${times.arrive ? 'bg-emerald-700 text-white' : 'bg-emerald-600 hover:bg-emerald-700 text-white'} font-black text-xs rounded-xl shadow-xs transition gap-1">
+                  <i class="fa-solid fa-circle-check"></i> ${times.arrive ? '수령 완료 (' + times.arrive + ')' : '수령 완료 처리'}
+                </button>
+              </div>
+            ` : `
+              <!-- 🚚 일반 직배송: 티맵 안내 / 배송지 도착 -->
+              <div class="col-span-4">
+                <button onclick="startTmapAndRecord(${idx})" class="btn-touch w-full ${times.depart ? 'bg-indigo-600' : 'bg-rose-500 hover:bg-rose-600'} text-white font-black text-xs rounded-xl shadow-xs transition gap-1">
+                  <i class="fa-solid fa-location-arrow"></i> ${times.depart ? '티맵 재실행' : '티맵 안내'}
+                </button>
+              </div>
 
-            <div class="col-span-4">
-              <button onclick="markArrivedAndRecord(${idx})" class="btn-touch w-full ${isArrived ? 'bg-emerald-600 text-white' : 'bg-slate-100 hover:bg-emerald-50 text-slate-700 hover:text-emerald-700 border border-slate-200 hover:border-emerald-300'} font-black text-xs rounded-xl transition gap-1">
-                <i class="fa-solid fa-flag-checkered"></i> ${isArrived ? '도착 완료' : '배송지 도착'}
-              </button>
-            </div>
+              <div class="col-span-4">
+                <button onclick="markArrivedAndRecord(${idx})" class="btn-touch w-full ${isArrived ? 'bg-emerald-600 text-white' : 'bg-slate-100 hover:bg-emerald-50 text-slate-700 hover:text-emerald-700 border border-slate-200 hover:border-emerald-300'} font-black text-xs rounded-xl transition gap-1">
+                  <i class="fa-solid fa-flag-checkered"></i> ${isArrived ? '도착 완료' : '배송지 도착'}
+                </button>
+              </div>
+            `}
           </div>
         `;
 
@@ -2583,6 +2628,131 @@
           syncTodayScheduleToVehicleLog(currentMobileVehicleNo);
         }
         showToast('🏁 [' + r.customer_name + '] 배송지 도착 완료! (' + (dur !== null ? dur + '분 소요' : nowStr) + ')');
+      }
+    }
+
+    // ⚡ 모바일: 퀵 접수완료 기록
+    async function recordQuickReceiptMobile(idx) {
+      var r = driverRecords[idx];
+      if (!r) return;
+      if (!confirm(`⚡ [${r.customer_name}] 퀵 접수를 완료하셨습니까?\n현재 시각으로 퀵 접수완료가 기록됩니다.`)) {
+        return;
+      }
+      var nowStr = new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false });
+      var times = getStopTimes(r);
+      times.depart = nowStr;
+      var jsonStr = JSON.stringify(times);
+
+      showToast('⏳ [서버 전송 중] 퀵 접수완료 기록 중...');
+
+      if (supabaseClient && r.id) {
+        try {
+          var res = await supabaseClient.from('delivery_schedules').update({
+            memo_special: jsonStr,
+            status: '접수완료',
+            depart_time: nowStr
+          }).eq('id', r.id);
+          if (res.error) throw res.error;
+
+          r.memo_special = jsonStr;
+          r.status = '접수완료';
+          r.depart_time = nowStr;
+          renderCards();
+          showToast('⚡ [' + r.customer_name + '] 퀵 접수 완료! (' + nowStr + ')');
+        } catch(err) {
+          console.error('Quick receipt error:', err);
+          alert('⚠️ 통신 오류: 퀵 접수 저장 실패\n' + (err.message || err));
+        }
+      } else {
+        r.memo_special = jsonStr;
+        r.status = '접수완료';
+        r.depart_time = nowStr;
+        renderCards();
+        showToast('⚡ [' + r.customer_name + '] 퀵 접수 완료! (' + nowStr + ')');
+      }
+    }
+
+    // ⚡ 모바일: 퀵 기사 픽업 및 출발 기록
+    async function recordQuickDepartureMobile(idx) {
+      var r = driverRecords[idx];
+      if (!r) return;
+      if (!confirm(`🚀 [${r.customer_name}] 퀵 기사님이 물품을 픽업하여 출발했습니까?\n현재 시각으로 퀵 출발이 기록됩니다.`)) {
+        return;
+      }
+      var nowStr = new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false });
+      var times = getStopTimes(r);
+      if (!times.depart) times.depart = nowStr;
+      times.arrive = nowStr;
+      var dur = calculateDurationMinutes(times.depart, times.arrive);
+      var jsonStr = JSON.stringify(times);
+
+      showToast('⏳ [서버 전송 중] 퀵 출발 기록 중...');
+
+      if (supabaseClient && r.id) {
+        try {
+          var res = await supabaseClient.from('delivery_schedules').update({
+            memo_special: jsonStr,
+            status: '퀵출발',
+            arrive_time: nowStr
+          }).eq('id', r.id);
+          if (res.error) throw res.error;
+
+          r.memo_special = jsonStr;
+          r.status = '퀵출발';
+          r.arrive_time = nowStr;
+          renderCards();
+          showToast('🚀 [' + r.customer_name + '] 퀵 배송 출발 완료! (' + (dur !== null ? '접수 후 ' + dur + '분 소요' : nowStr) + ')');
+        } catch(err) {
+          console.error('Quick departure error:', err);
+          alert('⚠️ 통신 오류: 퀵 출발 저장 실패\n' + (err.message || err));
+        }
+      } else {
+        r.memo_special = jsonStr;
+        r.status = '퀵출발';
+        r.arrive_time = nowStr;
+        renderCards();
+        showToast('🚀 [' + r.customer_name + '] 퀵 배송 출발 완료! (' + (dur !== null ? '접수 후 ' + dur + '분 소요' : nowStr) + ')');
+      }
+    }
+
+    // 🏢 모바일: 방문수령 완료 기록
+    async function recordPickupArrivalMobile(idx) {
+      var r = driverRecords[idx];
+      if (!r) return;
+      if (!confirm(`🏢 [${r.customer_name}] 고객이 방문하여 물품 수령을 완료했습니까?\n현재 시각으로 수령 완료가 기록됩니다.`)) {
+        return;
+      }
+      var nowStr = new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false });
+      var times = getStopTimes(r);
+      times.arrive = nowStr;
+      var jsonStr = JSON.stringify(times);
+
+      showToast('⏳ [서버 전송 중] 방문수령 완료 기록 중...');
+
+      if (supabaseClient && r.id) {
+        try {
+          var res = await supabaseClient.from('delivery_schedules').update({
+            memo_special: jsonStr,
+            status: '수령완료',
+            arrive_time: nowStr
+          }).eq('id', r.id);
+          if (res.error) throw res.error;
+
+          r.memo_special = jsonStr;
+          r.status = '수령완료';
+          r.arrive_time = nowStr;
+          renderCards();
+          showToast('🏢 [' + r.customer_name + '] 방문 수령 완료! (' + nowStr + ')');
+        } catch(err) {
+          console.error('Pickup completion error:', err);
+          alert('⚠️ 통신 오류: 수령 완료 저장 실패\n' + (err.message || err));
+        }
+      } else {
+        r.memo_special = jsonStr;
+        r.status = '수령완료';
+        r.arrive_time = nowStr;
+        renderCards();
+        showToast('🏢 [' + r.customer_name + '] 방문 수령 완료! (' + nowStr + ')');
       }
     }
 
