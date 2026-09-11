@@ -943,6 +943,60 @@
                 memo: parsed.memo || ''
               };
             });
+
+            // ────────────────────────────────────────────────────────────────
+            // [실시간 연동] 당월 배송 스케줄에서 출발·도착 시각 및 주소 자동 동기화
+            // ────────────────────────────────────────────────────────────────
+            try {
+              var schRes = await supabaseClient.from('delivery_schedules')
+                .select('*')
+                .gte('delivery_date', `${monthPrefix}-01`)
+                .lte('delivery_date', `${monthPrefix}-31`)
+                .neq('source_sheet', 'VEHICLE_TRIP_LOGS')
+                .neq('source_sheet', 'SYSTEM_CONFIG_VEHICLES')
+                .neq('source_sheet', 'SYSTEM_CONFIG_USERS');
+
+              var liveSchedules = schRes.data || [];
+
+              tripLogs.forEach(function(log) {
+                var dateSchedules = liveSchedules.filter(function(s) {
+                  return s.delivery_date === log.trip_date && (
+                    !log.driver_name || log.driver_name === '미운행' || s.driver_name === log.driver_name
+                  );
+                });
+
+                if (Array.isArray(log.stops) && log.stops.length > 0) {
+                  log.stops.forEach(function(st) {
+                    if (st.type === 'delivery') {
+                      var matched = dateSchedules.find(function(ds) {
+                        return (st.id && (st.id === 'stop_deliv_' + ds.id || st.id === ds.id)) ||
+                               (st.name && ds.customer_name && st.name.trim() === ds.customer_name.trim());
+                      });
+                      if (matched) {
+                        if (!st.addr || st.addr === '' || st.addr === '-') st.addr = matched.address || '';
+                        if (!st.memo || st.memo === '' || st.memo === '-') st.memo = matched.items || matched.memo_full || '';
+                        st.status = matched.status || st.status || '';
+                        st.time = matched.visit_time || st.time || '';
+                        if (matched.memo_special) {
+                          try {
+                            var parsedSp = JSON.parse(matched.memo_special);
+                            if (parsedSp.depart) st.depart = parsedSp.depart;
+                            if (parsedSp.arrive) st.arrive = parsedSp.arrive;
+                          } catch(e) {
+                            var dM = matched.memo_special.match(/출발[:\s]*(\d{1,2}:\d{2})/);
+                            if (dM) st.depart = dM[1];
+                            var aM = matched.memo_special.match(/도착[:\s]*(\d{1,2}:\d{2})/);
+                            if (aM) st.arrive = aM[1];
+                          }
+                        }
+                      }
+                    }
+                  });
+                }
+              });
+            } catch(syncErr) {
+              console.warn('Live schedules stop sync error:', syncErr);
+            }
           }
         }
       } catch(e) {
@@ -961,9 +1015,7 @@
       try {
         supabaseClient.channel('vehicle_logs_channel')
           .on('postgres_changes', { event: '*', schema: 'public', table: 'delivery_schedules' }, function(payload) {
-            if (payload.new && (payload.new.source_sheet === 'VEHICLE_TRIP_LOGS' || payload.new.source_sheet === 'SYSTEM_CONFIG_VEHICLES')) {
-              loadVehicleData(false);
-            }
+            loadVehicleData(false);
           })
           .subscribe();
       } catch(e) {}
@@ -1015,7 +1067,12 @@
         totalDistanceKm = currentMonthKm - prevMonthKm;
 
         tripLogs.forEach(function(log) {
-          if (log.is_unoperated || log.driver_name === '미운행' || log.start_km === log.end_km) {
+          var hasDeliveryStops = Array.isArray(log.stops) && log.stops.some(function(s) { return s.type === 'delivery'; });
+          var isExplicitUnop = Boolean(log.is_unoperated) || log.driver_name === '미운행';
+          var isZeroKmWithoutStops = (log.start_km === log.end_km && !hasDeliveryStops);
+          var isUnop = isExplicitUnop || isZeroKmWithoutStops;
+
+          if (isUnop) {
             unopDays++;
           } else {
             opDays++;
@@ -1172,6 +1229,10 @@
           name: s.name || '배송지',
           addr: s.addr || '',
           time: s.time || '',
+          depart: s.depart || '',
+          arrive: s.arrive || '',
+          status: s.status || '',
+          contact: s.contact || '',
           start_km: Number(s.start_km !== undefined ? s.start_km : log.start_km),
           end_km: Number(s.end_km !== undefined ? s.end_km : log.end_km),
           distance_km: Number(s.distance_km !== undefined ? s.distance_km : 0),
@@ -1230,7 +1291,11 @@
           var isWeekend = (d.getDay() === 0 || d.getDay() === 6);
           var dateParts = log.trip_date.split('-');
           var monthDayStr = `${Number(dateParts[1])}월 ${Number(dateParts[2])}일`;
-          var isUnop = (log.is_unoperated || log.driver_name === '미운행' || log.start_km === log.end_km);
+          var hasDeliveryStops = Array.isArray(log.stops) && log.stops.some(function(s) { return s.type === 'delivery'; });
+          var isExplicitUnop = Boolean(log.is_unoperated) || log.driver_name === '미운행';
+          var isZeroKmWithoutStops = (log.start_km === log.end_km && !hasDeliveryStops);
+          var isUnop = isExplicitUnop || isZeroKmWithoutStops;
+          var isOngoingToday = (!isUnop && log.start_km === log.end_km && hasDeliveryStops);
 
           if (isUnop) {
             totalVisitedDestCount++;
@@ -1269,6 +1334,12 @@
           var delivCount = legs.filter(function(l) { return l.type === 'delivery'; }).length;
 
           // 1. Day Group Header Row (일자별 명확한 구분 바)
+          var distDisplay = isOngoingToday
+            ? `<span class="px-2 py-0.5 rounded-full bg-blue-500 text-white font-bold text-[10.5px] animate-pulse shadow-2xs">🚚 실시간 운행 중</span>
+               <span class="text-slate-500 font-mono text-[11px]">(출발 계기판: ${log.start_km.toLocaleString()} km · 마감 전)</span>`
+            : `<span class="text-indigo-700 font-mono font-black text-xs">당일 주행: ${log.distance_km} km</span>
+               <span class="text-slate-500 font-mono text-[11px]">(${log.start_km.toLocaleString()} km → ${log.end_km.toLocaleString()} km)</span>`;
+
           var headerRow = `
             <tr class="bg-slate-100/80 border-t-2 border-b border-slate-300/80 text-xs">
               <td colspan="10" class="py-2 px-3">
@@ -1279,8 +1350,7 @@
                     </span>
                     <span class="font-bold text-slate-800 text-xs">${log.driver_name} 기사</span>
                     <span class="text-slate-300">|</span>
-                    <span class="text-indigo-700 font-mono font-black text-xs">당일 주행: ${log.distance_km} km</span>
-                    <span class="text-slate-500 font-mono text-[11px]">(${log.start_km.toLocaleString()} km → ${log.end_km.toLocaleString()} km)</span>
+                    ${distDisplay}
                   </div>
                   <div class="flex items-center gap-3 text-[11px]">
                     <span class="text-slate-600 font-medium">배송 <b class="text-indigo-600">${delivCount}</b>건 (총 ${legs.length}곳 방문)</span>
@@ -1333,14 +1403,18 @@
                 </td>
                 <td class="py-2 px-3 text-left">
                   <div class="space-y-0.5">
-                    <div class="font-bold text-slate-900 text-xs flex items-center gap-1.5">
-                      <span class="truncate max-w-[220px]" title="${leg.name}">${leg.name}</span>
+                    <div class="font-bold text-slate-900 text-xs flex items-center gap-1.5 flex-wrap">
+                      <span class="truncate max-w-[200px]" title="${leg.name}">${leg.name}</span>
+                      ${leg.depart ? `<span class="px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 text-[10px] font-bold border border-blue-200">🚀 출발 ${leg.depart}</span>` : ''}
+                      ${leg.arrive ? `<span class="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 text-[10px] font-bold border border-emerald-200">🏁 도착 ${leg.arrive}</span>` : ''}
+                      ${leg.status === '도착완료' || leg.status === '완료' || leg.status === '배송완료' ? `<span class="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[9.5px] font-bold">완료</span>` : (leg.status === '운행중' ? `<span class="px-1.5 py-0.5 rounded bg-blue-100 text-blue-800 text-[9.5px] font-bold">운행중</span>` : '')}
                     </div>
                     <div class="flex items-center gap-1 text-[11px] text-slate-500 font-mono">
                       <i class="fa-solid fa-location-dot text-indigo-400 text-[10px] shrink-0"></i>
-                      <span class="truncate max-w-[340px] select-all" title="${leg.addr}">${leg.addr || '-'}</span>
+                      <span class="truncate max-w-[320px] select-all" title="${leg.addr}">${leg.addr || '-'}</span>
                       ${copyBtn}
                     </div>
+                    ${leg.time && !leg.depart && !leg.arrive ? `<div class="text-[10px] text-slate-400 font-mono">⏰ 희망방문: ${leg.time}</div>` : ''}
                   </div>
                 </td>
                 <td class="py-2 px-3 text-right font-mono text-slate-500">
@@ -1392,10 +1466,17 @@
         var dateParts = log.trip_date.split('-');
         var monthDayStr = `${Number(dateParts[1])}월 ${Number(dateParts[2])}일`;
 
-        var isUnop = (log.is_unoperated || log.driver_name === '미운행' || log.start_km === log.end_km);
+        var hasDeliveryStops = Array.isArray(log.stops) && log.stops.some(function(s) { return s.type === 'delivery'; });
+        var isExplicitUnop = Boolean(log.is_unoperated) || log.driver_name === '미운행';
+        var isZeroKmWithoutStops = (log.start_km === log.end_km && !hasDeliveryStops);
+        var isUnop = isExplicitUnop || isZeroKmWithoutStops;
+        var isOngoingToday = (!isUnop && log.start_km === log.end_km && hasDeliveryStops);
+
         var driverBadge = isUnop
           ? '<span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 font-bold border border-slate-200">미운행</span>'
-          : `<span class="px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 font-bold border border-indigo-200">${log.driver_name}</span>`;
+          : (isOngoingToday
+              ? `<span class="px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 font-bold border border-blue-200 animate-pulse">운행중 (${log.driver_name})</span>`
+              : `<span class="px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 font-bold border border-indigo-200">${log.driver_name}</span>`);
 
         var distDiff = log.suggested_distance_km > 0 ? (log.distance_km - log.suggested_distance_km).toFixed(1) : null;
         var diffBadge = '';
@@ -1917,14 +1998,25 @@
             ];
 
             res.data.forEach(function(r, idx) {
+              var dep = '', arr = '';
+              if (r.memo_special) {
+                try {
+                  var sp = JSON.parse(r.memo_special);
+                  dep = sp.depart || '';
+                  arr = sp.arrive || '';
+                } catch(e) {}
+              }
               modalStops.push({
                 id: 'stop_deliv_' + (r.id || idx),
                 type: 'delivery',
                 order: idx + 1,
                 name: r.customer_name || '고객사',
-                addr: r.customer_address || '',
-                time: r.delivery_time || r.visit_time || '',
-                memo: r.product_name || ''
+                addr: r.address || r.customer_address || '',
+                time: r.visit_time || r.delivery_time || '',
+                depart: dep,
+                arrive: arr,
+                status: r.status || '',
+                memo: r.items || r.product_name || ''
               });
             });
 
@@ -2681,8 +2773,8 @@
             type: 'delivery',
             order: idx + 1,
             name: r.customer_name || '고객사',
-            addr: r.customer_address || '',
-            memo: r.product_name || ''
+            addr: r.address || r.customer_address || '',
+            memo: r.items || r.product_name || ''
           });
         });
         dayStops.push({

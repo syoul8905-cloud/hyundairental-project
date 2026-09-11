@@ -1431,15 +1431,19 @@
 
         if (window.driverRecords && window.driverRecords.length > 0) {
           window.driverRecords.forEach(function(r, idx) {
+            var times = getStopTimes(r);
             stops.push({
               id: 'stop_deliv_' + (r.id || (idx + 1)),
               type: 'delivery',
               order: idx + 1,
               name: r.customer_name || '고객사',
-              addr: r.customer_address || '',
-              time: r.delivery_time || r.visit_time || '',
-              memo: (r.product_name || '') + (r.order_memo ? ` (${r.order_memo})` : ''),
-              contact: r.contact_name ? `${r.contact_name} ${r.contact_phone || ''}`.trim() : ''
+              addr: r.address || r.customer_address || '',
+              time: r.visit_time || r.delivery_time || '',
+              depart: times.depart || '',
+              arrive: times.arrive || '',
+              status: r.status || r.의뢰상태 || '출발대기',
+              memo: r.items || r.product_name || (r.order_memo ? ` (${r.order_memo})` : ''),
+              contact: r.contact || (r.contact_name ? `${r.contact_name} ${r.contact_phone || ''}`.trim() : '')
             });
           });
         }
@@ -1591,14 +1595,18 @@
 
         if (driverRecords && driverRecords.length > 0) {
           driverRecords.forEach(function(r, idx) {
+            var times = getStopTimes(r);
             cachedClosingStops.push({
               id: 'stop_deliv_' + (r.id || (idx + 1)),
               type: 'delivery',
               order: idx + 1,
               name: r.customer_name || '고객사',
-              addr: r.delivery_address || '',
-              time: r.delivery_time || '',
-              memo: (r.product_name || '') + (r.order_memo ? ` (${r.order_memo})` : ''),
+              addr: r.address || r.delivery_address || '',
+              time: r.visit_time || r.delivery_time || '',
+              depart: times.depart || '',
+              arrive: times.arrive || '',
+              status: r.status || '',
+              memo: r.items || r.product_name || (r.order_memo ? ` (${r.order_memo})` : ''),
               parking_fee: 0,
               fuel_fee: 0
             });
@@ -2512,6 +2520,9 @@
           });
         }
         renderCards();
+        if (currentMobileVehicleNo) {
+          syncTodayScheduleToVehicleLog(currentMobileVehicleNo);
+        }
         showToast('🚀 [' + r.customer_name + '] 출발 시각(' + nowStr + ')이 기록되었습니다!');
       }
 
@@ -2550,6 +2561,9 @@
           r.memo_special = jsonStr;
           r.status = '도착완료';
           renderCards();
+          if (currentMobileVehicleNo) {
+            syncTodayScheduleToVehicleLog(currentMobileVehicleNo);
+          }
           showToast('🏁 [' + r.customer_name + '] 배송지 도착 완료! (' + (dur !== null ? dur + '분 소요' : nowStr) + ')');
         } catch(err) {
           console.error('Supabase arrival update error:', err);
@@ -2559,6 +2573,9 @@
         r.memo_special = jsonStr;
         r.status = '도착완료';
         renderCards();
+        if (currentMobileVehicleNo) {
+          syncTodayScheduleToVehicleLog(currentMobileVehicleNo);
+        }
         showToast('🏁 [' + r.customer_name + '] 배송지 도착 완료! (' + (dur !== null ? dur + '분 소요' : nowStr) + ')');
       }
     }

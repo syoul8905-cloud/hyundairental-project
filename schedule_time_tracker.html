@@ -1035,12 +1035,69 @@
             status: newStatus
           }).eq('id', r.id);
           if (res.error) throw res.error;
+
+          // Sync departure/arrival times to VEHICLE_TRIP_LOGS
+          await syncScheduleTimeToVehicleLog(r, dep, arr, newStatus);
         }
       } catch(err) {
         console.error('Time update error:', err);
         showToast('❌ 클라우드 시간 저장 실패: ' + (err.message || err));
       } finally {
         if (btn) btn.disabled = false;
+      }
+    }
+
+    async function syncScheduleTimeToVehicleLog(rec, depTime, arrTime, newStatus) {
+      if (!supabaseClient || !rec) return;
+      try {
+        var vNo = rec.driver_name ? vehicleDriverMap[rec.driver_name.trim()] : null;
+        if (!vNo) {
+          var vehRes = await supabaseClient.from('delivery_schedules')
+            .select('*')
+            .eq('source_sheet', 'SYSTEM_CONFIG_VEHICLES')
+            .limit(1);
+          if (vehRes.data && vehRes.data.length > 0) {
+            try {
+              var vList = JSON.parse(vehRes.data[0].memo_full || '[]');
+              var matchedV = vList.find(function(v) { return v.default_driver === rec.driver_name; });
+              if (matchedV) vNo = matchedV.vehicle_no;
+            } catch(e) {}
+          }
+        }
+        if (!vNo) return;
+
+        var tripRes = await supabaseClient.from('delivery_schedules')
+          .select('*')
+          .eq('source_sheet', 'VEHICLE_TRIP_LOGS')
+          .eq('customer_name', vNo)
+          .eq('delivery_date', rec.delivery_date || currentDate)
+          .limit(1);
+
+        if (tripRes.data && tripRes.data.length > 0) {
+          var row = tripRes.data[0];
+          var payload = {};
+          try { payload = JSON.parse(row.memo_full || '{}'); } catch(e) {}
+          if (Array.isArray(payload.stops)) {
+            var stopFound = payload.stops.find(function(s) {
+              return (s.id && s.id === 'stop_deliv_' + rec.id) ||
+                     (s.name && rec.customer_name && s.name.trim() === rec.customer_name.trim());
+            });
+            if (stopFound) {
+              stopFound.depart = depTime || '';
+              stopFound.arrive = arrTime || '';
+              stopFound.status = newStatus || '';
+              stopFound.time = rec.visit_time || stopFound.time;
+              if (rec.address) stopFound.addr = rec.address;
+              if (rec.items) stopFound.memo = rec.items;
+
+              await supabaseClient.from('delivery_schedules')
+                .update({ memo_full: JSON.stringify(payload) })
+                .eq('id', row.id);
+            }
+          }
+        }
+      } catch(e) {
+        console.warn('Sync to vehicle trip log error:', e);
       }
     }
 
