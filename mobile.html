@@ -572,14 +572,38 @@
           </div>
         </div>
 
-        <!-- Parking Location Memo -->
-        <div class="p-2.5 bg-rose-50/60 border border-rose-200/80 rounded-xl space-y-1">
-          <label class="block text-[10.5px] font-black text-rose-950 flex items-center gap-1.5">
-            <i class="fa-solid fa-location-dot text-rose-600 text-xs"></i>
-            <span>차량 주차 위치 메모 (다음 운행자 안내)</span>
-          </label>
+        <!-- Parking Location Memo & Photo -->
+        <div class="p-2.5 bg-rose-50/60 border border-rose-200/80 rounded-xl space-y-2">
+          <div class="flex items-center justify-between">
+            <label class="block text-[10.5px] font-black text-rose-950 flex items-center gap-1.5">
+              <i class="fa-solid fa-location-dot text-rose-600 text-xs"></i>
+              <span>차량 주차 위치 메모 & 현장 사진</span>
+            </label>
+            <span class="text-[9.5px] text-rose-700 font-bold">다음 운행자 안내</span>
+          </div>
           <input type="text" id="closingLocationMemo" placeholder="예: 가산센터 지하 2층 B-04 기둥 뒤, 1층 지상 등" class="w-full bg-white text-slate-800 px-3 py-2 rounded-xl border border-rose-300 text-xs focus:ring-2 focus:ring-rose-500 font-bold placeholder:text-slate-400">
-          <p class="text-[9.5px] text-rose-700 font-medium">※ 입력한 주차 위치는 다음 기사님이 차량 선택 시 실시간으로 표시됩니다.</p>
+
+          <!-- 주차 위치 사진 첨부 영역 -->
+          <div>
+            <input type="file" id="closingLocationPhotoInput" accept="image/*" capture="environment" class="hidden" onchange="handleClosingLocationPhotoUpload(event)">
+            <div id="closingLocationPhotoArea" class="flex items-center gap-2">
+              <button type="button" onclick="document.getElementById('closingLocationPhotoInput').click()" class="px-3 py-1.5 bg-white border border-rose-300 hover:bg-rose-50 text-rose-700 font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-2xs transition active:scale-98">
+                <i class="fa-solid fa-camera text-rose-600"></i>
+                <span id="closingLocationPhotoBtnText">주차 위치 사진 촬영</span>
+              </button>
+              <div id="closingLocationPhotoPreviewBox" class="hidden flex items-center gap-2">
+                <div class="relative inline-block">
+                  <img id="closingLocationPhotoPreviewImg" src="" alt="주차 사진" onclick="openMobilePhotoModal(this.src, '주차 위치 사진')" class="w-10 h-10 object-cover rounded-lg border border-rose-300 shadow-xs cursor-pointer hover:opacity-90">
+                  <button type="button" onclick="removeClosingLocationPhoto()" class="absolute -top-1.5 -right-1.5 w-4 h-4 bg-rose-600 text-white rounded-full flex items-center justify-center text-[9px] shadow-xs">
+                    <i class="fa-solid fa-xmark"></i>
+                  </button>
+                </div>
+                <span class="text-[10px] text-rose-800 font-medium">사진 첨부됨 (터치 시 확대)</span>
+              </div>
+            </div>
+          </div>
+
+          <p class="text-[9.5px] text-rose-700 font-medium">※ 주차 위치 메모와 사진은 다음 기사님이 차량 선택 시 실시간으로 함께 제공됩니다.</p>
         </div>
 
         <!-- Memo -->
@@ -1435,7 +1459,8 @@
       if (!veh && mobileVehiclesMaster.length > 0) veh = mobileVehiclesMaster[0];
       if (!veh) return;
 
-      var locBadge = veh.last_location ? ` · <span class="text-slate-500 font-medium text-[10px]" title="${veh.last_location}">📍 ${veh.last_location}</span>` : '';
+      var locPhotoBtn = veh.last_location_photo ? ` <button type="button" onclick="event.stopPropagation(); openMobilePhotoModal('${veh.last_location_photo.replace(/'/g, "\\'")}', '${veh.vehicle_no} 주차 사진');" class="text-rose-600 hover:text-rose-800 font-bold text-[10px] inline-flex items-center gap-0.5 ml-1 px-1.5 py-0.2 bg-rose-50 border border-rose-200 rounded shadow-2xs active:scale-95"><i class="fa-solid fa-camera text-[9px]"></i><span>사진</span></button>` : '';
+      var locBadge = veh.last_location ? ` · <span class="text-slate-500 font-medium text-[10px]" title="${veh.last_location}">📍 ${veh.last_location}</span>${locPhotoBtn}` : (veh.last_location_photo ? ` · ${locPhotoBtn}` : '');
       if (nameEl) nameEl.innerText = `${veh.vehicle_no} (${veh.model_name})`;
       if (odoEl) odoEl.innerHTML = `시작 계기판: <b class="text-indigo-800 font-mono">${(veh.current_km || veh.initial_km || 0).toLocaleString()} km</b>${locBadge}`;
     }
@@ -1467,11 +1492,22 @@
         var isSelected = (vNo === currentMobileVehicleNo && isVehicleConfirmedForToday());
 
         var locationHtml = '';
-        if (v.last_location) {
+        if (v.last_location || v.last_location_photo) {
+          var escapedPhoto = v.last_location_photo ? v.last_location_photo.replace(/'/g, "\\'") : '';
+          var photoBtn = v.last_location_photo ? `
+            <button type="button" onclick="event.stopPropagation(); openMobilePhotoModal('${escapedPhoto}', '${v.vehicle_no} 주차 위치 사진');" class="px-2 py-0.5 bg-rose-50 hover:bg-rose-100 text-rose-700 font-black text-[10px] rounded-md border border-rose-200 flex items-center gap-1 shrink-0 shadow-2xs transition active:scale-95">
+              <i class="fa-solid fa-camera text-rose-600 text-[9.5px]"></i>
+              <span>사진보기</span>
+            </button>
+          ` : '';
+
           locationHtml = `
-            <div class="mt-1 px-2 py-0.5 bg-slate-100/90 border border-slate-200/80 rounded-lg text-[10.5px] text-slate-700 flex items-center gap-1.5">
-              <i class="fa-solid fa-location-dot text-rose-500 text-[10px] shrink-0"></i>
-              <span class="truncate">주차: <b class="text-slate-900">${v.last_location}</b>${v.last_location_date ? ` <span class="text-slate-400 font-mono text-[9.5px]">(${v.last_location_date.slice(5)})</span>` : ''}</span>
+            <div class="mt-1.5 px-2 py-1 bg-slate-100/90 border border-slate-200/80 rounded-lg text-[10.5px] text-slate-700 flex items-center justify-between gap-1.5">
+              <div class="flex items-center gap-1 min-w-0 truncate">
+                <i class="fa-solid fa-location-dot text-rose-500 text-[10px] shrink-0"></i>
+                <span class="truncate">주차: <b class="text-slate-900">${v.last_location || '가산 센터'}</b>${v.last_location_date ? ` <span class="text-slate-400 font-mono text-[9.5px]">(${v.last_location_date.slice(5)})</span>` : ''}</span>
+              </div>
+              ${photoBtn}
             </div>
           `;
         }
@@ -1762,6 +1798,8 @@
       document.getElementById('closingMemo').value = '';
       var locInput = document.getElementById('closingLocationMemo');
       if (locInput) locInput.value = veh.last_location || '';
+      currentClosingLocationPhoto = veh.last_location_photo || '';
+      updateClosingLocationPhotoUI();
 
       // Initialize cachedClosingStops from today's delivery schedule or existing log
       await prepareClosingStops(veh.vehicle_no, destName, destAddr);
@@ -1771,6 +1809,46 @@
     }
 
     var cachedClosingStops = [];
+    var currentClosingLocationPhoto = '';
+
+    async function handleClosingLocationPhotoUpload(event) {
+      var file = event.target.files && event.target.files[0];
+      if (!file) return;
+      try {
+        showToast('📷 사진 최적화 압축 중...');
+        var base64Data = await compressImage(file, 640, 0.65);
+        currentClosingLocationPhoto = base64Data;
+        updateClosingLocationPhotoUI();
+        showToast('✅ 주차 위치 사진이 첨부되었습니다!');
+      } catch(err) {
+        console.error('Photo compress error:', err);
+        alert('사진 첨부 중 오류가 발생했습니다: ' + (err.message || err));
+      }
+    }
+
+    function removeClosingLocationPhoto() {
+      currentClosingLocationPhoto = '';
+      updateClosingLocationPhotoUI();
+      var inp = document.getElementById('closingLocationPhotoInput');
+      if (inp) inp.value = '';
+      showToast('🗑️ 주차 사진이 삭제되었습니다.');
+    }
+
+    function updateClosingLocationPhotoUI() {
+      var previewBox = document.getElementById('closingLocationPhotoPreviewBox');
+      var previewImg = document.getElementById('closingLocationPhotoPreviewImg');
+      var btnText = document.getElementById('closingLocationPhotoBtnText');
+
+      if (currentClosingLocationPhoto) {
+        if (previewImg) previewImg.src = currentClosingLocationPhoto;
+        if (previewBox) previewBox.classList.remove('hidden');
+        if (btnText) btnText.innerText = '사진 다시 촬영';
+      } else {
+        if (previewBox) previewBox.classList.add('hidden');
+        if (previewImg) previewImg.src = '';
+        if (btnText) btnText.innerText = '주차 위치 사진 촬영';
+      }
+    }
 
     async function prepareClosingStops(vNo, destName, destAddr) {
       cachedClosingStops = [];
@@ -1792,6 +1870,10 @@
             if (parsed.location_memo) {
               var locInput = document.getElementById('closingLocationMemo');
               if (locInput) locInput.value = parsed.location_memo;
+            }
+            if (parsed.location_photo) {
+              currentClosingLocationPhoto = parsed.location_photo;
+              updateClosingLocationPhotoUI();
             }
             if (parsed.end_km) {
               var pEnd = Number(parsed.end_km);
@@ -2079,6 +2161,7 @@
         fuel_fee: fuelFee,
         is_unoperated: (distKm === 0 && !hasDelivery),
         location_memo: locationMemo,
+        location_photo: currentClosingLocationPhoto || '',
         memo: memo
       };
 
@@ -2112,8 +2195,9 @@
           }
 
           veh.current_km = endKm;
-          if (locationMemo) {
+          if (locationMemo || currentClosingLocationPhoto) {
             veh.last_location = locationMemo;
+            veh.last_location_photo = currentClosingLocationPhoto || '';
             veh.last_location_date = currentDate;
             veh.last_location_driver = drvName;
           }
