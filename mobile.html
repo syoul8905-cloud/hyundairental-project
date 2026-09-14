@@ -445,13 +445,13 @@
         </button>
       </div>
 
-      <div id="mobileVehicleNoticeBox" class="p-3 bg-amber-50 border border-amber-200 rounded-2xl text-xs text-amber-900 leading-snug">
+      <div id="mobileVehicleNoticeBox" class="p-3 bg-indigo-50/70 border border-indigo-200 rounded-2xl text-xs text-indigo-950 leading-snug">
         <div class="flex items-start gap-2">
-          <i class="fa-solid fa-triangle-exclamation text-amber-600 mt-0.5 text-sm shrink-0"></i>
+          <i class="fa-solid fa-circle-info text-indigo-600 mt-0.5 text-sm shrink-0"></i>
           <div>
-            <p class="font-black text-amber-950">오늘 운행 차량 선택 필수</p>
-            <p class="text-[11px] text-amber-800 mt-0.5" id="mobileVehicleNoticeDesc">
-              운행할 차량을 선택해야 오늘의 배송 일정 및 방문 주소가 법인차량 운행일지에 실시간 연동됩니다.
+            <p class="font-black text-indigo-950">오늘 운행 차량 선택</p>
+            <p class="text-[11px] text-indigo-900/80 mt-0.5" id="mobileVehicleNoticeDesc">
+              차량 선택 없이도 배송 현황을 자유롭게 확인할 수 있으며, 티맵 내비게이션 실행 시 차량 선택이 자동으로 안내됩니다.
             </p>
           </div>
         </div>
@@ -464,11 +464,11 @@
       <div class="flex items-center justify-between pt-1 gap-2" id="mobileVehicleSelectFooter">
         <button id="mobileVehicleUnselectBtn" type="button" onclick="unselectMobileVehicle()" class="px-3 py-2 bg-rose-50 text-rose-700 font-bold rounded-xl text-xs hover:bg-rose-100 flex items-center gap-1 border border-rose-200">
           <i class="fa-solid fa-ban text-[11px]"></i>
-          <span>선택 취소 (미운행)</span>
+          <span>선택 취소</span>
         </button>
-        <button id="mobileVehicleAdminSkipBtn" type="button" onclick="skipVehicleSelectionForAdmin()" class="hidden px-3 py-2 bg-indigo-50 text-indigo-700 font-bold rounded-xl text-xs hover:bg-indigo-100 flex items-center gap-1 border border-indigo-200" title="차량 선택 없이 전체 배송 일정을 모니터링합니다.">
+        <button id="mobileVehicleViewModeBtn" type="button" onclick="switchToViewMode()" class="px-3.5 py-2 bg-indigo-50 text-indigo-700 font-bold rounded-xl text-xs hover:bg-indigo-100 flex items-center gap-1 border border-indigo-200" title="차량 선택 없이 배송 일정을 확인합니다.">
           <i class="fa-solid fa-eye text-[11px]"></i>
-          <span>관리자 관제 모드</span>
+          <span>보기 모드</span>
         </button>
         <button id="mobileVehicleSelectCloseBtn" onclick="closeMobileVehicleSelectModal()" class="px-4 py-2 bg-slate-100 text-slate-600 font-bold rounded-xl text-xs hover:bg-slate-200">
           닫기
@@ -1152,6 +1152,12 @@
     }
 
     function launchMobileNaviApp(targetAddr, targetName, naviType) {
+      if (!isVehicleConfirmedForToday()) {
+        alert('🚗 [차량 선택 필요]\n내비게이션 길안내 및 운행을 시작하려면 오늘 운행할 법인차량을 먼저 선택해주세요.');
+        openMobileVehicleSelectModal(true);
+        return;
+      }
+
       var clean = (targetAddr || '').replace(/\([^)]*\)/g, '').trim();
       var query = clean || targetName || '도착지';
       var isAndroid = /Android/i.test(navigator.userAgent);
@@ -1194,6 +1200,12 @@
     }
 
     function openMobileDestinationTmap(customAddr, customName) {
+      if (!isVehicleConfirmedForToday()) {
+        alert('🚗 [차량 선택 필요]\n티맵 내비게이션 안내를 시작하려면 오늘 운행할 법인차량을 먼저 선택해주세요.');
+        openMobileVehicleSelectModal(true);
+        return;
+      }
+
       var dest = getMobileDriverDestination();
       var targetAddr = customAddr || dest.addr || DEFAULT_GASAN_ORIGIN.addr;
       var targetName = customName || dest.name || DEFAULT_GASAN_ORIGIN.name;
@@ -1406,11 +1418,11 @@
 
       if (!isVehicleConfirmedForToday()) {
         if (currentUser && currentUser.role === 'admin') {
-          if (nameEl) nameEl.innerHTML = '<span class="text-indigo-600 font-black flex items-center gap-1"><i class="fa-solid fa-building-shield"></i> 관리자 관제 모드</span>';
-          if (odoEl) odoEl.innerHTML = '<span class="text-slate-500 font-medium text-[10.5px]">차량 미선택 (전체 배송 현황 조회)</span>';
+          if (nameEl) nameEl.innerHTML = '<span class="text-indigo-600 font-black flex items-center gap-1"><i class="fa-solid fa-eye text-xs"></i> 보기 모드 (관리자)</span>';
+          if (odoEl) odoEl.innerHTML = '<span class="text-slate-500 font-medium text-[10.5px]">차량 미선택 (전체 배송 일정 관제)</span>';
         } else {
-          if (nameEl) nameEl.innerHTML = '<span class="text-rose-600 font-black animate-pulse">⚠️ 차량 선택 필수</span>';
-          if (odoEl) odoEl.innerHTML = '<span class="text-rose-600 font-bold text-[10.5px]">오늘 운행할 차량을 먼저 선택해주세요</span>';
+          if (nameEl) nameEl.innerHTML = '<span class="text-indigo-600 font-black flex items-center gap-1"><i class="fa-solid fa-eye text-xs"></i> 보기 모드</span>';
+          if (odoEl) odoEl.innerHTML = '<span class="text-slate-500 font-medium text-[10.5px]">차량 미선택 (티맵 길안내 시 선택)</span>';
         }
         return;
       }
@@ -1507,36 +1519,16 @@
     }
 
     function openMobileVehicleSelectModal(isForced) {
-      var isAdmin = (currentUser && currentUser.role === 'admin');
-
-      if (isAdmin) {
-        isForced = false; // 관리자는 차량 선택 강제 없음
-      } else if (typeof isForced !== 'boolean') {
-        isForced = !isVehicleConfirmedForToday();
-      }
-
       var closeX = document.getElementById('mobileVehicleSelectCloseX');
       var closeBtn = document.getElementById('mobileVehicleSelectCloseBtn');
       var noticeDesc = document.getElementById('mobileVehicleNoticeDesc');
-      var adminSkipBtn = document.getElementById('mobileVehicleAdminSkipBtn');
 
-      if (adminSkipBtn) {
-        if (isAdmin) adminSkipBtn.classList.remove('hidden');
-        else adminSkipBtn.classList.add('hidden');
-      }
+      // 닫기 X 버튼 및 닫기 버튼 상시 제공 (기사/관리자 모두 차량 선택 없이 자유롭게 확인 가능)
+      if (closeX) closeX.classList.remove('hidden');
+      if (closeBtn) closeBtn.classList.remove('hidden');
 
-      if (isForced) {
-        if (closeX) closeX.classList.add('hidden');
-        if (closeBtn) closeBtn.classList.add('hidden');
-        if (noticeDesc) noticeDesc.innerText = '오늘 운행할 법인차량을 반드시 먼저 선택해주세요. 선택 즉시 배송지 목록이 해당 차량의 운행일지에 연동됩니다.';
-      } else {
-        if (closeX) closeX.classList.remove('hidden');
-        if (closeBtn) closeBtn.classList.remove('hidden');
-        if (noticeDesc) {
-          noticeDesc.innerText = isAdmin
-            ? '관리자 모드: 차량 선택 없이 전체 관제 가능하며, 특정 차량 선택 시 해당 차량 정보로 동기화됩니다.'
-            : '운행 차량을 변경하면 오늘 배송 일정이 변경된 차량으로 동기화됩니다.';
-        }
+      if (noticeDesc) {
+        noticeDesc.innerText = '차량 선택 없이도 배송 현황을 자유롭게 확인할 수 있으며, 티맵 길안내 시작 시 차량 선택이 자동으로 안내됩니다.';
       }
 
       renderMobileVehicleOptions();
@@ -1547,14 +1539,14 @@
       document.getElementById('mobileVehicleSelectModal').classList.add('hidden');
     }
 
-    // 관리자 관제 모드 전용: 차량 선택 없이 닫기
-    function skipVehicleSelectionForAdmin() {
+    // [보기 모드] 차량 선택 없이 배송 일정 확인 모드로 전환
+    function switchToViewMode() {
       currentMobileVehicleNo = '';
       localStorage.removeItem('DELIVERY_TODAY_VEHICLE_NO_V1');
       localStorage.removeItem('DELIVERY_TODAY_VEHICLE_DATE_V1');
       updateMobileVehicleWidgetUI();
       closeMobileVehicleSelectModal();
-      showToast('🏢 [관리자 관제 모드] 차량 선택 없이 전체 배송 관제를 시작합니다.');
+      showToast('👀 [보기 모드] 차량 선택 없이 배송 일정을 확인합니다. (티맵 실행 시 차량 선택)');
     }
 
     async function setVehicleActiveUsageOnCloud(vNo, driverName) {
@@ -2416,15 +2408,7 @@
         showToast('👋 ' + label + ', 오늘의 배송 (' + driverRecords.length + '건) 목록입니다.');
       }
 
-      // Check if vehicle has been confirmed for today (기사 전용 강제 선택, 관리자는 건너뛰기 가능)
-      var urlP = new URLSearchParams(window.location.search);
-      if (!urlP.get('vehicle') && urlP.get('modal') !== 'closing' && !isVehicleConfirmedForToday()) {
-        if (currentUser && currentUser.role !== 'admin') {
-          setTimeout(function() {
-            openMobileVehicleSelectModal(true);
-          }, 400);
-        }
-      }
+      // 배송기사/관리자 모두 차량 선택 강제 팝업 없이 배송 일정 자유롭게 확인 가능 (티맵 실행 시 차량 선택 안내)
     }
 
     async function loadMobileData(showWelcome) {
@@ -2901,6 +2885,13 @@
     async function startTmapAndRecord(idx) {
       var r = driverRecords[idx];
       if (!r) return;
+
+      // 🚗 [티맵 실행 가드] 오늘 운행 차량이 선택되지 않은 경우 차량 선택 팝업 오픈
+      if (!isVehicleConfirmedForToday()) {
+        alert('🚗 [차량 선택 필요]\n티맵 길안내 및 배송 출발을 기록하려면 오늘 운행할 법인차량을 먼저 선택해주세요.');
+        openMobileVehicleSelectModal(true);
+        return;
+      }
 
       if (!confirm(`🚗 [${r.customer_name}] 티맵 내비게이션 안내를 시작하시겠습니까?\n출발 시각이 자동으로 기록됩니다.`)) {
         return;
