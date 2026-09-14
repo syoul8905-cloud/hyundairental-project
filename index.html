@@ -68,7 +68,7 @@
         <div class="flex items-center gap-1 bg-slate-50 hover:bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200 shadow-xs transition cursor-pointer relative group text-xs whitespace-nowrap"
              onclick="openCalendarPicker(event)" title="클릭하여 달력에서 배송일자 선택">
           <i class="fa-regular fa-calendar-days text-indigo-600"></i>
-          <span id="calendarDateDisplay" class="font-black text-slate-900 text-xs px-0.5">2026-09-09</span>
+          <span id="calendarDateDisplay" class="font-black text-slate-900 text-xs px-0.5">--</span>
           <i class="fa-solid fa-calendar text-[10px] text-indigo-500 group-hover:scale-110 transition-transform"></i>
           <input type="date" id="calendarDateInput" onchange="onCalendarDateChanged(this.value)" 
                  class="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10">
@@ -222,7 +222,7 @@
         <div class="flex-1 flex items-center justify-between bg-slate-50 px-2.5 py-1.5 rounded-xl border border-slate-200 text-xs cursor-pointer relative shadow-xs" onclick="openCalendarPicker(event)">
           <div class="flex items-center gap-1.5">
             <i class="fa-regular fa-calendar-days text-indigo-600"></i>
-            <span id="calendarDateDisplayMobile" class="font-black text-slate-900 text-xs">2026-09-09</span>
+            <span id="calendarDateDisplayMobile" class="font-black text-slate-900 text-xs">--</span>
           </div>
           <i class="fa-solid fa-calendar text-[11px] text-indigo-400"></i>
         </div>
@@ -1041,7 +1041,7 @@
             <span class="text-amber-900 font-bold block" id="notifyModalDriverName">🚗 기사님</span>
             <span class="text-amber-700 text-[11px]" id="notifyModalScheduleSummary">총 0건의 배송/회수가 배정되었습니다.</span>
           </div>
-          <span class="px-2 py-1 bg-amber-200/70 text-amber-950 font-black rounded-lg text-[10px]" id="notifyModalDateBadge">2026-09-10</span>
+          <span class="px-2 py-1 bg-amber-200/70 text-amber-950 font-black rounded-lg text-[10px]" id="notifyModalDateBadge">--</span>
         </div>
 
         <div>
@@ -1172,7 +1172,7 @@
       <!-- Tab 1: Daily Origin Assignment -->
       <div id="originTabDaily" class="space-y-3 overflow-y-auto flex-1 pr-1">
         <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between text-xs font-bold text-slate-700">
-          <div>대상 배송일자: <span id="modalTargetDateBadge" class="text-indigo-600 font-black">2026-09-09</span></div>
+          <div>대상 배송일자: <span id="modalTargetDateBadge" class="text-indigo-600 font-black">--</span></div>
           <div class="flex items-center gap-1.5">
             <span>대상 기사:</span>
             <select id="modalDriverSelect" onchange="onModalDriverChanged(this.value)" class="bg-white border border-slate-300 rounded-lg px-2 py-1 text-xs font-bold text-slate-800 focus:outline-none focus:border-indigo-500">
@@ -2474,6 +2474,8 @@
       if (dateInp && dateInp.value && dateInp.value !== 'all') return dateInp.value;
       var selectInp = document.getElementById('sheetDateSelect');
       if (selectInp && selectInp.value && selectInp.value !== 'all') return selectInp.value;
+      var saved = localStorage.getItem('DELIVERY_VIEWING_DATE_V1');
+      if (saved && saved !== 'all') return saved;
       return getTodayLocalDate();
     }
 
@@ -2847,6 +2849,9 @@
 
     function onCalendarDateChanged(dateVal) {
       if (!dateVal) return;
+      try {
+        localStorage.setItem('DELIVERY_VIEWING_DATE_V1', dateVal);
+      } catch(e) {}
       setHeaderCalendarDate(dateVal);
 
       // sheetDateSelect 동기화
@@ -2873,10 +2878,13 @@
     }
 
     function shiftDate(days) {
-      var currStr = document.getElementById('calendarDateInput').value;
-      if (!currStr) {
+      var currStr = document.getElementById('calendarDateInput') ? document.getElementById('calendarDateInput').value : '';
+      if (!currStr || currStr === 'all') {
         var sel = document.getElementById('sheetDateSelect');
         if (sel && sel.value && sel.value !== 'all') currStr = sel.value;
+      }
+      if (!currStr || currStr === 'all') {
+        currStr = localStorage.getItem('DELIVERY_VIEWING_DATE_V1') || getTodayLocalDate();
       }
       var baseDate = currStr ? new Date(currStr) : new Date();
       if (isNaN(baseDate.getTime())) baseDate = new Date();
@@ -2889,17 +2897,16 @@
     }
 
     function goToToday() {
-      var now = new Date();
-      var y = now.getFullYear();
-      var m = String(now.getMonth() + 1).padStart(2, '0');
-      var d = String(now.getDate()).padStart(2, '0');
-      var todayStr = y + '-' + m + '-' + d;
+      var todayStr = getTodayLocalDate();
       onCalendarDateChanged(todayStr);
     }
 
     function onDateSelectDropdownChanged(val) {
       if (!val) return;
       if (val === 'all') {
+        try {
+          localStorage.setItem('DELIVERY_VIEWING_DATE_V1', 'all');
+        } catch(e) {}
         setHeaderCalendarDate('all');
         triggerSync(false);
         return;
@@ -2936,8 +2943,20 @@
       allOpt.innerText = '전체 일정 보기';
       select.appendChild(allOpt);
 
-      // 기본 선택: 사용자가 명시적으로 특정 일자를 보고 있던 게 아니라면 무조건 오늘 날짜(todayStr) 강제 선택!
-      var chosenDate = (curr && (validDates.indexOf(curr) !== -1 || curr === 'all')) ? curr : todayStr;
+      // 사용자가 이전에 선택했거나 현재 보고 있는 날짜 우선 존중
+      var savedDate = localStorage.getItem('DELIVERY_VIEWING_DATE_V1');
+      var preferred = curr || savedDate || todayStr;
+      
+      // 유효 목록에 없지만 날짜 형식(YYYY-MM-DD)이라면 옵션으로 추가하여 임의 초기화 차단
+      if (preferred && preferred !== 'all' && validDates.indexOf(preferred) === -1 && /^\d{4}-\d{2}-\d{2}$/.test(preferred)) {
+        var customOpt = document.createElement('option');
+        customOpt.value = preferred;
+        customOpt.innerText = '📅 ' + preferred;
+        select.insertBefore(customOpt, select.firstChild);
+        validDates.unshift(preferred);
+      }
+
+      var chosenDate = (preferred && (validDates.indexOf(preferred) !== -1 || preferred === 'all')) ? preferred : todayStr;
       select.value = chosenDate;
       setHeaderCalendarDate(chosenDate);
     }
@@ -2963,9 +2982,14 @@
       var newToday = getTodayLocalDate();
       if (newToday !== currentActiveLocalDate) {
         console.log('🌙 자정 경과 감지: 오늘 날짜 자동 갱신 (' + currentActiveLocalDate + ' -> ' + newToday + ')');
+        var prevToday = currentActiveLocalDate;
         currentActiveLocalDate = newToday;
-        onCalendarDateChanged(newToday);
-        showToast('🌙 자정이 지나 오늘 날짜(' + newToday + ')로 일정이 자동 갱신되었습니다.');
+        // 사용자가 과거/미래 날짜를 고정 조회 중이 아닌 '당일(오늘)'을 보고 있던 경우에만 날짜 자동 승계
+        var saved = localStorage.getItem('DELIVERY_VIEWING_DATE_V1');
+        if (!saved || saved === prevToday || saved === newToday) {
+          onCalendarDateChanged(newToday);
+          showToast('🌙 자정이 지나 오늘 날짜(' + newToday + ')로 일정이 자동 갱신되었습니다.');
+        }
       }
     }
 
@@ -6904,16 +6928,29 @@
     // ==========================================
     async function bootstrapDashboard() {
       initLoginState();
+
+      // 저장된 조회 날짜 또는 오늘 날짜 우선 반영하여 로딩 중 튐 방지
+      var savedDate = localStorage.getItem('DELIVERY_VIEWING_DATE_V1') || getTodayLocalDate();
+      var urlParams = new URLSearchParams(window.location.search);
+      var reqDate = urlParams.get('date') || savedDate;
+      setHeaderCalendarDate(reqDate);
+
       await syncDriverOriginsFromCloud();
       initKakaoMapEngine(false);
       var dates = await loadAvailableDates();
-      var urlParams = new URLSearchParams(window.location.search);
-      var reqDate = urlParams.get('date');
       if (reqDate) {
-        var dateInp = document.getElementById('calendarDateInput');
-        if (dateInp) dateInp.value = reqDate;
+        setHeaderCalendarDate(reqDate);
         var selectInp = document.getElementById('sheetDateSelect');
-        if (selectInp) selectInp.value = reqDate;
+        if (selectInp) {
+          selectInp.value = reqDate;
+          if (selectInp.value !== reqDate && reqDate !== 'all') {
+            var customOpt = document.createElement('option');
+            customOpt.value = reqDate;
+            customOpt.innerText = '📅 ' + reqDate;
+            selectInp.insertBefore(customOpt, selectInp.firstChild);
+            selectInp.value = reqDate;
+          }
+        }
       }
       var reqDriver = urlParams.get('driver');
       if (reqDriver) {

@@ -787,7 +787,7 @@
       return `${year}-${month}-${day}`;
     }
 
-    var currentDate = getTodayLocalDate();
+    var currentDate = localStorage.getItem('DELIVERY_VIEWING_DATE_V1') || getTodayLocalDate();
     var driverRecords = [];
     var allMobileRows = [];
     var selectedViewingDriver = '__ALL__';
@@ -1341,16 +1341,20 @@
       { id: "veh_801부8744", vehicle_no: "801부8744", model_name: "스타리아", initial_km: 70532, current_km: 71269, is_active: true, default_driver: "조경찬" },
       { id: "veh_826라8911", vehicle_no: "826라8911", model_name: "스타리아", initial_km: 32796, current_km: 33455, is_active: true, default_driver: "김승지" }
     ];
-    var currentMobileVehicleNo = localStorage.getItem('DELIVERY_TODAY_VEHICLE_NO_V1') || '';
+    // 항상 초기 진입 시에는 기본 '보기 모드' (차량 미선택)로 안전하게 시작
+    var currentMobileVehicleNo = '';
 
     function isVehicleConfirmedForToday() {
-      // localStorage만으로 판단 (currentMobileVehicleNo 순환 의존 제거)
+      if (!currentUser) return false;
       var savedDate = localStorage.getItem('DELIVERY_TODAY_VEHICLE_DATE_V1');
       var savedVehNo = localStorage.getItem('DELIVERY_TODAY_VEHICLE_NO_V1');
-      return Boolean(savedVehNo && savedDate === currentDate);
+      var savedUser = localStorage.getItem('DELIVERY_TODAY_VEHICLE_USER_V1');
+      // 오늘 날짜 + 현재 로그인한 사용자 본인이 직접 확정한 차량일 때만 인정
+      return Boolean(savedVehNo && savedDate === currentDate && savedUser === currentUser.id);
     }
 
     function getSavedVehicleNo() {
+      if (!isVehicleConfirmedForToday()) return '';
       return localStorage.getItem('DELIVERY_TODAY_VEHICLE_NO_V1') || '';
     }
 
@@ -1580,6 +1584,7 @@
       currentMobileVehicleNo = '';
       localStorage.removeItem('DELIVERY_TODAY_VEHICLE_NO_V1');
       localStorage.removeItem('DELIVERY_TODAY_VEHICLE_DATE_V1');
+      localStorage.removeItem('DELIVERY_TODAY_VEHICLE_USER_V1');
       updateMobileVehicleWidgetUI();
       closeMobileVehicleSelectModal();
       showToast('👀 [보기 모드] 차량 선택 없이 배송 일정을 확인합니다. (티맵 실행 시 차량 선택)');
@@ -1636,6 +1641,7 @@
       currentMobileVehicleNo = vNo;
       localStorage.setItem('DELIVERY_TODAY_VEHICLE_NO_V1', vNo);
       localStorage.setItem('DELIVERY_TODAY_VEHICLE_DATE_V1', currentDate);
+      localStorage.setItem('DELIVERY_TODAY_VEHICLE_USER_V1', myLoginId);
       vehicleActiveUsage[vNo] = { driver: myDriverName, date: currentDate };
       updateMobileVehicleWidgetUI();
       document.getElementById('mobileVehicleSelectModal').classList.add('hidden');
@@ -1649,6 +1655,7 @@
       currentMobileVehicleNo = '';
       localStorage.removeItem('DELIVERY_TODAY_VEHICLE_NO_V1');
       localStorage.removeItem('DELIVERY_TODAY_VEHICLE_DATE_V1');
+      localStorage.removeItem('DELIVERY_TODAY_VEHICLE_USER_V1');
       if (prevVeh) delete vehicleActiveUsage[prevVeh];
       updateMobileVehicleWidgetUI();
       document.getElementById('mobileVehicleSelectModal').classList.add('hidden');
@@ -2347,6 +2354,10 @@
       document.getElementById('loginOverlay').classList.add('hidden');
       document.getElementById('headerDriverName').innerText = (user.role === 'admin' ? user.id + ' (관리자)' : user.id + ' 기사님');
 
+      // 로그인 시 기본은 항상 '보기 모드'로 시작 (본인이 오늘 명시적으로 선택한 차량이 있는 경우에만 복원)
+      currentMobileVehicleNo = isVehicleConfirmedForToday() ? getSavedVehicleNo() : '';
+      updateMobileVehicleWidgetUI();
+
       if (document.getElementById('loginRememberId').checked) {
         localStorage.setItem('DELIVERY_SAVED_ID', user.id);
       } else {
@@ -2370,6 +2381,11 @@
       currentUser = null;
       selectedViewingDriver = '__ALL__';
       allMobileRows = [];
+      currentMobileVehicleNo = '';
+      localStorage.removeItem('DELIVERY_TODAY_VEHICLE_NO_V1');
+      localStorage.removeItem('DELIVERY_TODAY_VEHICLE_DATE_V1');
+      localStorage.removeItem('DELIVERY_TODAY_VEHICLE_USER_V1');
+      updateMobileVehicleWidgetUI();
       var adminBar = document.getElementById('adminDriverSelectorBar');
       if (adminBar) adminBar.classList.add('hidden');
       localStorage.removeItem('DELIVERY_AUTO_LOGIN');
@@ -2477,9 +2493,8 @@
       cachedMobileRoadData = null;
       renderCards();
 
-      if (currentMobileVehicleNo && isVehicleConfirmedForToday() && driverRecords.length > 0) {
-        syncTodayScheduleToVehicleLog(currentMobileVehicleNo);
-      }
+      // [원칙] 단순 화면 렌더링 시에는 운행일지를 자동으로 생성하지 않음 (보기 모드 보장 및 미운행 차량 일지 생성 방지)
+      // 기사가 차량 모달에서 명시적으로 [선택]하거나 실제 [티맵 안내] 출발 시에만 운행일지 연동됨
 
       if (showWelcome) {
         var label = (selectedViewingDriver && selectedViewingDriver !== '__ALL__')
@@ -3550,6 +3565,9 @@
     // ==========================================
     function setDate(dStr) {
       currentDate = dStr;
+      try {
+        localStorage.setItem('DELIVERY_VIEWING_DATE_V1', dStr);
+      } catch(e) {}
       var dateInput = document.getElementById('dateInput');
       var dateDisplay = document.getElementById('dateDisplay');
       if (dateInput) dateInput.value = dStr;
