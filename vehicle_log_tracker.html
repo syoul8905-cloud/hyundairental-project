@@ -111,7 +111,7 @@
       <!-- Injected via JS -->
       <button class="px-3.5 py-1.5 bg-indigo-600 text-white font-black rounded-xl text-xs shadow-xs flex items-center gap-1.5">
         <i class="fa-solid fa-van-shuttle"></i>
-        <span>801부8744 (스타리아)</span>
+        <span>801라8744 (스타리아)</span>
       </button>
     </div>
 
@@ -819,7 +819,7 @@
 
     // State Variables
     var _initNow = new Date();
-    var currentSelectedVehicleNo = "801부8744";
+    var currentSelectedVehicleNo = "801라8744";
     var currentYear = _initNow.getFullYear();
     var currentMonth = _initNow.getMonth() + 1; // 1-12
     var vehiclesMaster = [];
@@ -856,8 +856,8 @@
       // Default Seed if empty
       if (vehiclesMaster.length === 0) {
         vehiclesMaster = [
-          { id: "veh_801부8744", vehicle_no: "801부8744", model_name: "스타리아", initial_km: 70532, current_km: 71269, is_active: true, default_driver: "조경찬" },
-          { id: "veh_826라8911", vehicle_no: "826라8911", model_name: "스타리아", initial_km: 32796, current_km: 33455, is_active: true, default_driver: "김승지" }
+          { id: "veh_801라8744", vehicle_no: "801라8744", model_name: "스타리아", initial_km: 70532, current_km: 71453, is_active: true, default_driver: "조경찬" },
+          { id: "veh_826라8911", vehicle_no: "826라8911", model_name: "스타리아", initial_km: 32796, current_km: 33484, is_active: true, default_driver: "한민혁" }
         ];
       }
 
@@ -878,6 +878,14 @@
           }
         } catch(e) {
           console.warn('Failed to load vehicles from Supabase:', e);
+        }
+      }
+
+      // Ensure currentSelectedVehicleNo matches a valid vehicle
+      if (vehiclesMaster.length > 0) {
+        var matchFound = vehiclesMaster.some(function(v) { return v.vehicle_no === currentSelectedVehicleNo; });
+        if (!matchFound) {
+          currentSelectedVehicleNo = vehiclesMaster[0].vehicle_no;
         }
       }
 
@@ -954,10 +962,14 @@
         if (supabaseClient) {
           // Fetch trip logs for the current selected vehicle and month
           var monthPrefix = `${currentYear}-${String(currentMonth).padStart(2, '0')}`;
+          var vehicleQueryFilter = [currentSelectedVehicleNo];
+          if (currentSelectedVehicleNo === '801라8744') vehicleQueryFilter.push('801부8744');
+          if (currentSelectedVehicleNo === '801부8744') vehicleQueryFilter.push('801라8744');
+
           var res = await supabaseClient.from('delivery_schedules')
             .select('*')
             .eq('source_sheet', 'VEHICLE_TRIP_LOGS')
-            .eq('customer_name', currentSelectedVehicleNo)
+            .in('customer_name', vehicleQueryFilter)
             .gte('delivery_date', `${monthPrefix}-01`)
             .lte('delivery_date', `${monthPrefix}-31`)
             .order('delivery_date', { ascending: true });
@@ -966,9 +978,10 @@
             tripLogs = res.data.map(function(row) {
               var parsed = {};
               try { parsed = JSON.parse(row.memo_full || '{}'); } catch(e) {}
+              var normVehNo = (row.customer_name === '801부8744' ? '801라8744' : row.customer_name) || currentSelectedVehicleNo;
               return {
                 id: row.id,
-                vehicle_no: row.customer_name || currentSelectedVehicleNo,
+                vehicle_no: normVehNo,
                 trip_date: row.delivery_date,
                 driver_name: row.driver_name || parsed.driver_name || '',
                 start_km: Number(parsed.start_km || 0),
@@ -979,6 +992,8 @@
                 fuel_fee: Number(parsed.fuel_fee || 0),
                 is_unoperated: Boolean(parsed.is_unoperated),
                 is_closed: Boolean(parsed.is_closed || row.status === '운행마감' || row.status === '마감'),
+                closed_at: parsed.closed_at || '',
+                memo_special: row.memo_special || '',
                 is_local_dismissal: Boolean(parsed.is_local_dismissal),
                 destination_addr: parsed.destination_addr || '',
                 destination_name: parsed.destination_name || '',
@@ -1009,7 +1024,7 @@
                 });
 
                 if (Array.isArray(log.stops) && log.stops.length > 0) {
-                  log.stops.forEach(function(st) {
+                  log.stops.forEach(function(st, sIdx) {
                     if (st.type === 'delivery') {
                       var matched = dateSchedules.find(function(ds) {
                         return (st.id && (st.id === 'stop_deliv_' + ds.id || st.id === ds.id)) ||
@@ -1032,6 +1047,23 @@
                             if (aM) st.arrive = aM[1];
                           }
                         }
+                      }
+                    } else if (st.type === 'return') {
+                      if (!st.arrive) {
+                        if (log.closed_at) st.arrive = log.closed_at;
+                        else if (log.memo_special) {
+                          try {
+                            var sp = JSON.parse(log.memo_special);
+                            if (sp.arrive) st.arrive = sp.arrive;
+                          } catch(e) {}
+                        }
+                      }
+                      if (!st.depart && sIdx > 0 && log.stops[sIdx - 1]) {
+                        st.depart = log.stops[sIdx - 1].arrive || log.stops[sIdx - 1].depart || '';
+                      }
+                      if (log.is_closed) {
+                        st.status = '도착완료';
+                        if (!st.arrive && st.time && st.time !== '18:00') st.arrive = st.time;
                       }
                     }
                   });
@@ -1263,18 +1295,36 @@
       var legs = [];
       for (var i = startIdx; i < stops.length; i++) {
         var s = stops[i];
+        var isReturn = (s.type === 'return');
         var fromName = (i > 0 && stops[i - 1]) ? stops[i - 1].name : '가산 센터';
+        var sArrive = s.arrive || '';
+        var sDepart = s.depart || '';
+        if (isReturn && !sArrive) {
+          if (log.closed_at) sArrive = log.closed_at;
+          else if (log.memo_special) {
+            try { var sp = JSON.parse(log.memo_special); if (sp.arrive) sArrive = sp.arrive; } catch(e) {}
+          }
+          if (!sArrive && s.time && s.time !== '18:00') sArrive = s.time;
+        }
+        if (isReturn && !sDepart && i > 0 && stops[i - 1]) {
+          sDepart = stops[i - 1].arrive || stops[i - 1].depart || '';
+        }
+        var sStatus = s.status || '';
+        if (isReturn && log.is_closed && (!sStatus || sStatus === '진행중')) {
+          sStatus = '도착완료';
+        }
+
         legs.push({
           stopIndex: i,
           type: s.type || 'delivery',
           order: s.order || (i - startIdx + 1),
           fromName: fromName,
-          name: s.name || '배송지',
+          name: s.name || (isReturn ? '가산 센터' : '배송지'),
           addr: s.addr || '',
           time: s.time || '',
-          depart: s.depart || '',
-          arrive: s.arrive || '',
-          status: s.status || '',
+          depart: sDepart,
+          arrive: sArrive,
+          status: sStatus,
           contact: s.contact || '',
           start_km: Number(s.start_km !== undefined ? s.start_km : log.start_km),
           end_km: Number(s.end_km !== undefined ? s.end_km : log.end_km),
@@ -1337,8 +1387,8 @@
           var hasDeliveryStops = Array.isArray(log.stops) && log.stops.some(function(s) { return s.type === 'delivery'; });
           var isExplicitUnop = Boolean(log.is_unoperated) || log.driver_name === '미운행';
           var isZeroKmWithoutStops = (log.start_km === log.end_km && !hasDeliveryStops);
-          var isUnop = isExplicitUnop || isZeroKmWithoutStops;
-          var isOngoingToday = (!isUnop && log.start_km === log.end_km && hasDeliveryStops && !log.is_closed);
+          var todayStr = new Date().toLocaleDateString('sv');
+          var isOngoingToday = (!isUnop && log.trip_date === todayStr && hasDeliveryStops && !log.is_closed && (log.start_km === log.end_km || !log.end_km));
 
           if (isUnop) {
             totalVisitedDestCount++;
@@ -1511,9 +1561,8 @@
 
         var hasDeliveryStops = Array.isArray(log.stops) && log.stops.some(function(s) { return s.type === 'delivery'; });
         var isExplicitUnop = Boolean(log.is_unoperated) || log.driver_name === '미운행';
-        var isZeroKmWithoutStops = (log.start_km === log.end_km && !hasDeliveryStops);
-        var isUnop = isExplicitUnop || isZeroKmWithoutStops;
-        var isOngoingToday = (!isUnop && log.start_km === log.end_km && hasDeliveryStops && !log.is_closed);
+        var todayStr = new Date().toLocaleDateString('sv');
+        var isOngoingToday = (!isUnop && log.trip_date === todayStr && hasDeliveryStops && !log.is_closed && (log.start_km === log.end_km || !log.end_km));
 
         var driverBadge = isUnop
           ? '<span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 font-bold border border-slate-200">미운행</span>'
