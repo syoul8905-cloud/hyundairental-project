@@ -791,6 +791,16 @@
     var driverRecords = [];
     var allMobileRows = [];
     var selectedViewingDriver = '__ALL__';
+    var lastMobileDataHash = '';
+    var pendingMobileSyncMemos = {}; // { [rowId]: { issue: string, author: string, time: number } }
+    var memoDebounceTimers = {};
+
+    function calcMobileRecordsHash(rows) {
+      if (!rows || rows.length === 0) return '';
+      return rows.map(function(r) {
+        return (r.id || '') + ':' + (r.driver_name || '') + ':' + (r.status || '') + ':' + (r.memo_special || '') + ':' + (r.stop_order || '');
+      }).join('|');
+    }
 
     function getCurrentDriverName() {
       if (currentUser && currentUser.role === 'admin') {
@@ -2535,6 +2545,25 @@
                  row.delivery_date !== '2099-12-31' &&
                  row.delivery_date !== '1970-01-01';
         });
+
+        // [Pending Mutation Lock 보호] 사용자가 방금 작성/저장한 메모는 DB 복제 지연으로 인한 구버전 덮어쓰기 완벽 방어
+        allRows.forEach(function(row) {
+          if (row.id && pendingMobileSyncMemos[row.id]) {
+            var lock = pendingMobileSyncMemos[row.id];
+            if (Date.now() - lock.time < 15000) { // 15초간 최신 로컬 메모 강력 보호
+              var times = getStopTimes(row);
+              times.issue = lock.issue;
+              if (lock.author) {
+                times.issue_author = lock.author;
+                times.issueAuthor = lock.author;
+              }
+              row.memo_special = JSON.stringify(times);
+            } else {
+              delete pendingMobileSyncMemos[row.id];
+            }
+          }
+        });
+
         allMobileRows = allRows;
 
         // 배송기사와 관리자 모두 상단 기사 선택 바를 상시 노출하여 타 기사 스케줄 열람 지원
@@ -2546,6 +2575,19 @@
         }
         populateMobileAdminDriverSelect();
 
+        // [Data Hash Check] 백그라운드 동기화 시 데이터가 100% 동일하다면 DOM 리렌더링 차단 (메모 입력 초기화 및 깜빡임 0%)
+        var newHash = calcMobileRecordsHash(allMobileRows);
+        var isDataChanged = (newHash !== lastMobileDataHash);
+
+        var activeEl = document.activeElement;
+        var isEditing = (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA'));
+
+        // 데이터가 변경되지 않았거나 사용자가 입력창에서 작성 중인 경우 리렌더링 건너뜀 (작성 중 메모 증발 방어)
+        if (!showWelcome && (!isDataChanged || isEditing)) {
+          return;
+        }
+
+        lastMobileDataHash = newHash;
         filterAndRenderSchedule(showWelcome);
       } catch (err) {
         console.error('Data load error:', err);
@@ -2570,6 +2612,14 @@
     function renderCards() {
       var container = document.getElementById('cardsContainer');
       var prevScrollY = window.scrollY || document.documentElement.scrollTop;
+
+      // 활성 입력창 상태 보존 (리렌더링 중 포커스 및 미저장 타이핑 내용 소실 방지)
+      var activeEl = document.activeElement;
+      var activeId = (activeEl && activeEl.id && activeEl.id.startsWith('fieldIssueInput_')) ? activeEl.id : null;
+      var activeVal = activeId ? activeEl.value : null;
+      var activeSelStart = activeId ? activeEl.selectionStart : null;
+      var activeSelEnd = activeId ? activeEl.selectionEnd : null;
+
       container.innerHTML = '';
 
       var total = driverRecords.length;
@@ -2726,9 +2776,12 @@
               <span class="text-[11px] font-black text-slate-700 flex items-center gap-1">
                 <i class="fa-solid fa-pen-to-square text-indigo-600"></i> 현장 특이사항 / 메모
               </span>
-              ${times.issueAuthor ? `<span class="text-[9px] bg-indigo-50 text-indigo-700 border border-indigo-200 px-1.5 py-0.2 rounded font-bold">${times.issueAuthor}</span>` : ''}
+              <div class="flex items-center gap-1.5">
+                <span id="memoSaveStatus_${idx}" class="text-[9.5px]"></span>
+                ${times.issueAuthor ? `<span class="text-[9px] bg-indigo-50 text-indigo-700 border border-indigo-200 px-1.5 py-0.2 rounded font-bold">${times.issueAuthor}</span>` : ''}
+              </div>
             </div>
-            <textarea id="fieldIssueInput_${idx}" rows="2" ${!isMyRecord ? 'readonly' : ''} placeholder="${!isMyRecord ? '타 기사 배정 건 (읽기 전용)' : '부재, 경비실 보관, 파손/장비 이상 등 현장 메모...'}" class="w-full text-xs p-2 ${!isMyRecord ? 'bg-slate-100 cursor-not-allowed' : 'bg-white'} border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-500 font-medium">${times.issue || ''}</textarea>
+            <textarea id="fieldIssueInput_${idx}" rows="2" ${!isMyRecord ? 'readonly' : ''} oninput="handleDriverMemoInput(${idx})" onblur="handleDriverMemoBlur(${idx})" placeholder="${!isMyRecord ? '타 기사 배정 건 (읽기 전용)' : '부재, 경비실 보관, 파손/장비 이상 등 현장 메모 (입력 시 자동저장)...'}" class="w-full text-xs p-2 ${!isMyRecord ? 'bg-slate-100 cursor-not-allowed' : 'bg-white'} border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-500 font-medium">${times.issue || ''}</textarea>
             
             <div class="flex items-center justify-between gap-2 pt-0.5">
               <div>
@@ -2752,7 +2805,7 @@
                 `}
               </div>
               ${isMyRecord ? `
-                <button type="button" onclick="saveDriverIssueMemo(${idx})" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white text-[11px] font-black rounded-lg shadow-xs flex items-center gap-1 transition active:scale-95">
+                <button type="button" onclick="saveDriverIssueMemo(${idx}, false)" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white text-[11px] font-black rounded-lg shadow-xs flex items-center gap-1 transition active:scale-95">
                   <i class="fa-solid fa-floppy-disk text-[10px]"></i> 메모 저장
                 </button>
               ` : `
@@ -2832,6 +2885,18 @@
       });
 
       // End of stop cards list
+
+      // 활성 입력창 포커스 및 커서 위치 복원 (타이핑 중 리렌더링 시 커서 튐 및 내용 소실 방어)
+      if (activeId) {
+        var restored = document.getElementById(activeId);
+        if (restored) {
+          if (activeVal !== null && activeVal !== undefined && restored.value !== activeVal) {
+            restored.value = activeVal;
+          }
+          restored.focus();
+          try { restored.setSelectionRange(activeSelStart, activeSelEnd); } catch(e) {}
+        }
+      }
 
       if (prevScrollY > 0) {
         window.scrollTo({ top: prevScrollY, behavior: 'instant' });
@@ -2919,6 +2984,14 @@
         var jsonStr = JSON.stringify(times);
         r.memo_special = jsonStr;
 
+        if (r.id) {
+          pendingMobileSyncMemos[r.id] = {
+            issue: times.issue || '',
+            author: times.issue_author,
+            time: Date.now()
+          };
+        }
+
         if (supabaseClient && r.id) {
           var res = await supabaseClient.from('delivery_schedules').update({
             memo_special: jsonStr
@@ -2956,6 +3029,14 @@
       var jsonStr = JSON.stringify(times);
       r.memo_special = jsonStr;
 
+      if (r.id) {
+        pendingMobileSyncMemos[r.id] = {
+          issue: times.issue || '',
+          author: times.issue_author,
+          time: Date.now()
+        };
+      }
+
       if (supabaseClient && r.id) {
         var res = await supabaseClient.from('delivery_schedules').update({
           memo_special: jsonStr
@@ -2972,14 +3053,50 @@
     }
 
     // ==========================================
-    // Field Issue Memo Save Engine
+    // Field Issue Memo Save Engine (Debounce Auto-Save & Lock)
     // ==========================================
-    async function saveDriverIssueMemo(idx) {
+    function handleDriverMemoInput(idx) {
+      var r = driverRecords[idx];
+      if (!r) return;
+      var inputEl = document.getElementById('fieldIssueInput_' + idx);
+      if (!inputEl) return;
+      var val = inputEl.value;
+
+      // 즉시 락 등록하여 백그라운드 동기화 덮어쓰기 즉각 방어
+      if (r.id) {
+        pendingMobileSyncMemos[r.id] = {
+          issue: val,
+          author: (currentUser && currentUser.id) ? currentUser.id : '기사',
+          time: Date.now()
+        };
+      }
+
+      var statusEl = document.getElementById('memoSaveStatus_' + idx);
+      if (statusEl) {
+        statusEl.innerText = '⏳ 입력 중...';
+        statusEl.className = 'text-[9.5px] text-amber-600 font-bold';
+      }
+
+      if (memoDebounceTimers[idx]) clearTimeout(memoDebounceTimers[idx]);
+      memoDebounceTimers[idx] = setTimeout(function() {
+        saveDriverIssueMemo(idx, true);
+      }, 800);
+    }
+
+    function handleDriverMemoBlur(idx) {
+      if (memoDebounceTimers[idx]) {
+        clearTimeout(memoDebounceTimers[idx]);
+        delete memoDebounceTimers[idx];
+      }
+      saveDriverIssueMemo(idx, true);
+    }
+
+    async function saveDriverIssueMemo(idx, isAutoSave) {
       var r = driverRecords[idx];
       if (!r) return;
       var isMyRecord = (currentUser.role === 'admin' || (r.driver_name || '').trim() === currentUser.id);
       if (!isMyRecord) {
-        showToast('ℹ️ 타 기사님의 현장 특이사항/메모는 수정할 수 없습니다.');
+        if (!isAutoSave) showToast('ℹ️ 타 기사님의 현장 특이사항/메모는 수정할 수 없습니다.');
         return;
       }
       var inputEl = document.getElementById('fieldIssueInput_' + idx);
@@ -2989,23 +3106,55 @@
       var times = getStopTimes(r);
       times.issue = newIssue;
       times.issue_author = (currentUser && currentUser.id) ? currentUser.id : '기사';
+      times.issueAuthor = times.issue_author;
       times.updated_at = new Date().toISOString();
 
       var jsonStr = JSON.stringify(times);
       r.memo_special = jsonStr;
 
+      if (r.id) {
+        pendingMobileSyncMemos[r.id] = {
+          issue: newIssue,
+          author: times.issue_author,
+          time: Date.now()
+        };
+      }
+
+      var statusEl = document.getElementById('memoSaveStatus_' + idx);
+      if (statusEl) {
+        statusEl.innerText = '⏳ 저장 중...';
+        statusEl.className = 'text-[9.5px] text-indigo-600 font-bold';
+      }
+
       if (supabaseClient && r.id) {
-        var res = await supabaseClient.from('delivery_schedules').update({
-          memo_special: jsonStr
-        }).eq('id', r.id);
-        if (res.error) {
-          console.error('Failed to save field memo:', res.error);
-          showToast('❌ 메모 저장 실패');
+        try {
+          var res = await supabaseClient.from('delivery_schedules').update({
+            memo_special: jsonStr
+          }).eq('id', r.id);
+          if (res.error) throw res.error;
+
+          if (statusEl) {
+            statusEl.innerText = '✅ 저장됨';
+            statusEl.className = 'text-[9.5px] text-emerald-600 font-bold';
+            setTimeout(function() {
+              if (statusEl && statusEl.innerText === '✅ 저장됨') statusEl.innerText = '';
+            }, 2500);
+          }
+        } catch(err) {
+          console.error('Failed to save field memo:', err);
+          if (statusEl) {
+            statusEl.innerText = '❌ 저장 실패';
+            statusEl.className = 'text-[9.5px] text-rose-600 font-bold';
+          }
+          if (!isAutoSave) showToast('❌ 메모 저장 실패: ' + (err.message || err));
           return;
         }
       }
-      showToast('💾 현장 특이사항 및 사진이 저장되었습니다!');
-      renderCards();
+
+      if (!isAutoSave) {
+        showToast('💾 현장 특이사항이 저장되었습니다!');
+      }
+      // renderCards()를 호출하지 않아 DOM 파괴 및 입력창 포커스 소실을 원천 방지함
     }
 
     // ==========================================
@@ -3573,6 +3722,7 @@
       if (dateInput) dateInput.value = dStr;
       if (dateDisplay) dateDisplay.innerText = dStr;
       cachedMobileRoadData = null;
+      lastMobileDataHash = null;
       loadMobileData(false);
     }
 
@@ -3646,25 +3796,34 @@
         console.warn('Mobile realtime subscription warning:', e);
       }
 
-      // 스마트 폴링 (12초 주기: 웹소켓 끊김/슬립 대비)
+      // 스마트 폴링 (12초 주기: 웹소켓 끊김/슬립 대비 - 사용자가 입력 중일 때는 건너뜀)
       if (mobileSyncInterval) clearInterval(mobileSyncInterval);
       mobileSyncInterval = setInterval(function() {
         if (!document.hidden) {
-          loadMobileData(false);
+          var activeTag = document.activeElement ? document.activeElement.tagName : '';
+          if (activeTag !== 'INPUT' && activeTag !== 'TEXTAREA') {
+            loadMobileData(false);
+          }
         }
       }, 12000);
     }
 
-    // 모바일 브라우저 백그라운드 -> 포그라운드 복귀 시 즉시 최신 데이터 갱신
+    // 모바일 브라우저 백그라운드 -> 포그라운드 복귀 시 즉시 최신 데이터 갱신 (입력 중에는 스킵하여 타이핑 소실 방어)
     document.addEventListener('visibilitychange', function() {
       if (!document.hidden) {
-        checkAndApplyDateRollover();
-        loadMobileData(false);
+        var activeTag = document.activeElement ? document.activeElement.tagName : '';
+        if (activeTag !== 'INPUT' && activeTag !== 'TEXTAREA') {
+          checkAndApplyDateRollover();
+          loadMobileData(false);
+        }
       }
     });
     window.addEventListener('focus', function() {
-      checkAndApplyDateRollover();
-      loadMobileData(false);
+      var activeTag = document.activeElement ? document.activeElement.tagName : '';
+      if (activeTag !== 'INPUT' && activeTag !== 'TEXTAREA') {
+        checkAndApplyDateRollover();
+        loadMobileData(false);
+      }
     });
 
     function showToast(msg) {
