@@ -1354,6 +1354,32 @@
             } else {
               vehicleActiveUsage = {};
             }
+
+            // 2차 자동 감지: 오늘 날짜 VEHICLE_TRIP_LOGS 테이블에서 운행일지가 존재하는 차량 자동 인식
+            try {
+              var logRes = await supabaseClient.from('delivery_schedules')
+                .select('customer_name, driver_name, memo_full')
+                .eq('source_sheet', 'VEHICLE_TRIP_LOGS')
+                .eq('delivery_date', currentDate);
+              if (logRes.data && logRes.data.length > 0) {
+                logRes.data.forEach(function(row) {
+                  var vNo = (row.customer_name || '').trim();
+                  var drv = (row.driver_name || '').trim();
+                  if (vNo && drv) {
+                    var isUnoperated = false;
+                    try {
+                      var p = JSON.parse(row.memo_full || '{}');
+                      if (p.is_unoperated === true) isUnoperated = true;
+                    } catch(e) {}
+                    if (!isUnoperated) {
+                      vehicleActiveUsage[vNo] = { driver: drv, date: currentDate };
+                    }
+                  }
+                });
+              }
+            } catch(eLog) {
+              console.warn('VEHICLE_TRIP_LOGS 운행 감지 경고:', eLog);
+            }
           }
         } catch(e) {
           console.warn('Failed to load vehicles master on mobile:', e);
@@ -1407,7 +1433,7 @@
       if (!container) return;
 
       var isAdmin = (currentUser && currentUser.role === 'admin');
-      var myDriverName = getCurrentDriverName() || (currentUser ? currentUser.id : '');
+      var myLoginId = (currentUser ? currentUser.id : '');
 
       var unselectBtn = document.getElementById('mobileVehicleUnselectBtn');
       if (unselectBtn) {
@@ -1419,9 +1445,14 @@
       }
 
       container.innerHTML = mobileVehiclesMaster.filter(function(v) { return v.is_active !== false; }).map(function(v) {
-        var usage = vehicleActiveUsage[v.vehicle_no];
-        var isOtherDriving = Boolean(usage && usage.date === currentDate && usage.driver && usage.driver !== myDriverName);
-        var isSelected = (v.vehicle_no === currentMobileVehicleNo && isVehicleConfirmedForToday());
+        var vNo = (v.vehicle_no || '').trim();
+        var usage = vehicleActiveUsage[vNo] || vehicleActiveUsage[v.vehicle_no];
+        var isUsedToday = Boolean(usage && usage.date === currentDate && usage.driver);
+        // 내가 오늘 운행 중인 차량인지 확인 (기사 본인 계정)
+        var isMyVehicle = Boolean(isUsedToday && !isAdmin && usage.driver === myLoginId);
+        // 다른 기사가 운행 중이거나 관리자가 볼 때 운행 중인 상태
+        var isOtherDriving = Boolean(isUsedToday && !isMyVehicle);
+        var isSelected = (vNo === currentMobileVehicleNo && isVehicleConfirmedForToday());
 
         var locationHtml = '';
         if (v.last_location) {
@@ -1435,17 +1466,17 @@
 
         if (isOtherDriving) {
           return `
-            <div onclick="showToast('🚫 [${v.vehicle_no}] 차량은 현재 [${usage.driver}] 기사님이 운행 중입니다.')" class="p-3 rounded-2xl border border-slate-300 bg-slate-100/80 opacity-70 cursor-not-allowed flex items-center justify-between transition">
+            <div onclick="showToast('🚫 [${v.vehicle_no}] 차량은 현재 [${usage.driver}] 기사님이 운행 중입니다.')" class="p-3 rounded-2xl border border-amber-200 bg-amber-50/40 opacity-80 cursor-not-allowed flex items-center justify-between transition">
               <div class="flex items-center gap-2.5">
-                <div class="w-8 h-8 rounded-xl bg-slate-200 text-slate-500 flex items-center justify-center text-xs">
-                  <i class="fa-solid fa-ban"></i>
+                <div class="w-8 h-8 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center text-xs">
+                  <i class="fa-solid fa-car-side"></i>
                 </div>
                 <div>
                   <div class="flex items-center gap-1.5 flex-wrap">
-                    <h4 class="font-black text-xs text-slate-700">${v.vehicle_no} (${v.model_name})</h4>
-                    <span class="text-[9.5px] px-1.5 py-0.2 bg-amber-100 text-amber-900 border border-amber-300 font-black rounded-md shadow-2xs">🚗 운행 중 (${usage.driver})</span>
+                    <h4 class="font-black text-xs text-slate-800">${v.vehicle_no} (${v.model_name})</h4>
+                    <span class="text-[10px] px-2 py-0.5 bg-amber-100 text-amber-900 border border-amber-300 font-black rounded-md shadow-2xs">🚗 운행 중 (${usage.driver})</span>
                   </div>
-                  <p class="text-[10px] text-slate-500 font-mono mt-0.5">계기판: ${(v.current_km || v.initial_km || 0).toLocaleString()} km / 담당: ${v.default_driver || '-'}</p>
+                  <p class="text-[10px] text-slate-500 font-mono mt-0.5">최신 계기판: ${(v.current_km || v.initial_km || 0).toLocaleString()} km / 담당: ${v.default_driver || '-'}</p>
                   ${locationHtml}
                 </div>
               </div>
@@ -1555,12 +1586,18 @@
     }
 
     async function selectMobileVehicle(vNo) {
+      vNo = (vNo || '').trim();
       var usage = vehicleActiveUsage[vNo];
-      var myDriverName = getCurrentDriverName() || (currentUser ? currentUser.id : '');
-      if (usage && usage.date === currentDate && usage.driver && usage.driver !== myDriverName) {
-        showToast(`🚫 [${vNo}]은(는) ${usage.driver} 기사님이 이미 운행 중입니다.`);
+      var myLoginId = (currentUser ? currentUser.id : '');
+      var isAdmin = (currentUser && currentUser.role === 'admin');
+
+      // 다른 기사가 운행 중이거나, 관리자가 운행 중인 차량을 누르면 선택 차단
+      if (usage && usage.date === currentDate && usage.driver && (isAdmin || usage.driver !== myLoginId)) {
+        showToast(`🚫 [${vNo}] 차량은 현재 [${usage.driver}] 기사님이 운행 중입니다.`);
         return;
       }
+
+      var myDriverName = getCurrentDriverName() || (currentUser ? currentUser.id : '');
 
       // [토글 기능] 이미 선택된 차량을 다시 누르면 선택 취소(해제)
       if (currentMobileVehicleNo === vNo && isVehicleConfirmedForToday()) {
