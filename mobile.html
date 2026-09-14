@@ -163,13 +163,13 @@
   </header>
 
   <!-- ========================================== -->
-  <!-- 1-1. Admin Driver Selector Bar (관리자 전용) -->
+  <!-- 1-1. Driver Schedule Selector Bar (기사/관리자) -->
   <!-- ========================================== -->
   <div id="adminDriverSelectorBar" class="hidden bg-indigo-900 text-white px-4 py-2.5 shadow-md sticky top-[89px] z-20 transition-all">
     <div class="flex items-center justify-between gap-2 max-w-lg mx-auto">
       <div class="flex items-center gap-1.5 shrink-0 text-xs font-black text-indigo-200">
-        <i class="fa-solid fa-user-gear text-amber-400"></i>
-        <span>기사 스케줄:</span>
+        <i class="fa-solid fa-users text-amber-400"></i>
+        <span>배송기사 선택:</span>
       </div>
       <select id="mobileAdminDriverSelect" onchange="onMobileAdminDriverSelectChanged(this.value)" class="flex-1 bg-indigo-800 text-white font-bold text-xs rounded-xl px-2.5 py-1.5 border border-indigo-700 focus:outline-none focus:ring-2 focus:ring-amber-400">
         <option value="__ALL__">👥 전체 기사 스케줄 (일괄 보기)</option>
@@ -2380,7 +2380,7 @@
     }
 
     // ==========================================
-    // Data Sync & Admin Driver Selector Engine
+    // Data Sync & Driver Schedule Selector Engine
     // ==========================================
     function populateMobileAdminDriverSelect() {
       var select = document.getElementById('mobileAdminDriverSelect');
@@ -2405,7 +2405,8 @@
         if (!driverList.includes(d)) driverList.push(d);
       });
 
-      var prevVal = select.value || selectedViewingDriver || '__ALL__';
+      var defaultVal = (currentUser && currentUser.role === 'driver') ? currentUser.id : '__ALL__';
+      var prevVal = select.value || selectedViewingDriver || defaultVal;
 
       select.innerHTML = `<option value="__ALL__">👥 전체 기사 스케줄 (일괄 보기 - 총 ${allMobileRows.length}건)</option>`;
 
@@ -2413,7 +2414,8 @@
         var cnt = driverCounts[d] || 0;
         var opt = document.createElement('option');
         opt.value = d;
-        opt.textContent = `🚗 ${d} (${cnt}건)`;
+        var isMe = (currentUser && currentUser.id === d) ? ' 🌟(내 배정)' : '';
+        opt.textContent = `🚗 ${d}${isMe} (${cnt}건)`;
         select.appendChild(opt);
       });
 
@@ -2421,8 +2423,8 @@
         select.value = prevVal;
         selectedViewingDriver = prevVal;
       } else {
-        select.value = '__ALL__';
-        selectedViewingDriver = '__ALL__';
+        select.value = defaultVal;
+        selectedViewingDriver = defaultVal;
       }
     }
 
@@ -2451,18 +2453,12 @@
     function filterAndRenderSchedule(showWelcome) {
       if (!currentUser) return;
 
-      if (currentUser.role === 'admin') {
-        if (!selectedViewingDriver || selectedViewingDriver === '__ALL__') {
-          driverRecords = allMobileRows.slice();
-        } else {
-          driverRecords = allMobileRows.filter(function(r) {
-            return (r.driver_name || '').trim() === selectedViewingDriver;
-          });
-        }
+      // 선택된 기사 또는 전체 기사 필터링 (기사/관리자 공통 열람 허용)
+      if (!selectedViewingDriver || selectedViewingDriver === '__ALL__') {
+        driverRecords = allMobileRows.slice();
       } else {
-        // 일반 기사는 본인 배정 건만 엄격 유지
         driverRecords = allMobileRows.filter(function(r) {
-          return (r.driver_name || '').trim() === currentUser.id;
+          return (r.driver_name || '').trim() === selectedViewingDriver;
         });
       }
 
@@ -2486,7 +2482,7 @@
       }
 
       if (showWelcome) {
-        var label = (currentUser.role === 'admin' && selectedViewingDriver !== '__ALL__')
+        var label = (selectedViewingDriver && selectedViewingDriver !== '__ALL__')
           ? selectedViewingDriver + ' 기사'
           : currentUser.id + '님';
         showToast('👋 ' + label + ', 오늘의 배송 (' + driverRecords.length + '건) 목록입니다.');
@@ -2526,14 +2522,14 @@
         });
         allMobileRows = allRows;
 
+        // 배송기사와 관리자 모두 상단 기사 선택 바를 상시 노출하여 타 기사 스케줄 열람 지원
         var adminBar = document.getElementById('adminDriverSelectorBar');
-        if (currentUser && currentUser.role === 'admin') {
-          if (adminBar) adminBar.classList.remove('hidden');
-          populateMobileAdminDriverSelect();
-        } else {
-          if (adminBar) adminBar.classList.add('hidden');
-          selectedViewingDriver = currentUser.id;
+        if (adminBar) adminBar.classList.remove('hidden');
+
+        if (!selectedViewingDriver) {
+          selectedViewingDriver = (currentUser.role === 'driver') ? currentUser.id : '__ALL__';
         }
+        populateMobileAdminDriverSelect();
 
         filterAndRenderSchedule(showWelcome);
       } catch (err) {
@@ -2627,6 +2623,7 @@
         var isPickup = (r.delivery_method === '방문수령' || r.driver_name === '방문수령' || r.category === '수령');
         var isArrived = !!times.arrive || r.status === '도착완료' || r.status === '수령완료' || r.status === '퀵출발';
         var isDriving = !isArrived && (!!times.depart || r.status === '운행중' || r.status === '접수완료');
+        var isMyRecord = (currentUser.role === 'admin' || (r.driver_name || '').trim() === currentUser.id);
 
         var contactObj = parseContactInfo(r.contact);
         var phoneNum = contactObj.phone;
@@ -2639,7 +2636,7 @@
         card.innerHTML = `
           <div class="flex items-start justify-between gap-2">
             <div class="flex items-center gap-2">
-              <span class="w-7 h-7 rounded-full ${isArrived ? 'bg-emerald-600' : 'bg-indigo-600'} text-white font-black text-xs flex items-center justify-center shadow-xs">
+              <span class="w-7 h-7 rounded-full ${isArrived ? 'bg-emerald-600' : isMyRecord ? 'bg-indigo-600' : 'bg-slate-600'} text-white font-black text-xs flex items-center justify-center shadow-xs">
                 ${isArrived ? '<i class="fa-solid fa-check"></i>' : (idx + 1)}
               </span>
               <div>
@@ -2648,9 +2645,14 @@
                   <span class="px-2 py-0.5 rounded text-[10px] font-black ${getMobileCategoryBadgeStyle(r.category)}">
                     ${r.category || '배송'}
                   </span>
-                  ${(currentUser && currentUser.role === 'admin' && selectedViewingDriver === '__ALL__') ? `
-                    <span class="px-2 py-0.5 rounded text-[10px] font-black bg-indigo-100 text-indigo-800 border border-indigo-200">
+                  ${(!isMyRecord || selectedViewingDriver === '__ALL__') ? `
+                    <span class="px-2 py-0.5 rounded text-[10px] font-black ${isMyRecord ? 'bg-indigo-100 text-indigo-800 border border-indigo-200' : 'bg-slate-100 text-slate-700 border border-slate-300'}">
                       <i class="fa-solid fa-truck text-indigo-600"></i> ${r.driver_name || '미배정'}
+                    </span>
+                  ` : ''}
+                  ${!isMyRecord ? `
+                    <span class="px-1.5 py-0.5 rounded text-[9.5px] font-black bg-amber-100 text-amber-800 border border-amber-200">
+                      👀 조회 전용
                     </span>
                   ` : ''}
                   <span class="text-[11px] font-bold text-slate-500 flex items-center gap-1">
@@ -2662,12 +2664,16 @@
 
             <!-- Reorder Buttons -->
             <div class="flex items-center gap-1">
-              <button onclick="moveStopOrder(${idx}, -1)" class="w-8 h-8 rounded-lg bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 text-slate-600 font-black text-xs flex items-center justify-center ${isFirst ? 'opacity-30 pointer-events-none' : ''}">
-                ▲
-              </button>
-              <button onclick="moveStopOrder(${idx}, 1)" class="w-8 h-8 rounded-lg bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 text-slate-600 font-black text-xs flex items-center justify-center ${isLast ? 'opacity-30 pointer-events-none' : ''}">
-                ▼
-              </button>
+              ${(isMyRecord && selectedViewingDriver !== '__ALL__') ? `
+                <button onclick="moveStopOrder(${idx}, -1)" class="w-8 h-8 rounded-lg bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 text-slate-600 font-black text-xs flex items-center justify-center ${isFirst ? 'opacity-30 pointer-events-none' : ''}">
+                  ▲
+                </button>
+                <button onclick="moveStopOrder(${idx}, 1)" class="w-8 h-8 rounded-lg bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 text-slate-600 font-black text-xs flex items-center justify-center ${isLast ? 'opacity-30 pointer-events-none' : ''}">
+                  ▼
+                </button>
+              ` : `
+                <span class="text-[10px] font-bold text-slate-400 px-1.5 py-0.5 bg-slate-100 rounded-md">#${idx + 1}</span>
+              `}
             </div>
           </div>
 
@@ -2707,7 +2713,7 @@
               </span>
               ${times.issueAuthor ? `<span class="text-[9px] bg-indigo-50 text-indigo-700 border border-indigo-200 px-1.5 py-0.2 rounded font-bold">${times.issueAuthor}</span>` : ''}
             </div>
-            <textarea id="fieldIssueInput_${idx}" rows="2" placeholder="부재, 경비실 보관, 파손/장비 이상 등 현장 메모..." class="w-full text-xs p-2 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-500 font-medium">${times.issue || ''}</textarea>
+            <textarea id="fieldIssueInput_${idx}" rows="2" ${!isMyRecord ? 'readonly' : ''} placeholder="${!isMyRecord ? '타 기사 배정 건 (읽기 전용)' : '부재, 경비실 보관, 파손/장비 이상 등 현장 메모...'}" class="w-full text-xs p-2 ${!isMyRecord ? 'bg-slate-100 cursor-not-allowed' : 'bg-white'} border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-500 font-medium">${times.issue || ''}</textarea>
             
             <div class="flex items-center justify-between gap-2 pt-0.5">
               <div>
@@ -2715,20 +2721,28 @@
                 ${times.photo ? `
                   <div class="relative inline-block">
                     <img src="${times.photo}" onclick="openMobilePhotoModal('${times.photo.replace(/'/g, "\\'")}', '${(r.customer_name || '현장 사진').replace(/'/g, "\\'")}')" class="w-12 h-12 object-cover rounded-lg border-2 border-indigo-500 shadow-xs cursor-pointer hover:opacity-90" title="클릭 시 확대">
-                    <button type="button" onclick="removePhoto(${idx})" class="absolute -top-1.5 -right-1.5 w-4 h-4 bg-rose-500 hover:bg-rose-600 text-white rounded-full flex items-center justify-center text-[9px] shadow" title="사진 삭제">
-                      <i class="fa-solid fa-xmark"></i>
-                    </button>
+                    ${isMyRecord ? `
+                      <button type="button" onclick="removePhoto(${idx})" class="absolute -top-1.5 -right-1.5 w-4 h-4 bg-rose-500 hover:bg-rose-600 text-white rounded-full flex items-center justify-center text-[9px] shadow" title="사진 삭제">
+                        <i class="fa-solid fa-xmark"></i>
+                      </button>
+                    ` : ''}
                   </div>
-                ` : `
+                ` : isMyRecord ? `
                   <button type="button" onclick="document.getElementById('photoFileInput_${idx}').click()" class="px-2.5 py-1.5 bg-white hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 text-[11px] font-bold rounded-lg border border-slate-200 shadow-xs flex items-center gap-1 transition active:scale-95">
                     <i class="fa-solid fa-camera text-indigo-600"></i>
                     <span>사진 촬영/첨부</span>
                   </button>
+                ` : `
+                  <span class="text-[10px] text-slate-400 font-medium">사진 없음</span>
                 `}
               </div>
-              <button type="button" onclick="saveDriverIssueMemo(${idx})" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white text-[11px] font-black rounded-lg shadow-xs flex items-center gap-1 transition active:scale-95">
-                <i class="fa-solid fa-floppy-disk text-[10px]"></i> 메모 저장
-              </button>
+              ${isMyRecord ? `
+                <button type="button" onclick="saveDriverIssueMemo(${idx})" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white text-[11px] font-black rounded-lg shadow-xs flex items-center gap-1 transition active:scale-95">
+                  <i class="fa-solid fa-floppy-disk text-[10px]"></i> 메모 저장
+                </button>
+              ` : `
+                <span class="text-[10px] text-slate-400 font-bold bg-slate-100 px-2 py-1 rounded">조회 전용</span>
+              `}
             </div>
           </div>
 
@@ -2766,33 +2780,33 @@
             ${isQuick ? `
               <!-- ⚡ 퀵 배송: 접수완료 / 퀵 출발 -->
               <div class="col-span-4">
-                <button onclick="recordQuickReceiptMobile(${idx})" class="btn-touch w-full ${times.depart ? 'bg-purple-700 text-white' : 'bg-purple-600 hover:bg-purple-700 text-white'} font-black text-xs rounded-xl shadow-xs transition gap-1">
-                  <i class="fa-solid fa-clipboard-check"></i> ${times.depart ? '접수 ' + times.depart : '접수완료'}
+                <button onclick="recordQuickReceiptMobile(${idx})" class="btn-touch w-full ${!isMyRecord ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : (times.depart ? 'bg-purple-700 text-white' : 'bg-purple-600 hover:bg-purple-700 text-white')} font-black text-xs rounded-xl shadow-xs transition gap-1">
+                  <i class="fa-solid fa-clipboard-check"></i> ${times.depart ? '접수 ' + times.depart : (!isMyRecord ? '접수완료' : '접수완료')}
                 </button>
               </div>
               <div class="col-span-4">
-                <button onclick="recordQuickDepartureMobile(${idx})" class="btn-touch w-full ${times.arrive ? 'bg-indigo-700 text-white' : 'bg-indigo-600 hover:bg-indigo-700 text-white'} font-black text-xs rounded-xl shadow-xs transition gap-1">
-                  <i class="fa-solid fa-motorcycle"></i> ${times.arrive ? '출발 ' + times.arrive : '퀵 출발'}
+                <button onclick="recordQuickDepartureMobile(${idx})" class="btn-touch w-full ${!isMyRecord ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : (times.arrive ? 'bg-indigo-700 text-white' : 'bg-indigo-600 hover:bg-indigo-700 text-white')} font-black text-xs rounded-xl shadow-xs transition gap-1">
+                  <i class="fa-solid fa-motorcycle"></i> ${times.arrive ? '출발 ' + times.arrive : (!isMyRecord ? '퀵출발' : '퀵 출발')}
                 </button>
               </div>
             ` : isPickup ? `
               <!-- 🏢 방문수령: 티맵 삭제(숨김), 수령 완료만 8열 배치 -->
               <div class="col-span-8">
-                <button onclick="recordPickupArrivalMobile(${idx})" class="btn-touch w-full ${times.arrive ? 'bg-emerald-700 text-white' : 'bg-emerald-600 hover:bg-emerald-700 text-white'} font-black text-xs rounded-xl shadow-xs transition gap-1">
-                  <i class="fa-solid fa-circle-check"></i> ${times.arrive ? '수령 완료 (' + times.arrive + ')' : '수령 완료 처리'}
+                <button onclick="recordPickupArrivalMobile(${idx})" class="btn-touch w-full ${!isMyRecord ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : (times.arrive ? 'bg-emerald-700 text-white' : 'bg-emerald-600 hover:bg-emerald-700 text-white')} font-black text-xs rounded-xl shadow-xs transition gap-1">
+                  <i class="fa-solid fa-circle-check"></i> ${times.arrive ? '수령 완료 (' + times.arrive + ')' : (!isMyRecord ? '수령 완료 (조회 전용)' : '수령 완료 처리')}
                 </button>
               </div>
             ` : `
               <!-- 🚚 일반 직배송: 티맵 안내 / 배송지 도착 -->
               <div class="col-span-4">
-                <button onclick="startTmapAndRecord(${idx})" class="btn-touch w-full ${times.depart ? 'bg-indigo-600' : 'bg-rose-500 hover:bg-rose-600'} text-white font-black text-xs rounded-xl shadow-xs transition gap-1">
-                  <i class="fa-solid fa-location-arrow"></i> ${times.depart ? '티맵 재실행' : '티맵 안내'}
+                <button onclick="startTmapAndRecord(${idx})" class="btn-touch w-full ${!isMyRecord ? 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200' : (times.depart ? 'bg-indigo-600 text-white' : 'bg-rose-500 hover:bg-rose-600 text-white')} font-black text-xs rounded-xl shadow-xs transition gap-1">
+                  <i class="fa-solid fa-location-arrow"></i> ${times.depart ? '티맵 재실행' : (!isMyRecord ? '티맵 경로보기' : '티맵 안내')}
                 </button>
               </div>
 
               <div class="col-span-4">
-                <button onclick="markArrivedAndRecord(${idx})" class="btn-touch w-full ${isArrived ? 'bg-emerald-600 text-white' : 'bg-slate-100 hover:bg-emerald-50 text-slate-700 hover:text-emerald-700 border border-slate-200 hover:border-emerald-300'} font-black text-xs rounded-xl transition gap-1">
-                  <i class="fa-solid fa-flag-checkered"></i> ${isArrived ? '도착 완료' : '배송지 도착'}
+                <button onclick="markArrivedAndRecord(${idx})" class="btn-touch w-full ${!isMyRecord ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed' : (isArrived ? 'bg-emerald-600 text-white' : 'bg-slate-100 hover:bg-emerald-50 text-slate-700 hover:text-emerald-700 border border-slate-200 hover:border-emerald-300')} font-black text-xs rounded-xl transition gap-1">
+                  <i class="fa-solid fa-flag-checkered"></i> ${isArrived ? '도착 완료' : (!isMyRecord ? '배송지 도착' : '배송지 도착')}
                 </button>
               </div>
             `}
@@ -2867,6 +2881,12 @@
       var r = driverRecords[idx];
       if (!r) return;
 
+      var isMyRecord = (currentUser.role === 'admin' || (r.driver_name || '').trim() === currentUser.id);
+      if (!isMyRecord) {
+        showToast('ℹ️ 타 기사님의 배송 건에는 사진을 등록할 수 없습니다.');
+        return;
+      }
+
       showToast('⏳ 사진 압축 및 저장 중...');
 
       try {
@@ -2902,6 +2922,11 @@
     async function removePhoto(idx) {
       var r = driverRecords[idx];
       if (!r) return;
+      var isMyRecord = (currentUser.role === 'admin' || (r.driver_name || '').trim() === currentUser.id);
+      if (!isMyRecord) {
+        showToast('ℹ️ 타 기사님의 현장 사진은 삭제할 수 없습니다.');
+        return;
+      }
       if (!confirm('첨부된 현장 사진을 삭제하시겠습니까?')) return;
 
       var times = getStopTimes(r);
@@ -2937,6 +2962,11 @@
     async function saveDriverIssueMemo(idx) {
       var r = driverRecords[idx];
       if (!r) return;
+      var isMyRecord = (currentUser.role === 'admin' || (r.driver_name || '').trim() === currentUser.id);
+      if (!isMyRecord) {
+        showToast('ℹ️ 타 기사님의 현장 특이사항/메모는 수정할 수 없습니다.');
+        return;
+      }
       var inputEl = document.getElementById('fieldIssueInput_' + idx);
       if (!inputEl) return;
       var newIssue = inputEl.value.trim();
@@ -2969,6 +2999,15 @@
     async function startTmapAndRecord(idx) {
       var r = driverRecords[idx];
       if (!r) return;
+
+      var isMyRecord = (currentUser.role === 'admin' || (r.driver_name || '').trim() === currentUser.id);
+      // 타 기사 배송건 조회 시: 출발 상태 기록 없이 단순 티맵 길안내만 허용
+      if (!isMyRecord) {
+        if (confirm(`ℹ️ [조회 전용 길안내]\n[${r.driver_name || '타 기사'}] 기사님에게 배정된 배송건입니다.\n\n출발 시각을 기록하지 않고 단순 티맵 경로 안내만 확인하시겠습니까?`)) {
+          launchMobileNaviApp(r.address, r.customer_name, 'tmap');
+        }
+        return;
+      }
 
       // 🚗 [티맵 실행 가드] 오늘 운행 차량이 선택되지 않은 경우 차량 선택 팝업 오픈
       if (!isVehicleConfirmedForToday()) {
@@ -3012,6 +3051,12 @@
     async function markArrivedAndRecord(idx) {
       var r = driverRecords[idx];
       if (!r) return;
+
+      var isMyRecord = (currentUser.role === 'admin' || (r.driver_name || '').trim() === currentUser.id);
+      if (!isMyRecord) {
+        alert(`ℹ️ [권한 안내]\n[${r.driver_name || '타 기사'}] 기사님의 배송 건은 도착 완료 처리를 할 수 없습니다.\n본인에게 배정된 배송 건만 완료 처리가 가능합니다.`);
+        return;
+      }
 
       if (!confirm(`🏁 [${r.customer_name}] 배송지에 도착하셨습니까?\n현재 시각으로 도착 완료가 기록됩니다.`)) {
         return;
@@ -3062,6 +3107,13 @@
     async function recordQuickReceiptMobile(idx) {
       var r = driverRecords[idx];
       if (!r) return;
+
+      var isMyRecord = (currentUser.role === 'admin' || (r.driver_name || '').trim() === currentUser.id);
+      if (!isMyRecord) {
+        alert(`ℹ️ [권한 안내]\n[${r.driver_name || '타 기사'}] 기사님의 배송 건은 상태 변경을 할 수 없습니다.`);
+        return;
+      }
+
       if (!confirm(`⚡ [${r.customer_name}] 퀵 접수를 완료하셨습니까?\n현재 시각으로 퀵 접수완료가 기록됩니다.`)) {
         return;
       }
@@ -3102,6 +3154,13 @@
     async function recordQuickDepartureMobile(idx) {
       var r = driverRecords[idx];
       if (!r) return;
+
+      var isMyRecord = (currentUser.role === 'admin' || (r.driver_name || '').trim() === currentUser.id);
+      if (!isMyRecord) {
+        alert(`ℹ️ [권한 안내]\n[${r.driver_name || '타 기사'}] 기사님의 배송 건은 상태 변경을 할 수 없습니다.`);
+        return;
+      }
+
       if (!confirm(`🚀 [${r.customer_name}] 퀵 기사님이 물품을 픽업하여 출발했습니까?\n현재 시각으로 퀵 출발이 기록됩니다.`)) {
         return;
       }
@@ -3144,6 +3203,13 @@
     async function recordPickupArrivalMobile(idx) {
       var r = driverRecords[idx];
       if (!r) return;
+
+      var isMyRecord = (currentUser.role === 'admin' || (r.driver_name || '').trim() === currentUser.id);
+      if (!isMyRecord) {
+        alert(`ℹ️ [권한 안내]\n[${r.driver_name || '타 기사'}] 기사님의 배송 건은 상태 변경을 할 수 없습니다.`);
+        return;
+      }
+
       if (!confirm(`🏢 [${r.customer_name}] 고객이 방문하여 물품 수령을 완료했습니까?\n현재 시각으로 수령 완료가 기록됩니다.`)) {
         return;
       }
@@ -3182,6 +3248,10 @@
 
     // Reorder & Cloud Sync
     async function moveStopOrder(idx, dir) {
+      if (currentUser.role !== 'admin' && selectedViewingDriver !== currentUser.id) {
+        showToast('ℹ️ 본인 배송 목록에서만 순서를 변경할 수 있습니다.');
+        return;
+      }
       var targetIdx = idx + dir;
       if (targetIdx < 0 || targetIdx >= driverRecords.length) return;
       var tmp = driverRecords[idx];
