@@ -1581,10 +1581,10 @@
               vehicleActiveUsage = {};
             }
 
-            // 2차 자동 감지: 오늘 날짜 VEHICLE_TRIP_LOGS 테이블에서 운행일지가 존재하는 차량 자동 인식
+            // 2차 자동 감지: 오늘 날짜 VEHICLE_TRIP_LOGS 테이블에서 운행일지가 존재하는 차량 자동 인식 (마감된 차량은 제외)
             try {
               var logRes = await supabaseClient.from('delivery_schedules')
-                .select('customer_name, driver_name, memo_full')
+                .select('customer_name, driver_name, status, memo_full')
                 .eq('source_sheet', 'VEHICLE_TRIP_LOGS')
                 .eq('delivery_date', currentDate);
               if (logRes.data && logRes.data.length > 0) {
@@ -1592,12 +1592,12 @@
                   var vNo = (row.customer_name || '').trim();
                   var drv = (row.driver_name || '').trim();
                   if (vNo && drv) {
-                    var isUnoperated = false;
+                    var isClosedOrUnop = (row.status === '운행마감' || row.status === '마감' || row.status === '완료');
                     try {
                       var p = JSON.parse(row.memo_full || '{}');
-                      if (p.is_unoperated === true) isUnoperated = true;
+                      if (p.is_unoperated === true || p.is_closed === true) isClosedOrUnop = true;
                     } catch(e) {}
-                    if (!isUnoperated) {
+                    if (!isClosedOrUnop) {
                       vehicleActiveUsage[vNo] = { driver: drv, date: currentDate };
                     }
                   }
@@ -2321,21 +2321,46 @@
       var dest = getMobileDriverDestination();
       var destAddr = dest.addr || DEFAULT_GASAN_ORIGIN.addr;
       var destName = dest.name || DEFAULT_GASAN_ORIGIN.name;
+      var nowTimeStr = new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false });
 
-      // Ensure stops have continuous start/end km calculated
+      // Ensure stops have continuous start/end km calculated with zero error
       var hasDelivery = false;
       if (cachedClosingStops && cachedClosingStops.length > 0) {
         hasDelivery = cachedClosingStops.some(function(s) { return s.type === 'delivery'; });
         var legCount = cachedClosingStops.length;
+        var totalLegs = legCount - 1; // origin 제외 실제 주행 구간 수
         var curK = startKm;
-        for (var i = 0; i < legCount; i++) {
-          var stop = cachedClosingStops[i];
-          stop.start_km = curK;
-          if (i === legCount - 1) {
-            stop.end_km = endKm;
+
+        if (totalLegs > 0) {
+          var baseDist = Math.floor(distKm / totalLegs);
+          var remDist = distKm % totalLegs;
+          for (var i = 0; i < legCount; i++) {
+            var stop = cachedClosingStops[i];
+            if (stop.type === 'origin' || i === 0) {
+              stop.start_km = startKm;
+              stop.end_km = startKm;
+              stop.distance_km = 0;
+            } else {
+              var legDist = baseDist + ((i - 1) < remDist ? 1 : 0);
+              stop.start_km = curK;
+              stop.distance_km = legDist;
+              curK += legDist;
+              stop.end_km = curK;
+            }
+          }
+        }
+
+        // 마지막 복귀지(return) 정보 자동 완성 (복귀 시각 및 상태 완벽 기록)
+        var returnStop = cachedClosingStops[cachedClosingStops.length - 1];
+        if (returnStop && returnStop.type === 'return') {
+          returnStop.arrive = nowTimeStr;
+          returnStop.time = nowTimeStr;
+          returnStop.status = '도착완료';
+          returnStop.memo = returnStop.memo || '운행 복귀 및 마감 완료';
+          if (legCount > 2 && cachedClosingStops[legCount - 2].arrive) {
+            returnStop.depart = cachedClosingStops[legCount - 2].arrive;
           } else {
-            curK = Math.round(curK + (distKm / (legCount - 1)));
-            stop.end_km = curK;
+            returnStop.depart = nowTimeStr;
           }
         }
       }
@@ -2355,6 +2380,8 @@
         parking_fee: parkingFee,
         fuel_fee: fuelFee,
         is_unoperated: (distKm === 0 && !hasDelivery),
+        is_closed: true,
+        closed_at: nowTimeStr,
         location_memo: locationMemo,
         location_photo: currentClosingLocationPhoto || '',
         memo: memo
@@ -2376,6 +2403,8 @@
             await supabaseClient.from('delivery_schedules')
               .update({
                 driver_name: drvName,
+                status: '운행마감',
+                memo_special: JSON.stringify({ arrive: nowTimeStr }),
                 memo_full: JSON.stringify(logPayload)
               })
               .eq('id', checkRes.data[0].id);
@@ -2385,6 +2414,8 @@
               source_sheet: 'VEHICLE_TRIP_LOGS',
               delivery_date: currentDate,
               driver_name: drvName,
+              status: '운행마감',
+              memo_special: JSON.stringify({ arrive: nowTimeStr }),
               memo_full: JSON.stringify(logPayload)
             }]);
           }

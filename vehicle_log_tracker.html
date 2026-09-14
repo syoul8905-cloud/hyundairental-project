@@ -978,6 +978,7 @@
                 parking_fee: Number(parsed.parking_fee || 0),
                 fuel_fee: Number(parsed.fuel_fee || 0),
                 is_unoperated: Boolean(parsed.is_unoperated),
+                is_closed: Boolean(parsed.is_closed || row.status === '운행마감' || row.status === '마감'),
                 is_local_dismissal: Boolean(parsed.is_local_dismissal),
                 destination_addr: parsed.destination_addr || '',
                 destination_name: parsed.destination_name || '',
@@ -1337,7 +1338,7 @@
           var isExplicitUnop = Boolean(log.is_unoperated) || log.driver_name === '미운행';
           var isZeroKmWithoutStops = (log.start_km === log.end_km && !hasDeliveryStops);
           var isUnop = isExplicitUnop || isZeroKmWithoutStops;
-          var isOngoingToday = (!isUnop && log.start_km === log.end_km && hasDeliveryStops);
+          var isOngoingToday = (!isUnop && log.start_km === log.end_km && hasDeliveryStops && !log.is_closed);
 
           if (isUnop) {
             totalVisitedDestCount++;
@@ -1512,7 +1513,7 @@
         var isExplicitUnop = Boolean(log.is_unoperated) || log.driver_name === '미운행';
         var isZeroKmWithoutStops = (log.start_km === log.end_km && !hasDeliveryStops);
         var isUnop = isExplicitUnop || isZeroKmWithoutStops;
-        var isOngoingToday = (!isUnop && log.start_km === log.end_km && hasDeliveryStops);
+        var isOngoingToday = (!isUnop && log.start_km === log.end_km && hasDeliveryStops && !log.is_closed);
 
         var driverBadge = isUnop
           ? '<span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 font-bold border border-slate-200">미운행</span>'
