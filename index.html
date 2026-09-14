@@ -5150,7 +5150,16 @@
           var addrIndices = findColIndices(['기본주소', '주소', '배송지']);
           var detailAddrIndices = findColIndices(['상세주소', '상세']);
           var reqStatusIndices = findColIndices(['의뢰상태']);
-          var statusIndices = findColIndices(['배송상태', '상태']);
+          // 배송상태 컬럼: '의뢰상태'와 간섭되지 않도록 '배송상태'를 정확히 매칭 (의뢰상태 컬럼 배제)
+          var statusIndices = [];
+          header.forEach(function(h, idx) {
+            var trimmed = (h || '').trim();
+            if (trimmed === '배송상태' || trimmed.indexOf('배송상태') !== -1) {
+              statusIndices.push(idx);
+            } else if (trimmed.indexOf('상태') !== -1 && trimmed.indexOf('의뢰') === -1) {
+              statusIndices.push(idx);
+            }
+          });
           var catIndices = findColIndices(['구분']);
           var timeIndices = findColIndices(['배송시간', '방문시간', '희망시간']);
           var itemIndices = findColIndices(['제품명', '품목_수량', '품목', '상품명', '회수제품정보']);
