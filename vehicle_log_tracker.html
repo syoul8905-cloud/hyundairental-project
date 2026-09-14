@@ -890,7 +890,16 @@
       if (!supabaseClient) return;
 
       try {
-        var payload = { vehicles: vehiclesMaster };
+        var existingConfig = {};
+        var checkRes = await supabaseClient.from('delivery_schedules')
+          .select('memo_full')
+          .eq('source_sheet', 'SYSTEM_CONFIG_VEHICLES')
+          .limit(1);
+        if (checkRes.data && checkRes.data.length > 0 && checkRes.data[0].memo_full) {
+          try { existingConfig = JSON.parse(checkRes.data[0].memo_full); } catch(e) {}
+        }
+        var payload = Object.assign({}, existingConfig, { vehicles: vehiclesMaster });
+
         await supabaseClient.from('delivery_schedules')
           .delete()
           .eq('source_sheet', 'SYSTEM_CONFIG_VEHICLES');

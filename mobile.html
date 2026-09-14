@@ -461,10 +461,14 @@
         <!-- Injected via JS -->
       </div>
 
-      <div class="flex justify-between items-center pt-1" id="mobileVehicleSelectFooter">
+      <div class="flex items-center justify-between pt-1 gap-2" id="mobileVehicleSelectFooter">
         <button id="mobileVehicleUnselectBtn" type="button" onclick="unselectMobileVehicle()" class="px-3 py-2 bg-rose-50 text-rose-700 font-bold rounded-xl text-xs hover:bg-rose-100 flex items-center gap-1 border border-rose-200">
           <i class="fa-solid fa-ban text-[11px]"></i>
           <span>선택 취소 (미운행)</span>
+        </button>
+        <button id="mobileVehicleAdminSkipBtn" type="button" onclick="skipVehicleSelectionForAdmin()" class="hidden px-3 py-2 bg-indigo-50 text-indigo-700 font-bold rounded-xl text-xs hover:bg-indigo-100 flex items-center gap-1 border border-indigo-200" title="차량 선택 없이 전체 배송 일정을 모니터링합니다.">
+          <i class="fa-solid fa-eye text-[11px]"></i>
+          <span>관리자 관제 모드</span>
         </button>
         <button id="mobileVehicleSelectCloseBtn" onclick="closeMobileVehicleSelectModal()" class="px-4 py-2 bg-slate-100 text-slate-600 font-bold rounded-xl text-xs hover:bg-slate-200">
           닫기
@@ -566,6 +570,16 @@
           <div id="mobileClosingStopFeesContainer" class="space-y-2 max-h-56 overflow-y-auto pr-0.5">
             <!-- Dynamically rendered -->
           </div>
+        </div>
+
+        <!-- Parking Location Memo -->
+        <div class="p-2.5 bg-rose-50/60 border border-rose-200/80 rounded-xl space-y-1">
+          <label class="block text-[10.5px] font-black text-rose-950 flex items-center gap-1.5">
+            <i class="fa-solid fa-location-dot text-rose-600 text-xs"></i>
+            <span>차량 주차 위치 메모 (다음 운행자 안내)</span>
+          </label>
+          <input type="text" id="closingLocationMemo" placeholder="예: 가산센터 지하 2층 B-04 기둥 뒤, 1층 지상 등" class="w-full bg-white text-slate-800 px-3 py-2 rounded-xl border border-rose-300 text-xs focus:ring-2 focus:ring-rose-500 font-bold placeholder:text-slate-400">
+          <p class="text-[9.5px] text-rose-700 font-medium">※ 입력한 주차 위치는 다음 기사님이 차량 선택 시 실시간으로 표시됩니다.</p>
         </div>
 
         <!-- Memo -->
@@ -1294,10 +1308,18 @@
     var currentMobileVehicleNo = localStorage.getItem('DELIVERY_TODAY_VEHICLE_NO_V1') || '';
 
     function isVehicleConfirmedForToday() {
+      // localStorage만으로 판단 (currentMobileVehicleNo 순환 의존 제거)
       var savedDate = localStorage.getItem('DELIVERY_TODAY_VEHICLE_DATE_V1');
       var savedVehNo = localStorage.getItem('DELIVERY_TODAY_VEHICLE_NO_V1');
-      return Boolean(savedVehNo && savedDate === currentDate && currentMobileVehicleNo === savedVehNo);
+      return Boolean(savedVehNo && savedDate === currentDate);
     }
+
+    function getSavedVehicleNo() {
+      return localStorage.getItem('DELIVERY_TODAY_VEHICLE_NO_V1') || '';
+    }
+
+    // 차량별 운행 중 잠금 정보 (실시간 동기화)
+    var vehicleActiveUsage = {}; // { "826라8911": { driver: "김승지", date: "2026-09-14" } }
 
     async function syncMobileVehiclesFromCloud() {
       var cached = localStorage.getItem('CORPORATE_VEHICLES_MASTER_V1');
@@ -1320,13 +1342,36 @@
               mobileVehiclesMaster = config.vehicles;
               localStorage.setItem('CORPORATE_VEHICLES_MASTER_V1', JSON.stringify(mobileVehiclesMaster));
             }
+            // active_usage: 오늘 날짜의 것만 반영 (오래된 잠금은 무시)
+            if (config && config.active_usage) {
+              vehicleActiveUsage = {};
+              Object.keys(config.active_usage).forEach(function(vNo) {
+                var u = config.active_usage[vNo];
+                if (u && u.date === currentDate) {
+                  vehicleActiveUsage[vNo] = u;
+                }
+              });
+            } else {
+              vehicleActiveUsage = {};
+            }
           }
         } catch(e) {
           console.warn('Failed to load vehicles master on mobile:', e);
         }
       }
 
+      // currentMobileVehicleNo를 localStorage에서 항상 복원 (리셋 방지)
+      if (isVehicleConfirmedForToday()) {
+        currentMobileVehicleNo = getSavedVehicleNo();
+      }
+
       updateMobileVehicleWidgetUI();
+
+      // 모달이 열려 있는 동안 실시간 동기화 발생 시 옵션 자동 리렌더링
+      var modal = document.getElementById('mobileVehicleSelectModal');
+      if (modal && !modal.classList.contains('hidden')) {
+        renderMobileVehicleOptions();
+      }
     }
 
     function updateMobileVehicleWidgetUI() {
@@ -1334,41 +1379,35 @@
       var odoEl = document.getElementById('mobileActiveVehicleOdo');
 
       if (!isVehicleConfirmedForToday()) {
-        currentMobileVehicleNo = '';
-        if (nameEl) nameEl.innerHTML = '<span class="text-rose-600 font-black animate-pulse">⚠️ 차량 선택 필수</span>';
-        if (odoEl) odoEl.innerHTML = '<span class="text-rose-600 font-bold text-[10.5px]">오늘 운행할 차량을 먼저 선택해주세요</span>';
+        if (currentUser && currentUser.role === 'admin') {
+          if (nameEl) nameEl.innerHTML = '<span class="text-indigo-600 font-black flex items-center gap-1"><i class="fa-solid fa-building-shield"></i> 관리자 관제 모드</span>';
+          if (odoEl) odoEl.innerHTML = '<span class="text-slate-500 font-medium text-[10.5px]">차량 미선택 (전체 배송 현황 조회)</span>';
+        } else {
+          if (nameEl) nameEl.innerHTML = '<span class="text-rose-600 font-black animate-pulse">⚠️ 차량 선택 필수</span>';
+          if (odoEl) odoEl.innerHTML = '<span class="text-rose-600 font-bold text-[10.5px]">오늘 운행할 차량을 먼저 선택해주세요</span>';
+        }
         return;
       }
 
-      var veh = mobileVehiclesMaster.find(function(v) { return v.vehicle_no === currentMobileVehicleNo; }) || mobileVehiclesMaster[0];
-      if (!veh) return;
-      currentMobileVehicleNo = veh.vehicle_no;
+      // localStorage에서 항상 복원
+      var savedVehNo = getSavedVehicleNo();
+      currentMobileVehicleNo = savedVehNo;
 
+      var veh = mobileVehiclesMaster.find(function(v) { return v.vehicle_no === savedVehNo; });
+      if (!veh && mobileVehiclesMaster.length > 0) veh = mobileVehiclesMaster[0];
+      if (!veh) return;
+
+      var locBadge = veh.last_location ? ` · <span class="text-slate-500 font-medium text-[10px]" title="${veh.last_location}">📍 ${veh.last_location}</span>` : '';
       if (nameEl) nameEl.innerText = `${veh.vehicle_no} (${veh.model_name})`;
-      if (odoEl) odoEl.innerHTML = `시작 계기판: <b class="text-indigo-800 font-mono">${(veh.current_km || veh.initial_km || 0).toLocaleString()} km</b>`;
+      if (odoEl) odoEl.innerHTML = `시작 계기판: <b class="text-indigo-800 font-mono">${(veh.current_km || veh.initial_km || 0).toLocaleString()} km</b>${locBadge}`;
     }
 
-    function openMobileVehicleSelectModal(isForced) {
-      if (typeof isForced !== 'boolean') {
-        isForced = !isVehicleConfirmedForToday();
-      }
-
-      var closeX = document.getElementById('mobileVehicleSelectCloseX');
-      var closeBtn = document.getElementById('mobileVehicleSelectCloseBtn');
-      var noticeDesc = document.getElementById('mobileVehicleNoticeDesc');
-
-      if (isForced) {
-        if (closeX) closeX.classList.add('hidden');
-        if (closeBtn) closeBtn.classList.add('hidden');
-        if (noticeDesc) noticeDesc.innerText = '오늘 운행할 법인차량을 반드시 먼저 선택해주세요. 선택 즉시 배송지 목록이 해당 차량의 운행일지에 연동됩니다.';
-      } else {
-        if (closeX) closeX.classList.remove('hidden');
-        if (closeBtn) closeBtn.classList.remove('hidden');
-        if (noticeDesc) noticeDesc.innerText = '운행 차량을 변경하면 오늘 배송 일정이 변경된 차량으로 동기화됩니다.';
-      }
-
+    function renderMobileVehicleOptions() {
       var container = document.getElementById('mobileVehicleOptionsContainer');
       if (!container) return;
+
+      var isAdmin = (currentUser && currentUser.role === 'admin');
+      var myDriverName = getCurrentDriverName() || (currentUser ? currentUser.id : '');
 
       var unselectBtn = document.getElementById('mobileVehicleUnselectBtn');
       if (unselectBtn) {
@@ -1380,7 +1419,41 @@
       }
 
       container.innerHTML = mobileVehiclesMaster.filter(function(v) { return v.is_active !== false; }).map(function(v) {
+        var usage = vehicleActiveUsage[v.vehicle_no];
+        var isOtherDriving = Boolean(usage && usage.date === currentDate && usage.driver && usage.driver !== myDriverName);
         var isSelected = (v.vehicle_no === currentMobileVehicleNo && isVehicleConfirmedForToday());
+
+        var locationHtml = '';
+        if (v.last_location) {
+          locationHtml = `
+            <div class="mt-1 px-2 py-0.5 bg-slate-100/90 border border-slate-200/80 rounded-lg text-[10.5px] text-slate-700 flex items-center gap-1.5">
+              <i class="fa-solid fa-location-dot text-rose-500 text-[10px] shrink-0"></i>
+              <span class="truncate">주차: <b class="text-slate-900">${v.last_location}</b>${v.last_location_date ? ` <span class="text-slate-400 font-mono text-[9.5px]">(${v.last_location_date.slice(5)})</span>` : ''}</span>
+            </div>
+          `;
+        }
+
+        if (isOtherDriving) {
+          return `
+            <div onclick="showToast('🚫 [${v.vehicle_no}] 차량은 현재 [${usage.driver}] 기사님이 운행 중입니다.')" class="p-3 rounded-2xl border border-slate-300 bg-slate-100/80 opacity-70 cursor-not-allowed flex items-center justify-between transition">
+              <div class="flex items-center gap-2.5">
+                <div class="w-8 h-8 rounded-xl bg-slate-200 text-slate-500 flex items-center justify-center text-xs">
+                  <i class="fa-solid fa-ban"></i>
+                </div>
+                <div>
+                  <div class="flex items-center gap-1.5 flex-wrap">
+                    <h4 class="font-black text-xs text-slate-700">${v.vehicle_no} (${v.model_name})</h4>
+                    <span class="text-[9.5px] px-1.5 py-0.2 bg-amber-100 text-amber-900 border border-amber-300 font-black rounded-md shadow-2xs">🚗 운행 중 (${usage.driver})</span>
+                  </div>
+                  <p class="text-[10px] text-slate-500 font-mono mt-0.5">계기판: ${(v.current_km || v.initial_km || 0).toLocaleString()} km / 담당: ${v.default_driver || '-'}</p>
+                  ${locationHtml}
+                </div>
+              </div>
+              <span class="text-xs text-slate-400 font-bold px-2.5 py-1 bg-slate-200 rounded-lg shrink-0">선택 불가</span>
+            </div>
+          `;
+        }
+
         return `
           <div onclick="selectMobileVehicle('${v.vehicle_no}')" class="p-3 rounded-2xl border ${isSelected ? 'border-indigo-600 bg-indigo-50/80 ring-2 ring-indigo-500/20 shadow-xs' : 'border-slate-200 bg-white hover:bg-slate-50'} cursor-pointer flex items-center justify-between transition active:scale-98">
             <div class="flex items-center gap-2.5">
@@ -1393,13 +1466,49 @@
                   ${isSelected ? '<span class="text-[9.5px] px-1.5 py-0.2 bg-indigo-600 text-white font-black rounded-md shadow-2xs">선택됨 (터치 시 취소)</span>' : ''}
                 </div>
                 <p class="text-[10px] text-slate-500 font-mono mt-0.5">최신 계기판: ${(v.current_km || v.initial_km || 0).toLocaleString()} km / 담당: ${v.default_driver || '-'}</p>
+                ${locationHtml}
               </div>
             </div>
             ${isSelected ? '<span class="text-xs text-rose-600 font-bold px-2 py-1 bg-rose-50 hover:bg-rose-100 rounded-lg border border-rose-200 flex items-center gap-1 shrink-0"><i class="fa-solid fa-xmark"></i> 취소</span>' : '<span class="text-xs text-indigo-600 font-bold px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 rounded-lg border border-indigo-200 shrink-0">선택</span>'}
           </div>
         `;
       }).join('');
+    }
 
+    function openMobileVehicleSelectModal(isForced) {
+      var isAdmin = (currentUser && currentUser.role === 'admin');
+
+      if (isAdmin) {
+        isForced = false; // 관리자는 차량 선택 강제 없음
+      } else if (typeof isForced !== 'boolean') {
+        isForced = !isVehicleConfirmedForToday();
+      }
+
+      var closeX = document.getElementById('mobileVehicleSelectCloseX');
+      var closeBtn = document.getElementById('mobileVehicleSelectCloseBtn');
+      var noticeDesc = document.getElementById('mobileVehicleNoticeDesc');
+      var adminSkipBtn = document.getElementById('mobileVehicleAdminSkipBtn');
+
+      if (adminSkipBtn) {
+        if (isAdmin) adminSkipBtn.classList.remove('hidden');
+        else adminSkipBtn.classList.add('hidden');
+      }
+
+      if (isForced) {
+        if (closeX) closeX.classList.add('hidden');
+        if (closeBtn) closeBtn.classList.add('hidden');
+        if (noticeDesc) noticeDesc.innerText = '오늘 운행할 법인차량을 반드시 먼저 선택해주세요. 선택 즉시 배송지 목록이 해당 차량의 운행일지에 연동됩니다.';
+      } else {
+        if (closeX) closeX.classList.remove('hidden');
+        if (closeBtn) closeBtn.classList.remove('hidden');
+        if (noticeDesc) {
+          noticeDesc.innerText = isAdmin
+            ? '관리자 모드: 차량 선택 없이 전체 관제 가능하며, 특정 차량 선택 시 해당 차량 정보로 동기화됩니다.'
+            : '운행 차량을 변경하면 오늘 배송 일정이 변경된 차량으로 동기화됩니다.';
+        }
+      }
+
+      renderMobileVehicleOptions();
       document.getElementById('mobileVehicleSelectModal').classList.remove('hidden');
     }
 
@@ -1407,7 +1516,52 @@
       document.getElementById('mobileVehicleSelectModal').classList.add('hidden');
     }
 
-    function selectMobileVehicle(vNo) {
+    // 관리자 관제 모드 전용: 차량 선택 없이 닫기
+    function skipVehicleSelectionForAdmin() {
+      currentMobileVehicleNo = '';
+      localStorage.removeItem('DELIVERY_TODAY_VEHICLE_NO_V1');
+      localStorage.removeItem('DELIVERY_TODAY_VEHICLE_DATE_V1');
+      updateMobileVehicleWidgetUI();
+      closeMobileVehicleSelectModal();
+      showToast('🏢 [관리자 관제 모드] 차량 선택 없이 전체 배송 관제를 시작합니다.');
+    }
+
+    async function setVehicleActiveUsageOnCloud(vNo, driverName) {
+      if (!supabaseClient || !vNo) return;
+      try {
+        var res = await supabaseClient.from('delivery_schedules')
+          .select('id, memo_full')
+          .eq('source_sheet', 'SYSTEM_CONFIG_VEHICLES')
+          .limit(1);
+        if (!res.data || res.data.length === 0) return;
+        var rowId = res.data[0].id;
+        var config = {};
+        try { config = JSON.parse(res.data[0].memo_full || '{}'); } catch(e) {}
+
+        if (!config.active_usage) config.active_usage = {};
+
+        if (driverName) {
+          config.active_usage[vNo] = { driver: driverName, date: currentDate };
+        } else {
+          delete config.active_usage[vNo];
+        }
+
+        await supabaseClient.from('delivery_schedules')
+          .update({ memo_full: JSON.stringify(config) })
+          .eq('id', rowId);
+      } catch(e) {
+        console.warn('active_usage 클라우드 업데이트 실패:', e);
+      }
+    }
+
+    async function selectMobileVehicle(vNo) {
+      var usage = vehicleActiveUsage[vNo];
+      var myDriverName = getCurrentDriverName() || (currentUser ? currentUser.id : '');
+      if (usage && usage.date === currentDate && usage.driver && usage.driver !== myDriverName) {
+        showToast(`🚫 [${vNo}]은(는) ${usage.driver} 기사님이 이미 운행 중입니다.`);
+        return;
+      }
+
       // [토글 기능] 이미 선택된 차량을 다시 누르면 선택 취소(해제)
       if (currentMobileVehicleNo === vNo && isVehicleConfirmedForToday()) {
         unselectMobileVehicle();
@@ -1417,20 +1571,24 @@
       currentMobileVehicleNo = vNo;
       localStorage.setItem('DELIVERY_TODAY_VEHICLE_NO_V1', vNo);
       localStorage.setItem('DELIVERY_TODAY_VEHICLE_DATE_V1', currentDate);
+      vehicleActiveUsage[vNo] = { driver: myDriverName, date: currentDate };
       updateMobileVehicleWidgetUI();
       document.getElementById('mobileVehicleSelectModal').classList.add('hidden');
       showToast(`🚗 오늘 운행 차량이 [${vNo}]로 확정되었습니다. 배송지가 운행일지에 연동됩니다.`);
+      await setVehicleActiveUsageOnCloud(vNo, myDriverName);
       syncTodayScheduleToVehicleLog(vNo);
     }
 
-    function unselectMobileVehicle() {
+    async function unselectMobileVehicle() {
       var prevVeh = currentMobileVehicleNo;
       currentMobileVehicleNo = '';
       localStorage.removeItem('DELIVERY_TODAY_VEHICLE_NO_V1');
       localStorage.removeItem('DELIVERY_TODAY_VEHICLE_DATE_V1');
+      if (prevVeh) delete vehicleActiveUsage[prevVeh];
       updateMobileVehicleWidgetUI();
       document.getElementById('mobileVehicleSelectModal').classList.add('hidden');
       showToast(prevVeh ? `🚫 [${prevVeh}] 차량 선택이 취소되었습니다.` : '🚫 차량 선택이 취소되었습니다.');
+      if (prevVeh) await setVehicleActiveUsageOnCloud(prevVeh, null);
     }
 
     async function syncTodayScheduleToVehicleLog(vNo) {
@@ -1573,6 +1731,8 @@
       document.getElementById('closingParkingFee').value = 0;
       document.getElementById('closingFuelFee').value = 0;
       document.getElementById('closingMemo').value = '';
+      var locInput = document.getElementById('closingLocationMemo');
+      if (locInput) locInput.value = veh.last_location || '';
 
       // Initialize cachedClosingStops from today's delivery schedule or existing log
       await prepareClosingStops(veh.vehicle_no, destName, destAddr);
@@ -1600,6 +1760,10 @@
             var parsed = JSON.parse(res.data[0].memo_full);
             if (parsed.stops && parsed.stops.length > 0) existingStops = parsed.stops;
             if (parsed.parking_fee) document.getElementById('closingParkingFee').value = parsed.parking_fee;
+            if (parsed.location_memo) {
+              var locInput = document.getElementById('closingLocationMemo');
+              if (locInput) locInput.value = parsed.location_memo;
+            }
             if (parsed.end_km) {
               var pEnd = Number(parsed.end_km);
               if (pEnd >= startKm) {
@@ -1839,6 +2003,7 @@
       var parkingFee = Number(document.getElementById('closingParkingFee').value || 0);
       var fuelFee = Number(document.getElementById('closingFuelFee').value || 0);
       var memo = document.getElementById('closingMemo').value.trim();
+      var locationMemo = document.getElementById('closingLocationMemo') ? document.getElementById('closingLocationMemo').value.trim() : '';
 
       if (endKm < startKm) {
         alert('⚠️ [입력 오류] 종료 계기판 Km는 시작 Km보다 작을 수 없습니다. (계기판 역전 방지)');
@@ -1884,6 +2049,7 @@
         parking_fee: parkingFee,
         fuel_fee: fuelFee,
         is_unoperated: (distKm === 0 && !hasDelivery),
+        location_memo: locationMemo,
         memo: memo
       };
 
@@ -1917,17 +2083,50 @@
           }
 
           veh.current_km = endKm;
-          await supabaseClient.from('delivery_schedules')
-            .update({
-              memo_full: JSON.stringify({ vehicles: mobileVehiclesMaster })
-            })
-            .eq('source_sheet', 'SYSTEM_CONFIG_VEHICLES');
+          if (locationMemo) {
+            veh.last_location = locationMemo;
+            veh.last_location_date = currentDate;
+            veh.last_location_driver = drvName;
+          }
+
+          // 마감 완료 시 운행 종료이므로 active_usage에서 해당 차량 해제
+          if (vehicleActiveUsage[veh.vehicle_no]) {
+            delete vehicleActiveUsage[veh.vehicle_no];
+          }
+
+          // 기존 SYSTEM_CONFIG_VEHICLES config 보존 및 active_usage 해제 병합
+          var masterRes = await supabaseClient.from('delivery_schedules')
+            .select('id, memo_full')
+            .eq('source_sheet', 'SYSTEM_CONFIG_VEHICLES')
+            .limit(1);
+          var masterConfig = { vehicles: mobileVehiclesMaster };
+          if (masterRes.data && masterRes.data.length > 0 && masterRes.data[0].memo_full) {
+            try { masterConfig = JSON.parse(masterRes.data[0].memo_full); } catch(e) {}
+          }
+          masterConfig.vehicles = mobileVehiclesMaster;
+          if (!masterConfig.active_usage) masterConfig.active_usage = {};
+          delete masterConfig.active_usage[veh.vehicle_no];
+
+          if (masterRes.data && masterRes.data.length > 0) {
+            await supabaseClient.from('delivery_schedules')
+              .update({
+                memo_full: JSON.stringify(masterConfig)
+              })
+              .eq('id', masterRes.data[0].id);
+          } else {
+            await supabaseClient.from('delivery_schedules').insert([{
+              customer_name: 'SYSTEM_CONFIG_VEHICLES',
+              source_sheet: 'SYSTEM_CONFIG_VEHICLES',
+              delivery_date: '2099-12-31',
+              memo_full: JSON.stringify(masterConfig)
+            }]);
+          }
         }
 
         localStorage.setItem('CORPORATE_VEHICLES_MASTER_V1', JSON.stringify(mobileVehiclesMaster));
         updateMobileVehicleWidgetUI();
         closeMobileVehicleClosingModal();
-        showToast(`✅ [${veh.vehicle_no}] 오늘 운행일지(${distKm}km)가 정상 저장되었습니다!`);
+        showToast(`✅ [${veh.vehicle_no}] 운행일지(${distKm}km) 및 주차위치(${locationMemo || '가산센터'})가 정상 저장되었습니다!`);
       } catch(err) {
         console.error('Error closing mobile trip log:', err);
         alert('운행일지 저장 중 오류가 발생했습니다: ' + err.message);
@@ -2180,12 +2379,14 @@
         showToast('👋 ' + label + ', 오늘의 배송 (' + driverRecords.length + '건) 목록입니다.');
       }
 
-      // Check if vehicle has been confirmed for today
+      // Check if vehicle has been confirmed for today (기사 전용 강제 선택, 관리자는 건너뛰기 가능)
       var urlP = new URLSearchParams(window.location.search);
       if (!urlP.get('vehicle') && urlP.get('modal') !== 'closing' && !isVehicleConfirmedForToday()) {
-        setTimeout(function() {
-          openMobileVehicleSelectModal(true);
-        }, 400);
+        if (currentUser && currentUser.role !== 'admin') {
+          setTimeout(function() {
+            openMobileVehicleSelectModal(true);
+          }, 400);
+        }
       }
     }
 
