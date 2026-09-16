@@ -7444,8 +7444,10 @@
     async function bootstrapDashboard() {
       initLoginState();
 
-      // 저장된 조회 날짜 또는 오늘 날짜 우선 반영하여 로딩 중 튐 방지
-      var savedDate = localStorage.getItem('DELIVERY_VIEWING_DATE_V1') || getTodayLocalDate();
+      // 저장된 조회 날짜 또는 오늘 날짜 우선 반영 (과거 날짜 잔류 시 오늘 날짜 우선)
+      var todayStr = getTodayLocalDate();
+      var savedDate = localStorage.getItem('DELIVERY_VIEWING_DATE_V1');
+      if (!savedDate || (savedDate !== 'all' && savedDate < todayStr)) savedDate = todayStr;
       var urlParams = new URLSearchParams(window.location.search);
       var reqDate = urlParams.get('date') || savedDate;
       setHeaderCalendarDate(reqDate);

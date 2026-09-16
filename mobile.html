@@ -1043,7 +1043,10 @@
       return `${year}-${month}-${day}`;
     }
 
-    var currentDate = localStorage.getItem('DELIVERY_VIEWING_DATE_V1') || getTodayLocalDate();
+    var savedViewingDate = localStorage.getItem('DELIVERY_VIEWING_DATE_V1');
+    var todayLocal = getTodayLocalDate();
+    // 모바일 기사 앱은 접속 시 항상 오늘 날짜 일정을 최우선 기본값으로 설정 (과거 날짜 잔류로 인한 혼선 100% 방지)
+    var currentDate = (savedViewingDate && savedViewingDate >= todayLocal) ? savedViewingDate : todayLocal;
     var driverRecords = [];
     var allMobileRows = [];
     var selectedViewingDriver = '__ALL__';
