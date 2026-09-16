@@ -1921,7 +1921,17 @@
           if (res.data && res.data.length > 0 && res.data[0].memo_full) {
             var config = JSON.parse(res.data[0].memo_full);
             if (config && Array.isArray(config.vehicles) && config.vehicles.length > 0) {
-              mobileVehiclesMaster = config.vehicles;
+              mobileVehiclesMaster = config.vehicles.map(function(v) {
+                if (v.vehicle_no) {
+                  if (v.vehicle_no.includes('?') || v.vehicle_no.startsWith('801')) v.vehicle_no = '801라8744';
+                  else if (v.vehicle_no.includes('?') || v.vehicle_no.startsWith('826')) v.vehicle_no = '826라8911';
+                }
+                if (!v.model_name || v.model_name.includes('?')) v.model_name = '스타리아';
+                if (v.default_driver && v.default_driver.includes('?')) {
+                  v.default_driver = (v.vehicle_no === '801라8744') ? '조경찬' : '한민혁';
+                }
+                return v;
+              });
               localStorage.setItem('CORPORATE_VEHICLES_MASTER_V1', JSON.stringify(mobileVehiclesMaster));
             }
             // active_usage: 오늘 날짜의 것만 반영 (오래된 잠금은 무시)

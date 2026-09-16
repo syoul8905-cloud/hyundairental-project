@@ -873,7 +873,6 @@
             var config = JSON.parse(res.data[0].memo_full);
             if (config && Array.isArray(config.vehicles) && config.vehicles.length > 0) {
               vehiclesMaster = config.vehicles;
-              localStorage.setItem('CORPORATE_VEHICLES_MASTER_V1', JSON.stringify(vehiclesMaster));
             }
           }
         } catch(e) {
@@ -881,7 +880,29 @@
         }
       }
 
+      // Defensive Sanitization: Clean up any corrupted vehicle numbers or model names (e.g. from past encoding glitches)
+      vehiclesMaster = vehiclesMaster.map(function(v) {
+        if (v.vehicle_no) {
+          if (v.vehicle_no.includes('?') || v.vehicle_no.startsWith('801')) {
+            v.vehicle_no = '801라8744';
+          } else if (v.vehicle_no.includes('?') || v.vehicle_no.startsWith('826')) {
+            v.vehicle_no = '826라8911';
+          }
+        }
+        if (!v.model_name || v.model_name.includes('?')) {
+          v.model_name = '스타리아';
+        }
+        if (v.default_driver && v.default_driver.includes('?')) {
+          v.default_driver = (v.vehicle_no === '801라8744') ? '조경찬' : '한민혁';
+        }
+        return v;
+      });
+      localStorage.setItem('CORPORATE_VEHICLES_MASTER_V1', JSON.stringify(vehiclesMaster));
+
       // Ensure currentSelectedVehicleNo matches a valid vehicle
+      if (!currentSelectedVehicleNo || currentSelectedVehicleNo.includes('?')) {
+        currentSelectedVehicleNo = "801라8744";
+      }
       if (vehiclesMaster.length > 0) {
         var matchFound = vehiclesMaster.some(function(v) { return v.vehicle_no === currentSelectedVehicleNo; });
         if (!matchFound) {
