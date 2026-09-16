@@ -5213,6 +5213,7 @@
           var directCount = 0;
           var pickupCount = 0;
           var parcelCount = 0;
+          var quickCount = 0;
 
           dataRows.forEach(function(r) {
             // 1. 의뢰상태 검사: '의뢰대기' 상태인 건은 등록 대상에서 원천 제외
@@ -5238,7 +5239,8 @@
               return;
             }
 
-            // 택배(delivery), 전산(install), 방문수령, 직배송 판별
+            // 퀵(quick), 택배(delivery), 전산(install), 방문수령, 직배송 판별
+            var isQuick = (rowText.indexOf('퀵') !== -1 || rowText.indexOf('quick') !== -1);
             var isDeliveryExpress = (rowText.indexOf('택배') !== -1 || rowText.indexOf('delivery') !== -1);
             var isInstallComputer = (rowText.indexOf('전산') !== -1 || rowText.indexOf('install') !== -1);
             var isPickup = (rowText.indexOf('방문수령') !== -1 || rowText.indexOf('pickup') !== -1);
@@ -5252,7 +5254,7 @@
             }
 
             // [규칙 2] 전산(install) 단독 건 제외
-            if (isInstallComputer && !isDirect && !isPickup) {
+            if (isInstallComputer && !isDirect && !isPickup && !isQuick) {
               skippedCount++;
               return;
             }
@@ -5260,13 +5262,15 @@
             var isMethodValid = false;
             var finalMethod = '직배송';
 
-            // [규칙 3] 출고 택배 판정:
-            // 구분: 출고 / 의뢰상태: 출고완료 또는 출고대기 / 배송상태: 배송대기 / 배송방법: delivery 또는 택배
+            // [규칙 3] 배송 방식 판정 (퀵배송, 택배출고, 방문수령, 직배송 순서)
             var isOutbound = (rawCat.indexOf('출고') !== -1 || rowText.indexOf('출고') !== -1);
             var isReqOutboundOk = (reqStatus.indexOf('출고완료') !== -1 || reqStatus.indexOf('출고대기') !== -1 || rowText.indexOf('출고완료') !== -1 || rowText.indexOf('출고대기') !== -1);
             var isDeliveryWait = (!deliveryStatus || deliveryStatus.indexOf('배송대기') !== -1);
 
-            if (isDeliveryExpress && isOutbound && isReqOutboundOk && isDeliveryWait) {
+            if (isQuick) {
+              isMethodValid = true;
+              finalMethod = '퀵배송';
+            } else if (isDeliveryExpress && isOutbound && isReqOutboundOk && isDeliveryWait) {
               isMethodValid = true;
               finalMethod = '택배';
             } else if (isPickup) {
@@ -5314,10 +5318,13 @@
                 driver = '방문수령';
               } else if (finalMethod === '택배' && !driver) {
                 driver = '택배';
+              } else if (finalMethod === '퀵배송' && !driver) {
+                driver = '퀵';
               }
 
               if (finalMethod === '방문수령') pickupCount++;
               else if (finalMethod === '택배') parcelCount++;
+              else if (finalMethod === '퀵배송') quickCount++;
               else directCount++;
 
               var rowDate = getRowValue(r, dateIndices);
@@ -5366,9 +5373,9 @@
           var confirmBtn = document.getElementById('csvConfirmBtn');
 
           previewArea.classList.remove('hidden');
-          statsEl.innerText = '조건 통과: ' + passed.length + '건 (직배송 ' + directCount + '건, 방문수령 ' + pickupCount + '건, 택배출고 ' + parcelCount + '건 / 제외: ' + skippedCount + '건)';
+          statsEl.innerText = '조건 통과: ' + passed.length + '건 (직배송 ' + directCount + '건, 방문수령 ' + pickupCount + '건, 택배출고 ' + parcelCount + '건, 퀵배송 ' + quickCount + '건 / 제외: ' + skippedCount + '건)';
           descEl.innerHTML = `
-            총 <b>${dataRows.length}</b>건 중 '배송대기' 상태인 직배송/방문수령/택배출고 <b>${passed.length}</b>건(배송완료/택배회수/전산 등 제외)이 완벽히 선별되어 
+            총 <b>${dataRows.length}</b>건 중 '배송대기' 상태인 직배송/방문수령/택배출고/퀵배송 <b>${passed.length}</b>건(배송완료/택배회수/전산 등 제외)이 완벽히 선별되어 
             <b>방문시간 순서대로 자동 정렬</b>되었습니다. 배송일자 <b>[${targetDate}]</b> 기준으로 [배송 현황에 자동 등록]을 누르면 즉시 적재됩니다.
           `;
           confirmBtn.disabled = (passed.length === 0);
