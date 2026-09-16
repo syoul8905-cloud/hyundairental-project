@@ -101,13 +101,20 @@
         
         <div class="flex items-center gap-1.5 w-full sm:w-auto">
           <input type="file" id="csvFileInput" accept=".csv, .xlsx, .xls" class="hidden">
-          <button id="btnUploadCsv" class="flex-1 sm:flex-none flex items-center justify-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-medium shadow-sm transition">
+          <button id="btnUploadCsv" class="flex-1 sm:flex-none flex items-center justify-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shadow-sm transition">
             <i data-lucide="upload" class="w-3.5 h-3.5"></i>
             <span>CSV / 엑셀 파일 열기</span>
           </button>
-          <button id="btnLoadSample" class="flex-1 sm:flex-none flex items-center justify-center gap-1 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-medium border border-slate-300 transition">
-            <i data-lucide="sparkles" class="w-3.5 h-3.5 text-amber-500"></i>
-            <span>샘플 데이터 로드</span>
+          
+          <!-- 비상 복구 버튼 (데이터 유실 시 1초 복원) -->
+          <button id="btnEmergencyRecover" class="hidden flex-1 sm:flex-none flex items-center justify-center gap-1 px-2.5 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-bold shadow-sm transition animate-pulse" title="실수로 지워진 스캔 데이터 1초 복구">
+            <i data-lucide="life-buoy" class="w-3.5 h-3.5"></i>
+            <span id="txtRecoverCount">스캔 복구</span>
+          </button>
+
+          <!-- 샘플 데이터 버튼 (오클릭 방지용 2차 텍스트 버튼으로 축소) -->
+          <button id="btnLoadSample" class="px-2 py-1.5 text-slate-400 hover:text-slate-600 rounded text-[11px] underline transition" title="테스트용 샘플 데이터">
+            샘플데이터
           </button>
         </div>
       </div>
@@ -467,6 +474,7 @@
     // 0. 상태 및 전역 변수
     // ==========================================
     const STORAGE_KEY = 'HYUNDAI_ASSET_AUDIT_STATE_V1';
+    const BLACKBOX_KEY = 'HYUNDAI_ASSET_AUDIT_BLACKBOX_LOGS';
     
     let masterAssets = new Map(); // assetNo -> AssetRecord
     let scannedAssets = new Map(); // assetNo -> { scannedAt: Date, count: number, ... }
@@ -479,6 +487,51 @@
       sound: true,
       vibrate: true,
     };
+
+    // [블랙박스 영구 기록 엔진] - 어떤 초기화나 오류에도 찍힌 바코드는 절대 삭제되지 않음
+    function recordBlackboxScan(code) {
+      if (!code) return;
+      try {
+        let logs = JSON.parse(localStorage.getItem(BLACKBOX_KEY) || '[]');
+        logs.push({ code: String(code).trim(), time: new Date().toISOString() });
+        // 최근 10,000건 영구 보존
+        if (logs.length > 10000) logs = logs.slice(-10000);
+        localStorage.setItem(BLACKBOX_KEY, JSON.stringify(logs));
+        updateRecoverButtonUI();
+      } catch (e) {
+        console.warn('Blackbox log failed:', e);
+      }
+    }
+
+    function getBlackboxUniqueCodes() {
+      try {
+        const logs = JSON.parse(localStorage.getItem(BLACKBOX_KEY) || '[]');
+        const unique = [];
+        const seen = new Set();
+        logs.forEach(l => {
+          if (!seen.has(l.code)) {
+            seen.add(l.code);
+            unique.push(l);
+          }
+        });
+        return unique;
+      } catch (e) {
+        return [];
+      }
+    }
+
+    function updateRecoverButtonUI() {
+      const btn = document.getElementById('btnEmergencyRecover');
+      const txt = document.getElementById('txtRecoverCount');
+      if (!btn) return;
+      const unique = getBlackboxUniqueCodes();
+      if (unique.length > 0 && scannedAssets.size < unique.length) {
+        btn.classList.remove('hidden');
+        txt.innerText = `${unique.length}건 복원`;
+      } else {
+        btn.classList.add('hidden');
+      }
+    }
 
     // 카메라 관련 변수
     let isCameraActive = false;
@@ -619,15 +672,21 @@
       return rows;
     }
 
-    function loadMasterDataFromRows(rows, filename = '데이터.csv') {
+    function loadMasterDataFromRows(rows, filename = '데이터.csv', keepScanned = true) {
       if (!rows || rows.length < 2) {
         alert('유효한 데이터 행이 존재하지 않습니다.');
         return;
       }
 
+      // 기존 스캔 데이터 백업 (실수 초기화 방어)
+      const prevScannedKeys = new Set(scannedAssets.keys());
+      const prevExtraKeys = new Set(extraAssets.keys());
+
       masterAssets.clear();
-      scannedAssets.clear();
-      extraAssets.clear();
+      if (!keepScanned) {
+        scannedAssets.clear();
+        extraAssets.clear();
+      }
       rawCsvData = rows;
       currentFileName = filename;
 
@@ -692,6 +751,31 @@
         loadedCount++;
       }
 
+      // 기존 스캔 데이터가 있었다면 새 마스터에 자동 재대조(Re-match) 복원
+      if (keepScanned && (prevScannedKeys.size > 0 || prevExtraKeys.size > 0)) {
+        const allPrevKeys = new Set([...prevScannedKeys, ...prevExtraKeys]);
+        scannedAssets.clear();
+        extraAssets.clear();
+        allPrevKeys.forEach(code => {
+          if (masterAssets.has(code)) {
+            const asset = masterAssets.get(code);
+            scannedAssets.set(code, {
+              ...asset,
+              scannedAt: new Date(),
+              firstScannedTime: new Date().toLocaleTimeString(),
+              lastScannedAt: new Date(),
+              count: 1
+            });
+          } else {
+            extraAssets.set(code, {
+              assetNo: code,
+              scannedAt: new Date(),
+              count: 1
+            });
+          }
+        });
+      }
+
       document.getElementById('txtFileName').innerText = `${filename} (${loadedCount}건)`;
       document.getElementById('badgeLoaded').classList.remove('hidden');
 
@@ -701,17 +785,23 @@
       updateDashboard();
       // 저장
       saveState();
+      updateRecoverButtonUI();
 
-      showFooterMessage(`자산 마스터 ${loadedCount}건 로드 완료!`);
+      showFooterMessage(`자산 마스터 ${loadedCount}건 로드 완료! (기존 스캔 ${scannedAssets.size}건 보존됨)`);
     }
 
     // ==========================================
     // 3. 자산 바코드 스캔 처리 핵심 엔진
     // ==========================================
-    function processBarcode(rawCode) {
+    function processBarcode(rawCode, isSilentRecovery = false) {
       if (!rawCode) return;
       const code = String(rawCode).trim();
       if (!code) return;
+
+      // 블랙박스 영구 기록 (실수 리셋 시 100% 복구용)
+      if (!isSilentRecovery) {
+        recordBlackboxScan(code);
+      }
 
       if (masterAssets.size === 0) {
         alert('먼저 CSV 마스터 데이터를 로드해주세요!');
@@ -1505,6 +1595,37 @@
         }
       });
 
+      // 비상 복구 버튼 이벤트 (실수 초기화 시 1초 복원)
+      const btnRecover = document.getElementById('btnEmergencyRecover');
+      if (btnRecover) {
+        btnRecover.addEventListener('click', () => {
+          const unique = getBlackboxUniqueCodes();
+          if (unique.length === 0) {
+            alert('복원할 블랙박스 스캔 기록이 없습니다.');
+            return;
+          }
+          if (masterAssets.size === 0) {
+            alert('먼저 CSV 마스터 데이터를 로드해주세요! (로드된 마스터와 대조 복원합니다)');
+            return;
+          }
+          if (!confirm(`[🚨 비상 복구]\n블랙박스에 안전하게 보관된 최근 스캔 바코드 ${unique.length}건을 즉시 복원하시겠습니까?`)) {
+            return;
+          }
+
+          let recoverCount = 0;
+          unique.forEach(item => {
+            processBarcode(item.code, true);
+            recoverCount++;
+          });
+
+          feedback('SUCCESS');
+          updateDashboard();
+          saveState();
+          updateRecoverButtonUI();
+          alert(`✅ 성공적으로 ${recoverCount}건의 스캔 데이터가 100% 복원되었습니다!`);
+        });
+      }
+
       // 내장 샘플 데이터 로드 버튼
       document.getElementById('btnLoadSample').addEventListener('click', () => {
         loadEmbeddedSampleData();
@@ -1591,12 +1712,18 @@
       // 이전 세션 복원
       restoreState();
       updateConfigUI();
+      updateRecoverButtonUI();
     });
 
-    // ==========================================
-    // 11. 사용자가 공유한 실제 샘플 CSV 데이터셋
-    // ==========================================
     function loadEmbeddedSampleData() {
+      if (scannedAssets.size > 0) {
+        const proceed = confirm(
+          `[안내] 현재 ${scannedAssets.size}건의 실사 스캔 기록이 있습니다.\n\n` +
+          `샘플 데이터를 로드하시겠습니까?\n` +
+          `(기존 스캔 기록은 안전하게 보존되며 마스터 대장만 샘플로 교체됩니다)`
+        );
+        if (!proceed) return;
+      }
       const sampleCsv = `"","대분류","중분류","자산번호","자산구분","자산상태","제품코드","제품명","모델명","제조사","관리번호","시리얼번호","매출총액","회수율","가동률","최근입고일","최근출고일","최근계약번호","최근 고객명","장부가","총 보유일수","재고 보유일수","취득가","취득일","안전인증서","선반번호","연식","신품/중고","구입처","옵션"
 "","","","","","","","","","","","","188478114","17","53","","","","","","","","1082417839","","","","","","",""
 "","IT","TABLET","224011359","당사자산","임대가능","130010020","아이패드 9세대","A2602","Apple","","Q4HGD2XFVT","414000","96.2","80","2026-09-07","2026-08-27","2R2608174","비지엘 (BGL)","107500","1162","9","430000","2023-07-12","","","2023","신품","",""
@@ -1634,7 +1761,7 @@
 "","IT","N/T","226081272","당사자산","임대가능","130030110","NT751XHD Ultra5","NT751XHD-KR512","삼성","","7LD29FEL100037","25000","1.8","50","2026-09-07","2026-08-27","2R2608174","비지엘 (BGL)","1324432","20","9","1346880","2026-08-27","","","","신품","한진정보통신(주)",""`;
 
       const rows = parseCsvText(sampleCsv);
-      loadMasterDataFromRows(rows, '실제_자산대장_샘플_2026.csv');
+      loadMasterDataFromRows(rows, '실제_자산대장_샘플_2026.csv', true);
       feedback('SUCCESS');
     }
   </script>
