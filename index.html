@@ -585,9 +585,9 @@
         <div id="csvManualStopsBox" class="p-2.5 bg-amber-50/90 border border-amber-200 rounded-xl flex items-center justify-between text-xs transition">
           <label class="flex items-center gap-2 cursor-pointer font-bold text-amber-950">
             <input type="checkbox" id="csvKeepManualStops" checked class="w-4 h-4 rounded text-indigo-600 focus:ring-0 cursor-pointer">
-            <span>기존 직접 추가한 배송지 (<span id="csvManualStopsCount" class="text-amber-700 font-black">0</span>건) 보존하여 함께 등록</span>
+            <span>선택 일자 [<span id="csvManualStopsTargetDate" class="font-mono text-indigo-700 font-black"></span>] 직접 추가 배송지 (<span id="csvManualStopsCount" class="text-amber-700 font-black">0</span>건) 보존하여 함께 등록</span>
           </label>
-          <span class="px-1.5 py-0.5 bg-amber-100 text-amber-800 rounded text-[10px] font-black shrink-0">자동 병합</span>
+          <span class="px-1.5 py-0.5 bg-amber-100 text-amber-800 rounded text-[10px] font-black shrink-0">해당 날짜만 병합</span>
         </div>
       </div>
 
@@ -5071,22 +5071,42 @@
       var csvDateInp = document.getElementById('csvTargetDateInput');
       if (csvDateInp) {
         csvDateInp.value = currentHeaderDate;
+        if (!csvDateInp.dataset.boundManualUpdate) {
+          csvDateInp.dataset.boundManualUpdate = 'true';
+          csvDateInp.addEventListener('input', updateCsvManualStopsDisplay);
+          csvDateInp.addEventListener('change', updateCsvManualStopsDisplay);
+        }
       }
 
-      // 기존 직접 추가한 배송지 감지 및 표시
-      var manualStops = records.filter(function(r) {
-        return r.isManual || r.source_sheet === '직접추가' || r.원본시트 === '직접추가' || r.계약번호 === '신규등록';
+      // 선택된 해당 일자의 직접 추가 배송지만 감지 및 표시
+      updateCsvManualStopsDisplay();
+    }
+
+    function updateCsvManualStopsDisplay() {
+      var csvDateInp = document.getElementById('csvTargetDateInput');
+      var targetDate = csvDateInp ? csvDateInp.value : '';
+      if (!targetDate) {
+        targetDate = new Date().toISOString().split('T')[0];
+      }
+
+      var dateLabelEl = document.getElementById('csvManualStopsTargetDate');
+      if (dateLabelEl) dateLabelEl.innerText = targetDate;
+
+      function isSameDate(d1, d2) {
+        if (!d1 || !d2) return false;
+        return String(d1).replace(/\./g, '-').trim() === String(d2).replace(/\./g, '-').trim();
+      }
+
+      var manualStops = (records || []).filter(function(r) {
+        var isManual = r.isManual || r.source_sheet === '직접추가' || r.원본시트 === '직접추가' || r.계약번호 === '신규등록';
+        var recDate = r.배송일자 || r.delivery_date;
+        return isManual && isSameDate(recDate, targetDate);
       });
+
       var countEl = document.getElementById('csvManualStopsCount');
       if (countEl) countEl.innerText = manualStops.length;
       var boxEl = document.getElementById('csvManualStopsBox');
-      if (boxEl) {
-        if (manualStops.length > 0) {
-          boxEl.classList.remove('hidden');
-        } else {
-          boxEl.classList.remove('hidden'); // 항상 보여주되 0건으로 표시
-        }
-      }
+      if (boxEl) boxEl.classList.remove('hidden');
     }
 
     function closeCsvModal() {
@@ -5535,11 +5555,18 @@
         });
       }
 
-      // 로컬 records에서도 수동 배송지 감지
+      function isSameDate(d1, d2) {
+        if (!d1 || !d2) return false;
+        return String(d1).replace(/\./g, '-').trim() === String(d2).replace(/\./g, '-').trim();
+      }
+
+      // 로컬 records에서도 해당 대상 일자(targetDate)의 수동 배송지만 엄격 선별 감지
       var localManualStops = [];
       if (keepManual && records && records.length > 0) {
         localManualStops = records.filter(function(r) {
-          return r.isManual || r.source_sheet === '직접추가' || r.원본시트 === '직접추가' || r.계약번호 === '신규등록';
+          var isManual = r.isManual || r.source_sheet === '직접추가' || r.원본시트 === '직접추가' || r.계약번호 === '신규등록';
+          var recDate = r.배송일자 || r.delivery_date;
+          return isManual && isSameDate(recDate, targetDate);
         });
       }
 
