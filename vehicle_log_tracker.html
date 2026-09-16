@@ -1387,6 +1387,7 @@
           var hasDeliveryStops = Array.isArray(log.stops) && log.stops.some(function(s) { return s.type === 'delivery'; });
           var isExplicitUnop = Boolean(log.is_unoperated) || log.driver_name === '미운행';
           var isZeroKmWithoutStops = (log.start_km === log.end_km && !hasDeliveryStops);
+          var isUnop = isExplicitUnop || isZeroKmWithoutStops;
           var todayStr = new Date().toLocaleDateString('sv');
           var isOngoingToday = (!isUnop && log.trip_date === todayStr && hasDeliveryStops && !log.is_closed && (log.start_km === log.end_km || !log.end_km));
 
@@ -1561,6 +1562,8 @@
 
         var hasDeliveryStops = Array.isArray(log.stops) && log.stops.some(function(s) { return s.type === 'delivery'; });
         var isExplicitUnop = Boolean(log.is_unoperated) || log.driver_name === '미운행';
+        var isZeroKmWithoutStops = (log.start_km === log.end_km && !hasDeliveryStops);
+        var isUnop = isExplicitUnop || isZeroKmWithoutStops;
         var todayStr = new Date().toLocaleDateString('sv');
         var isOngoingToday = (!isUnop && log.trip_date === todayStr && hasDeliveryStops && !log.is_closed && (log.start_km === log.end_km || !log.end_km));
 

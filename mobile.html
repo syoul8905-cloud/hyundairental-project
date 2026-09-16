@@ -540,9 +540,15 @@
           </div>
         </div>
 
-        <div class="p-2.5 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between text-xs font-bold">
-          <span class="text-slate-500">오늘 실주행거리:</span>
-          <span id="closingMileageDiff" class="text-indigo-600 font-mono font-black">0 km</span>
+        <div class="p-2.5 bg-slate-50 rounded-xl border border-slate-200 space-y-1 text-xs">
+          <div class="flex items-center justify-between font-bold">
+            <span class="text-slate-500">오늘 실주행거리:</span>
+            <span id="closingMileageDiff" class="text-indigo-600 font-mono font-black">0 km</span>
+          </div>
+          <div class="flex items-center justify-between text-[10.5px] text-slate-500 border-t border-slate-200/60 pt-1">
+            <span class="flex items-center gap-1 font-bold text-slate-600"><i class="fa-solid fa-route text-indigo-500"></i> 배송경로 추천거리:</span>
+            <span id="closingSuggestedDistBadge" class="font-mono font-black text-indigo-700">계산 중...</span>
+          </div>
         </div>
 
         <!-- 주소지별 주차비 / 주유비 입력 (메인) -->
@@ -2364,6 +2370,62 @@
       }
     }
 
+    async function calculateMobileRoadDistanceForRecords() {
+      try {
+        if (cachedMobileRoadData && cachedMobileRoadData.distKm) {
+          return parseFloat(cachedMobileRoadData.distKm);
+        }
+        if (!driverRecords || driverRecords.length === 0) {
+          return 0;
+        }
+        await preGeocodeMobileRecords(driverRecords);
+        var drvName = getCurrentDriverName();
+        var originCoord = getDriverOrigin(drvName, currentDate);
+        var dest = getMobileDriverDestination();
+        var destPoint = { lat: dest.lat || DEFAULT_GASAN_ORIGIN.lat, lng: dest.lng || DEFAULT_GASAN_ORIGIN.lng };
+        var points = [originCoord].concat(driverRecords.map(function(r) { return getCoordForAddress(r.address); }));
+        points.push(destPoint);
+        var coordsParam = points.map(function(p) { return p.lng + ',' + p.lat; }).join(';');
+        var url = 'https://router.project-osrm.org/route/v1/driving/' + coordsParam + '?overview=false';
+        var resp = await fetch(url);
+        if (resp.ok) {
+          var data = await resp.json();
+          if (data.code === 'Ok' && data.routes && data.routes.length > 0) {
+            var distKm = parseFloat((data.routes[0].distance / 1000).toFixed(1));
+            return distKm;
+          }
+        }
+      } catch (err) {
+        console.warn('OSRM distance calculation error:', err);
+      }
+      return calculateHaversineTotalDistance();
+    }
+
+    function calculateHaversineTotalDistance() {
+      if (!driverRecords || driverRecords.length === 0) return 0;
+      var drvName = getCurrentDriverName();
+      var originCoord = getDriverOrigin(drvName, currentDate);
+      var dest = getMobileDriverDestination();
+      var destPoint = { lat: dest.lat || DEFAULT_GASAN_ORIGIN.lat, lng: dest.lng || DEFAULT_GASAN_ORIGIN.lng };
+      var points = [originCoord].concat(driverRecords.map(function(r) { return getCoordForAddress(r.address); }));
+      points.push(destPoint);
+
+      var totalStraight = 0;
+      for (var i = 0; i < points.length - 1; i++) {
+        var p1 = points[i];
+        var p2 = points[i + 1];
+        var R = 6371;
+        var dLat = (p2.lat - p1.lat) * Math.PI / 180;
+        var dLon = (p2.lng - p1.lng) * Math.PI / 180;
+        var a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(p1.lat * Math.PI / 180) * Math.cos(p2.lat * Math.PI / 180) *
+                Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        totalStraight += (R * c);
+      }
+      return parseFloat((totalStraight * 1.35).toFixed(1));
+    }
+
     async function openMobileVehicleClosingModal() {
       var veh = mobileVehiclesMaster.find(function(v) { return v.vehicle_no === currentMobileVehicleNo; }) || mobileVehiclesMaster[0];
       var startKm = (veh.current_km || veh.initial_km || 0);
@@ -2384,14 +2446,17 @@
         badgeEl.className = 'text-[9.5px] px-1.5 py-0.5 rounded font-bold bg-indigo-100 text-indigo-800 shrink-0';
       }
 
-      var suggestedDist = 0;
-      if (cachedMobileRoadData && cachedMobileRoadData.distKm) {
-        suggestedDist = parseFloat(cachedMobileRoadData.distKm);
-      } else {
-        suggestedDist = driverRecords.length * 8.5 + 15;
+      var distBadge = document.getElementById('closingSuggestedDistBadge');
+      if (distBadge) distBadge.innerText = '실제 도로망 계산 중...';
+
+      var suggestedDist = await calculateMobileRoadDistanceForRecords();
+      window.lastCalculatedSuggestedDist = suggestedDist;
+
+      if (distBadge) {
+        distBadge.innerText = suggestedDist > 0 ? (suggestedDist + ' km (실측 추천)') : '-';
       }
 
-      var endKm = Math.round(startKm + suggestedDist);
+      var endKm = Math.round(startKm + (suggestedDist > 0 ? suggestedDist : 0));
       document.getElementById('closingEndKm').value = endKm;
       document.getElementById('closingParkingFee').value = 0;
       document.getElementById('closingFuelFee').value = 0;
@@ -2726,6 +2791,16 @@
 
       var drvName = getCurrentDriverName() || '조경찬';
       var distKm = endKm - startKm;
+
+      // 스마트 가드: 추천 거리가 25km 이상인 날, 입력된 거리가 추천 거리와 35km 이상 차이나거나 40% 미만으로 현저히 작으면 확인
+      var suggestedDistVal = window.lastCalculatedSuggestedDist || 0;
+      if (suggestedDistVal >= 25) {
+        var diff = Math.abs(distKm - suggestedDistVal);
+        if (diff > 35 || distKm < (suggestedDistVal * 0.4)) {
+          var ok = confirm('⚠️ [주행거리 불일치 확인]\n\n오늘 배송 경로 기반 추천 주행거리는 약 ' + Math.round(suggestedDistVal) + ' km 입니다.\n입력하신 주행거리: ' + distKm + ' km (종료 계기판: ' + endKm.toLocaleString() + ' km)\n\n차량 계기판에 표시된 숫자가 확실히 맞습니까? 그대로 마감하시겠습니까?');
+          if (!ok) return;
+        }
+      }
       var dest = getMobileDriverDestination();
       var destAddr = dest.addr || DEFAULT_GASAN_ORIGIN.addr;
       var destName = dest.name || DEFAULT_GASAN_ORIGIN.name;
