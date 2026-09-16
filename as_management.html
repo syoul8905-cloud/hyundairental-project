@@ -287,27 +287,36 @@
           <input type="hidden" id="inputCategory" value="원격지원">
         </div>
 
-        <!-- Status, Date & Driver Row -->
-        <div class="grid grid-cols-3 gap-2 mb-2.5">
-          <!-- Status -->
+        <!-- Status, Receipt Date, Processed Date & Driver Row -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2.5">
+          <!-- Receipt Date (접수일자) -->
+          <div>
+            <label class="block text-[11px] font-bold text-slate-600 mb-1">
+              접수일자 <span class="text-rose-500">*</span>
+            </label>
+            <input type="date" id="inputReceiptDate" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 font-bold text-xs text-slate-800 focus:bg-white focus:outline-none focus:border-indigo-500 transition">
+          </div>
+          <!-- Processed Date (처리일자) -->
+          <div>
+            <label class="block text-[11px] font-bold text-slate-600 mb-1">
+              처리일자
+            </label>
+            <input type="date" id="inputProcessedDate" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 font-bold text-xs text-slate-800 focus:bg-white focus:outline-none focus:border-indigo-500 transition">
+          </div>
+          <!-- Status (상태) -->
           <div>
             <label class="block text-[11px] font-bold text-slate-600 mb-1">상태</label>
-            <select id="inputStatus" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-2 py-1.5 font-bold text-xs text-slate-800 focus:bg-white focus:outline-none">
+            <select id="inputStatus" onchange="onStatusChanged(this.value)" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-2 py-1.5 font-bold text-xs text-slate-800 focus:bg-white focus:outline-none focus:border-indigo-500 transition">
               <option value="처리완료" selected>처리완료</option>
               <option value="접수대기">접수대기</option>
               <option value="처리중">처리중</option>
             </select>
           </div>
-          <!-- Date -->
-          <div>
-            <label class="block text-[11px] font-bold text-slate-600 mb-1">처리일자</label>
-            <input type="date" id="inputDate" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-2 py-1.5 font-bold text-xs text-slate-800 focus:bg-white focus:outline-none">
-          </div>
-          <!-- Processor (Driver/Author) -->
+          <!-- Processor (처리 담당자) -->
           <div>
             <label class="block text-[11px] font-bold text-slate-600 mb-1">처리 담당자</label>
             <input type="text" id="inputDriver" placeholder="담당자명" 
-                   class="w-full bg-slate-50 border border-slate-200 rounded-xl px-2 py-1.5 font-bold text-xs text-slate-800 focus:bg-white focus:outline-none">
+                   class="w-full bg-slate-50 border border-slate-200 rounded-xl px-2 py-1.5 font-bold text-xs text-slate-800 focus:bg-white focus:outline-none focus:border-indigo-500 transition">
           </div>
         </div>
 
@@ -555,9 +564,10 @@
 
     // Init App
     window.addEventListener('DOMContentLoaded', function() {
-      // Set today's date in form
+      // Set today's date in form for both receipt and processed dates
       var today = new Date().toISOString().split('T')[0];
-      document.getElementById('inputDate').value = today;
+      if (document.getElementById('inputReceiptDate')) document.getElementById('inputReceiptDate').value = today;
+      if (document.getElementById('inputProcessedDate')) document.getElementById('inputProcessedDate').value = today;
 
       // Initialize Supabase
       if (window.supabase) {
@@ -570,6 +580,20 @@
       loadCustomerHandovers();
       loadDeliveryBackgroundData();
     });
+
+    // Helper: When Status changes
+    function onStatusChanged(val) {
+      var procInput = document.getElementById('inputProcessedDate');
+      if (!procInput) return;
+      var today = new Date().toISOString().split('T')[0];
+      if (val === '접수대기') {
+        // If pending, clear processed date or leave optional
+        procInput.value = '';
+      } else if (val === '처리완료' && !procInput.value) {
+        // Auto-fill today if completed and empty
+        procInput.value = today;
+      }
+    }
 
     // Realtime Subscription
     function setupRealtimeSubscription() {
@@ -1006,7 +1030,8 @@
       var symptom = (document.getElementById('inputSymptom').value || '').trim();
       var category = document.getElementById('inputCategory').value;
       var status = document.getElementById('inputStatus').value;
-      var date = document.getElementById('inputDate').value;
+      var receiptDate = (document.getElementById('inputReceiptDate').value || '').trim();
+      var processedDate = (document.getElementById('inputProcessedDate').value || '').trim();
       var driver = (document.getElementById('inputDriver').value || '').trim();
       var memoFull = (document.getElementById('inputMemoFull').value || '').trim();
 
@@ -1019,6 +1044,10 @@
         Swal.fire('입력 확인', '고객사명을 입력해주세요.', 'warning');
         return;
       }
+      if (!receiptDate) {
+        Swal.fire('입력 확인', '접수일자를 입력해주세요.', 'warning');
+        return;
+      }
       if (!symptom) {
         Swal.fire('입력 확인', '증상을 입력해주세요.', 'warning');
         return;
@@ -1028,10 +1057,12 @@
         return;
       }
 
-      // Pack special JSON for asset & symptom
+      // Pack special JSON for asset & symptom & dates
       var specialObj = {
         asset_no: assetNo,
         symptom: symptom,
+        receipt_date: receiptDate,
+        processed_date: processedDate,
         processed_at: new Date().toISOString()
       };
 
@@ -1040,7 +1071,7 @@
         customer_name: customerName,
         category: category,
         status: status,
-        delivery_date: date,
+        delivery_date: receiptDate, // 접수일자를 메인 일자(delivery_date)로 보존하여 시간순 정렬 유지
         driver_name: driver || '관리자',
         memo_full: memoFull,
         memo_special: JSON.stringify(specialObj),
@@ -1092,6 +1123,7 @@
 
     // Reset Form
     function resetAsForm() {
+      var today = new Date().toISOString().split('T')[0];
       document.getElementById('editRecordId').value = '';
       document.getElementById('inputContractNo').value = '';
       document.getElementById('inputAssetNo').value = '';
@@ -1099,7 +1131,8 @@
       document.getElementById('inputSymptom').value = '';
       document.getElementById('inputDriver').value = '';
       document.getElementById('inputMemoFull').value = '';
-      document.getElementById('inputDate').value = new Date().toISOString().split('T')[0];
+      document.getElementById('inputReceiptDate').value = today;
+      document.getElementById('inputProcessedDate').value = today;
       document.getElementById('inputStatus').value = '처리완료';
       selectCategory('원격지원');
 
@@ -1124,21 +1157,30 @@
       document.getElementById('editRecordId').value = r.id;
       document.getElementById('inputContractNo').value = r.contract_no || '';
       document.getElementById('inputCustomerName').value = r.customer_name || '';
-      document.getElementById('inputDate').value = r.delivery_date || '';
       document.getElementById('inputDriver').value = r.driver_name || '';
       document.getElementById('inputStatus').value = r.status || '처리완료';
       document.getElementById('inputMemoFull').value = r.memo_full || '';
 
-      // Parse asset & symptom
+      // Parse asset & symptom & dates
       var assetNo = '';
       var symptom = '';
+      var receiptDate = '';
+      var processedDate = '';
       if (r.memo_special) {
         try {
           var p = JSON.parse(r.memo_special);
           assetNo = p.asset_no || '';
           symptom = p.symptom || '';
+          receiptDate = p.receipt_date || '';
+          processedDate = p.processed_date || '';
         } catch (e) {}
       }
+
+      if (!receiptDate) receiptDate = r.delivery_date || '';
+      if (!processedDate && r.status === '처리완료') processedDate = r.delivery_date || '';
+
+      document.getElementById('inputReceiptDate').value = receiptDate;
+      document.getElementById('inputProcessedDate').value = processedDate;
       document.getElementById('inputAssetNo').value = assetNo;
       document.getElementById('inputSymptom').value = symptom;
 
@@ -1231,13 +1273,18 @@
         if (searchQ) {
           var assetNo = '';
           var symptom = '';
+          var receiptDate = '';
+          var processedDate = '';
           if (r.memo_special) {
             try {
               var p = JSON.parse(r.memo_special);
               assetNo = p.asset_no || '';
               symptom = p.symptom || '';
+              receiptDate = p.receipt_date || '';
+              processedDate = p.processed_date || '';
             } catch (e) {}
           }
+          if (!receiptDate) receiptDate = r.delivery_date || '';
 
           var haystack = [
             r.contract_no || '',
@@ -1245,6 +1292,8 @@
             r.category || '',
             r.driver_name || '',
             r.memo_full || '',
+            receiptDate,
+            processedDate,
             assetNo,
             symptom
           ].join(' ').toLowerCase();
@@ -1272,13 +1321,19 @@
       filtered.forEach(function(r) {
         var assetNo = '';
         var symptom = '';
+        var receiptDate = '';
+        var processedDate = '';
         if (r.memo_special) {
           try {
             var p = JSON.parse(r.memo_special);
             assetNo = p.asset_no || '';
             symptom = p.symptom || '';
+            receiptDate = p.receipt_date || '';
+            processedDate = p.processed_date || '';
           } catch (e) {}
         }
+        if (!receiptDate) receiptDate = r.delivery_date || '-';
+        if (!processedDate && r.status === '처리완료') processedDate = r.delivery_date || '';
 
         // Category Badge Style
         var catBadge = '';
@@ -1305,7 +1360,7 @@
 
         html += `
           <div class="p-3 bg-slate-50 hover:bg-slate-100/80 rounded-2xl border border-slate-200 transition space-y-2">
-            <!-- Row 1: Badges, Date, Cust, Contract -->
+            <!-- Row 1: Badges, Dates (접수/처리), Cust, Contract -->
             <div class="flex items-center justify-between flex-wrap gap-1.5">
               <div class="flex items-center gap-1.5 flex-wrap">
                 ${catBadge}
@@ -1314,8 +1369,11 @@
                 <span class="font-mono text-indigo-700 font-bold text-[11px] bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-200">계약: ${r.contract_no || '-'}</span>
                 ${assetNo ? `<span class="text-slate-500 font-bold text-[10px] bg-white px-1.5 py-0.5 rounded border border-slate-200">자산: ${assetNo}</span>` : ''}
               </div>
-              <div class="flex items-center gap-2 text-[11px] text-slate-500 font-bold">
-                <span><i class="fa-regular fa-calendar text-slate-400"></i> ${r.delivery_date || '-'}</span>
+              <div class="flex items-center gap-2 text-[11px] text-slate-500 font-bold flex-wrap">
+                <span title="A/S 접수일자"><i class="fa-regular fa-calendar-plus text-indigo-500"></i> 접수: <b class="text-slate-800">${receiptDate}</b></span>
+                <span title="A/S 처리일자">
+                  ${processedDate ? `<i class="fa-regular fa-calendar-check text-emerald-600"></i> 처리: <b class="text-emerald-800">${processedDate}</b>` : '<span class="text-rose-600 font-bold">· 처리: 미완료</span>'}
+                </span>
                 <span><i class="fa-solid fa-user-gear text-slate-400"></i> ${r.driver_name || '-'}</span>
               </div>
             </div>
@@ -1467,13 +1525,19 @@
             // A/S Record Card
             var assetNo = '';
             var symptom = '';
+            var receiptDate = '';
+            var processedDate = '';
             if (row.memo_special) {
               try {
                 var p = JSON.parse(row.memo_special);
                 assetNo = p.asset_no || '';
                 symptom = p.symptom || '';
+                receiptDate = p.receipt_date || '';
+                processedDate = p.processed_date || '';
               } catch(e) {}
             }
+            if (!receiptDate) receiptDate = row.delivery_date || '-';
+            if (!processedDate && row.status === '처리완료') processedDate = row.delivery_date || '';
 
             var iconClass = 'fa-solid fa-wrench text-rose-600';
             var dotBg = 'bg-rose-500';
@@ -1484,11 +1548,12 @@
                 <span class="absolute -left-[23px] top-1.5 w-3.5 h-3.5 rounded-full ${dotBg} border-2 border-white ring-2 ring-slate-100"></span>
                 <div class="p-3 rounded-2xl border ${cardBorder} space-y-1.5 shadow-2xs">
                   <div class="flex items-center justify-between flex-wrap gap-1">
-                    <div class="flex items-center gap-1.5">
+                    <div class="flex items-center gap-1.5 flex-wrap">
                       <span class="px-2 py-0.5 rounded text-[10px] font-black bg-rose-100 text-rose-900 border border-rose-200 flex items-center gap-1">
                         <i class="fa-solid fa-wrench"></i> A/S [${cat}]
                       </span>
-                      <span class="font-bold text-slate-800 text-xs">${date}</span>
+                      <span class="font-bold text-slate-800 text-xs">접수: ${receiptDate}</span>
+                      ${processedDate ? `<span class="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">처리: ${processedDate}</span>` : '<span class="text-[10px] font-bold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200">처리대기</span>'}
                       ${assetNo ? `<span class="text-[10px] text-slate-500 font-bold">자산: ${assetNo}</span>` : ''}
                     </div>
                     <span class="text-[10px] font-bold text-slate-600 bg-white px-2 py-0.5 rounded-md border border-slate-200">
@@ -1710,19 +1775,25 @@
 
       var assetNo = '';
       var symptom = '';
+      var receiptDate = '';
+      var processedDate = '';
       if (r.memo_special) {
         try {
           var p = JSON.parse(r.memo_special);
           assetNo = p.asset_no || '';
           symptom = p.symptom || '';
+          receiptDate = p.receipt_date || '';
+          processedDate = p.processed_date || '';
         } catch(e) {}
       }
+      if (!receiptDate) receiptDate = r.delivery_date || '-';
+      if (!processedDate && r.status === '처리완료') processedDate = r.delivery_date || '';
 
       document.getElementById('detailModalTitle').textContent = `[${r.customer_name}] A/S 상세 조치 내역`;
       document.getElementById('detailModalMeta').innerHTML = `
-        <div class="flex items-center justify-between font-bold">
+        <div class="flex items-center justify-between font-bold flex-wrap gap-1">
           <span>구분: <b class="text-indigo-600">${r.category}</b> (${r.status})</span>
-          <span>일자: ${r.delivery_date} · 처리자: ${r.driver_name}</span>
+          <span>접수일: <b>${receiptDate}</b> ${processedDate ? `· 처리일: <b>${processedDate}</b>` : '· (미처리)'} · 처리자: <b>${r.driver_name || '-'}</b></span>
         </div>
         <div class="font-bold text-slate-700">계약번호: <span class="font-mono text-indigo-700">${r.contract_no}</span> ${assetNo ? `· 자산번호: ${assetNo}` : ''}</div>
         <div class="font-bold text-rose-700">증상: ${symptom || '-'}</div>
@@ -1746,17 +1817,24 @@
       var rows = asRecords.map(function(r, idx) {
         var assetNo = '';
         var symptom = '';
+        var receiptDate = '';
+        var processedDate = '';
         if (r.memo_special) {
           try {
             var p = JSON.parse(r.memo_special);
             assetNo = p.asset_no || '';
             symptom = p.symptom || '';
+            receiptDate = p.receipt_date || '';
+            processedDate = p.processed_date || '';
           } catch(e) {}
         }
+        if (!receiptDate) receiptDate = r.delivery_date || '';
+        if (!processedDate && r.status === '처리완료') processedDate = r.delivery_date || '';
 
         return {
           'No': idx + 1,
-          '처리일자': r.delivery_date || '',
+          '접수일자': receiptDate,
+          '처리일자': processedDate,
           '처리구분': r.category || '',
           '상태': r.status || '',
           '고객사명': r.customer_name || '',
