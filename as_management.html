@@ -1,0 +1,1780 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>현대렌탈 A/S 기록 및 거래처 인수인계 관리 시스템</title>
+  <link rel="icon" type="image/svg+xml" href="./icons/icon-truck.svg">
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Font Awesome 6 -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Supabase JS v2 -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- SweetAlert2 -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <!-- SheetJS (Excel export) -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700;800;900&display=swap');
+    body { font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif; }
+    .custom-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+    .custom-scroll::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 9999px; }
+    .custom-scroll::-webkit-scrollbar-thumb:hover { background-color: #94a3b8; }
+    
+    .category-badge-remote { background-color: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+    .category-badge-phone { background-color: #faf5ff; color: #7e22ce; border: 1px solid #e9d5ff; }
+    .category-badge-onsite { background-color: #fff7ed; color: #c2410c; border: 1px solid #fed7aa; }
+    
+    .tab-active { background-color: #4f46e5; color: #ffffff; }
+    .tab-inactive { background-color: #f1f5f9; color: #64748b; }
+    .tab-inactive:hover { background-color: #e2e8f0; color: #334155; }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 antialiased p-3 sm:p-5 select-none text-xs">
+
+  <!-- ========================================== -->
+  <!-- 1. GNB Header                              -->
+  <!-- ========================================== -->
+  <header class="bg-white rounded-2xl px-4 py-3 shadow-xs border border-slate-200 flex flex-wrap items-center justify-between gap-3 mb-4">
+    <!-- Title & Brand -->
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-rose-600 to-pink-500 flex items-center justify-center text-white text-base shadow-md shadow-rose-600/20">
+        <i class="fa-solid fa-wrench"></i>
+      </div>
+      <div>
+        <div class="flex items-center gap-2">
+          <h1 class="text-base font-black text-slate-900">A/S 접수 및 거래처 인수인계 관리</h1>
+          <span id="syncBadge" class="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-emerald-200 flex items-center gap-1">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span id="syncStatusText">⚡ 클라우드 실시간 동기화</span>
+          </span>
+        </div>
+        <p class="text-[11px] text-slate-400">현대렌탈 장비 라이프사이클 관제 · 계약번호 통합 이력 & 조치 메모</p>
+      </div>
+    </div>
+
+    <!-- Quick Navigation & Action Buttons -->
+    <div class="flex flex-wrap items-center gap-2">
+      <!-- Nav Links -->
+      <a href="index.html" class="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition flex items-center gap-1.5 shadow-xs text-xs">
+        <i class="fa-solid fa-desktop text-indigo-600"></i>
+        <span>배송 관제</span>
+      </a>
+      <a href="vehicle_log_tracker.html" class="px-2.5 py-1.5 bg-teal-50 hover:bg-teal-100 text-teal-800 font-bold rounded-xl transition flex items-center gap-1.5 border border-teal-200 shadow-xs text-xs">
+        <i class="fa-solid fa-car-side text-teal-600"></i>
+        <span>차량 일지</span>
+      </a>
+      <a href="schedule_time_tracker.html" class="px-2.5 py-1.5 bg-violet-50 hover:bg-violet-100 text-violet-800 font-bold rounded-xl transition flex items-center gap-1.5 border border-violet-200 shadow-xs text-xs">
+        <i class="fa-solid fa-clock text-violet-600"></i>
+        <span>시간 관리</span>
+      </a>
+      <a href="manual.html" target="_blank" class="px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold rounded-xl transition flex items-center gap-1.5 border border-emerald-200 shadow-xs text-xs">
+        <i class="fa-solid fa-book-open text-emerald-600"></i>
+        <span>매뉴얼</span>
+      </a>
+
+      <!-- Manage Customer Handovers Modal Trigger -->
+      <button onclick="openHandoversManageModal()" class="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl transition flex items-center gap-1.5 shadow-xs text-xs">
+        <i class="fa-solid fa-building-user"></i>
+        <span>거래처 인수인계 관리</span>
+      </button>
+
+      <!-- Excel Export Button -->
+      <button onclick="exportAsRecordsCsv()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl transition flex items-center gap-1.5 shadow-xs text-xs">
+        <i class="fa-solid fa-file-excel"></i>
+        <span>CSV 다운로드</span>
+      </button>
+
+      <!-- Refresh Button -->
+      <button onclick="loadAsData(false)" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl transition flex items-center gap-1.5 shadow-xs text-xs">
+        <i id="syncIcon" class="fa-solid fa-rotate"></i>
+        <span>새로고침</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- ========================================== -->
+  <!-- 2. KPI Summary Cards                       -->
+  <!-- ========================================== -->
+  <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-4">
+    <!-- Total Records -->
+    <div class="bg-white rounded-2xl p-3.5 border border-slate-200 shadow-xs flex items-center justify-between">
+      <div>
+        <p class="text-[11px] font-bold text-slate-400">총 A/S 접수</p>
+        <h3 id="kpiTotalCount" class="text-xl font-black text-slate-900 mt-0.5">0건</h3>
+      </div>
+      <div class="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600 text-base">
+        <i class="fa-solid fa-list-check"></i>
+      </div>
+    </div>
+    <!-- Remote Support -->
+    <div class="bg-white rounded-2xl p-3.5 border border-slate-200 shadow-xs flex items-center justify-between">
+      <div>
+        <p class="text-[11px] font-bold text-blue-600">🌐 원격지원</p>
+        <h3 id="kpiRemoteCount" class="text-xl font-black text-blue-900 mt-0.5">0건</h3>
+      </div>
+      <div class="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600 text-base">
+        <i class="fa-solid fa-network-wired"></i>
+      </div>
+    </div>
+    <!-- Phone Guidance -->
+    <div class="bg-white rounded-2xl p-3.5 border border-slate-200 shadow-xs flex items-center justify-between">
+      <div>
+        <p class="text-[11px] font-bold text-purple-600">📞 유선안내</p>
+        <h3 id="kpiPhoneCount" class="text-xl font-black text-purple-900 mt-0.5">0건</h3>
+      </div>
+      <div class="w-10 h-10 rounded-xl bg-purple-50 flex items-center justify-center text-purple-600 text-base">
+        <i class="fa-solid fa-headset"></i>
+      </div>
+    </div>
+    <!-- Onsite Visit -->
+    <div class="bg-white rounded-2xl p-3.5 border border-slate-200 shadow-xs flex items-center justify-between">
+      <div>
+        <p class="text-[11px] font-bold text-orange-600">🚗 현장방문</p>
+        <h3 id="kpiOnsiteCount" class="text-xl font-black text-orange-900 mt-0.5">0건</h3>
+      </div>
+      <div class="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center text-orange-600 text-base">
+        <i class="fa-solid fa-screwdriver-wrench"></i>
+      </div>
+    </div>
+    <!-- Pending / Processing -->
+    <div class="bg-white rounded-2xl p-3.5 border border-slate-200 shadow-xs flex items-center justify-between">
+      <div>
+        <p class="text-[11px] font-bold text-rose-600">⏳ 대기 / 처리중</p>
+        <h3 id="kpiPendingCount" class="text-xl font-black text-rose-700 mt-0.5">0건</h3>
+      </div>
+      <div class="w-10 h-10 rounded-xl bg-rose-50 flex items-center justify-center text-rose-600 text-base">
+        <i class="fa-solid fa-hourglass-half"></i>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- 3. Main Workspace: Dual Panel Layout       -->
+  <!-- ========================================== -->
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+    
+    <!-- ======================================== -->
+    <!-- [LEFT PANEL] A/S 접수 및 처리 등록 폼     -->
+    <!-- ======================================== -->
+    <div class="lg:col-span-5 flex flex-col gap-3">
+      <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs">
+        
+        <!-- Form Header -->
+        <div class="flex items-center justify-between pb-3 border-b border-slate-100 mb-3">
+          <div class="flex items-center gap-2">
+            <span id="formModeBadge" class="px-2 py-0.5 rounded-lg text-[10px] font-black bg-rose-100 text-rose-800 border border-rose-200">
+              신규 접수
+            </span>
+            <h2 id="formTitle" class="text-sm font-black text-slate-900">A/S 접수 및 처리 등록</h2>
+          </div>
+          <button onclick="resetAsForm()" class="text-slate-400 hover:text-slate-600 text-xs font-bold flex items-center gap-1 transition">
+            <i class="fa-solid fa-rotate-left"></i>
+            <span>초기화</span>
+          </button>
+        </div>
+
+        <input type="hidden" id="editRecordId" value="">
+
+        <!-- Contract No & Asset No Row -->
+        <div class="grid grid-cols-2 gap-2.5 mb-2.5">
+          <!-- Contract No -->
+          <div class="relative">
+            <label class="block text-[11px] font-bold text-slate-600 mb-1">
+              계약번호 <span class="text-rose-500">*</span>
+            </label>
+            <div class="relative">
+              <input type="text" id="inputContractNo" placeholder="예: 2408-0158" 
+                     oninput="onContractInput(this.value)" 
+                     class="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 font-bold text-xs text-slate-800 focus:bg-white focus:outline-none focus:border-indigo-500 transition uppercase">
+              <button type="button" onclick="openContractTimelineModal(document.getElementById('inputContractNo').value)" 
+                      id="btnContractHistory" title="해당 계약번호의 배송+A/S 전체 타임라인 열람"
+                      class="hidden absolute right-1.5 top-1/2 -translate-y-1/2 px-1.5 py-0.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded text-[10px] font-bold">
+                이력보기
+              </button>
+            </div>
+            <!-- Contract Autocomplete Dropdown -->
+            <div id="contractDropdown" class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-50 max-h-48 overflow-y-auto custom-scroll"></div>
+          </div>
+
+          <!-- Asset No -->
+          <div>
+            <label class="block text-[11px] font-bold text-slate-600 mb-1">
+              자산번호
+            </label>
+            <input type="text" id="inputAssetNo" placeholder="예: PR-2024-001" 
+                   class="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 font-bold text-xs text-slate-800 focus:bg-white focus:outline-none focus:border-indigo-500 transition">
+          </div>
+        </div>
+
+        <!-- Contract Unified History Summary Banner (Appears when contract is recognized) -->
+        <div id="contractHistoryBanner" class="hidden mb-2.5 p-2 bg-indigo-50/80 rounded-xl border border-indigo-200 text-[11px] flex items-center justify-between">
+          <div class="flex items-center gap-1.5 text-indigo-900 font-bold truncate">
+            <i class="fa-solid fa-clock-rotate-left text-indigo-600"></i>
+            <span id="contractBannerText">과거 배송 1건, A/S 2건 기록 있음</span>
+          </div>
+          <button type="button" onclick="openContractTimelineModal(document.getElementById('inputContractNo').value)" class="text-indigo-700 hover:text-indigo-950 font-black underline shrink-0 text-[10px]">
+            타임라인 ↗
+          </button>
+        </div>
+
+        <!-- Customer Name -->
+        <div class="mb-2.5 relative">
+          <label class="block text-[11px] font-bold text-slate-600 mb-1">
+            고객사명 <span class="text-rose-500">*</span>
+          </label>
+          <input type="text" id="inputCustomerName" placeholder="고객사 상호 입력 (예: (주)인투온)" 
+                 oninput="onCustomerInput(this.value)"
+                 class="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 font-bold text-xs text-slate-800 focus:bg-white focus:outline-none focus:border-indigo-500 transition">
+          <!-- Customer Autocomplete Dropdown -->
+          <div id="customerDropdown" class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-50 max-h-48 overflow-y-auto custom-scroll"></div>
+        </div>
+
+        <!-- Customer Handover Card (Always accessible for customer) -->
+        <div id="customerHandoverCard" class="mb-2.5 p-2.5 bg-amber-50/90 rounded-xl border border-amber-200/90 transition">
+          <div class="flex items-center justify-between mb-1">
+            <div class="flex items-center gap-1.5 font-black text-amber-900 text-[11px]">
+              <i class="fa-solid fa-clipboard-user text-amber-600"></i>
+              <span id="handoverCustTitle">🏢 거래처 인수인계 사항</span>
+            </div>
+            <button type="button" onclick="openInlineHandoverEdit()" class="px-1.5 py-0.5 bg-amber-200 hover:bg-amber-300 text-amber-950 rounded font-black text-[10px] transition shadow-2xs">
+              <i class="fa-solid fa-pen text-[9px]"></i> 수정
+            </button>
+          </div>
+          <div id="handoverCustContent" class="text-slate-700 text-[11px] leading-relaxed whitespace-pre-line font-medium">
+            고객사를 선택하면 해당 거래처의 인수인계 사항이 여기에 표시됩니다.
+          </div>
+        </div>
+
+        <!-- Symptom -->
+        <div class="mb-2.5">
+          <label class="block text-[11px] font-bold text-slate-600 mb-1">
+            증상 <span class="text-rose-500">*</span>
+          </label>
+          <input type="text" id="inputSymptom" placeholder="증상 요약 (예: 인쇄 시 용지 걸림 빈발, 원격 IP 세팅)" 
+                 class="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 font-bold text-xs text-slate-800 focus:bg-white focus:outline-none focus:border-indigo-500 transition mb-1.5">
+          
+          <!-- Symptom Quick Chips -->
+          <div class="flex flex-wrap gap-1">
+            <button type="button" onclick="appendSymptom('부팅 불량')" class="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-md text-[10px] font-bold transition">부팅 불량</button>
+            <button type="button" onclick="appendSymptom('네트워크/스캔 끊김')" class="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-md text-[10px] font-bold transition">네트워크/스캔 끊김</button>
+            <button type="button" onclick="appendSymptom('용지 걸림')" class="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-md text-[10px] font-bold transition">용지 걸림</button>
+            <button type="button" onclick="appendSymptom('토너/화질 흐림')" class="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-md text-[10px] font-bold transition">토너/화질 흐림</button>
+            <button type="button" onclick="appendSymptom('화면 깜빡임')" class="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-md text-[10px] font-bold transition">화면 깜빡임</button>
+            <button type="button" onclick="appendSymptom('소음 발생')" class="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-md text-[10px] font-bold transition">소음 발생</button>
+            <button type="button" onclick="appendSymptom('전원 꺼짐')" class="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-md text-[10px] font-bold transition">전원 꺼짐</button>
+          </div>
+        </div>
+
+        <!-- Category 3-way Selection -->
+        <div class="mb-2.5">
+          <label class="block text-[11px] font-bold text-slate-600 mb-1">
+            처리 구분 <span class="text-rose-500">*</span>
+          </label>
+          <div class="grid grid-cols-3 gap-1.5">
+            <button type="button" onclick="selectCategory('원격지원')" id="catBtnRemote" class="py-1.5 px-2 rounded-xl font-black text-xs border transition flex items-center justify-center gap-1 bg-blue-50 border-blue-300 text-blue-800 shadow-xs">
+              <i class="fa-solid fa-network-wired"></i> 원격지원
+            </button>
+            <button type="button" onclick="selectCategory('유선안내')" id="catBtnPhone" class="py-1.5 px-2 rounded-xl font-bold text-xs border transition flex items-center justify-center gap-1 bg-slate-50 border-slate-200 text-slate-600 hover:bg-purple-50">
+              <i class="fa-solid fa-headset"></i> 유선안내
+            </button>
+            <button type="button" onclick="selectCategory('현장방문')" id="catBtnOnsite" class="py-1.5 px-2 rounded-xl font-bold text-xs border transition flex items-center justify-center gap-1 bg-slate-50 border-slate-200 text-slate-600 hover:bg-orange-50">
+              <i class="fa-solid fa-screwdriver-wrench"></i> 현장방문
+            </button>
+          </div>
+          <input type="hidden" id="inputCategory" value="원격지원">
+        </div>
+
+        <!-- Status, Date & Driver Row -->
+        <div class="grid grid-cols-3 gap-2 mb-2.5">
+          <!-- Status -->
+          <div>
+            <label class="block text-[11px] font-bold text-slate-600 mb-1">상태</label>
+            <select id="inputStatus" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-2 py-1.5 font-bold text-xs text-slate-800 focus:bg-white focus:outline-none">
+              <option value="처리완료" selected>처리완료</option>
+              <option value="접수대기">접수대기</option>
+              <option value="처리중">처리중</option>
+            </select>
+          </div>
+          <!-- Date -->
+          <div>
+            <label class="block text-[11px] font-bold text-slate-600 mb-1">처리일자</label>
+            <input type="date" id="inputDate" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-2 py-1.5 font-bold text-xs text-slate-800 focus:bg-white focus:outline-none">
+          </div>
+          <!-- Processor (Driver/Author) -->
+          <div>
+            <label class="block text-[11px] font-bold text-slate-600 mb-1">처리 담당자</label>
+            <input type="text" id="inputDriver" placeholder="담당자명" 
+                   class="w-full bg-slate-50 border border-slate-200 rounded-xl px-2 py-1.5 font-bold text-xs text-slate-800 focus:bg-white focus:outline-none">
+          </div>
+        </div>
+
+        <!-- Large Action Notes Memo Area (초대형 메모칸) -->
+        <div class="mb-3">
+          <div class="flex items-center justify-between mb-1">
+            <label class="block text-[11px] font-black text-slate-700">
+              상세 처리 내역 메모 (대형 메모창) <span class="text-rose-500">*</span>
+            </label>
+            <span class="text-[10px] text-slate-400 font-medium">원클릭 조치 상용구 지원</span>
+          </div>
+          
+          <textarea id="inputMemoFull" rows="7" 
+                    placeholder="처리한 사람이 상세 조치 내역, 원인 분석, 교체 부품, 고객 안내 사항 등을 자유롭고 상세하게 작성하세요."
+                    class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 font-medium text-xs text-slate-800 focus:bg-white focus:outline-none focus:border-indigo-500 transition custom-scroll leading-relaxed resize-y"></textarea>
+          
+          <!-- Action Preset Chips -->
+          <div class="mt-1.5">
+            <div class="text-[10px] font-bold text-slate-400 mb-1">자주 쓰는 조치 상용구 칩 (클릭 시 자동 삽입):</div>
+            <div class="flex flex-wrap gap-1">
+              <button type="button" onclick="appendActionNote('원격 드라이버 재설치 및 인쇄 포트 재할당 완료.')" class="px-2 py-0.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-md text-[10px] font-bold transition">+ 드라이버 재설치</button>
+              <button type="button" onclick="appendActionNote('유선 안내: 급지 롤러 이물질 제거 가이드 후 정상 급지 확인 완료.')" class="px-2 py-0.5 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded-md text-[10px] font-bold transition">+ 롤러 청소 안내</button>
+              <button type="button" onclick="appendActionNote('현장 방문 조치: 정품 토너 및 드럼 유닛 교체 후 테스트 페이지 정상 출력 확인.')" class="px-2 py-0.5 bg-orange-50 hover:bg-orange-100 text-orange-700 border border-orange-200 rounded-md text-[10px] font-bold transition">+ 드럼/토너 교체</button>
+              <button type="button" onclick="appendActionNote('네트워크 고정 IP 재바인딩 및 방화벽 예외 포트 정상 등록 조치.')" class="px-2 py-0.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-md text-[10px] font-bold transition">+ 네트워크 IP 고정</button>
+              <button type="button" onclick="appendActionNote('현장 부품(메인보드/급지부) 점검 결과 부품 수급 후 2차 재방문 일정 조율.')" class="px-2 py-0.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-md text-[10px] font-bold transition">+ 부품 수급 재방문</button>
+              <button type="button" onclick="appendActionNote('테스트 인쇄 5매 출력 정상 확인 및 담당자 현장 서명 완료.')" class="px-2 py-0.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-md text-[10px] font-bold transition">+ 테스트 인쇄 확인</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Submit Button -->
+        <button type="button" onclick="saveAsRecord()" class="w-full py-2.5 bg-gradient-to-r from-rose-600 to-pink-600 hover:from-rose-500 hover:to-pink-500 text-white font-black rounded-xl transition flex items-center justify-center gap-2 shadow-md shadow-rose-600/20 text-xs">
+          <i class="fa-solid fa-floppy-disk"></i>
+          <span id="submitBtnText">A/S 접수 및 처리 내역 저장</span>
+        </button>
+
+      </div>
+    </div>
+
+    <!-- ======================================== -->
+    <!-- [RIGHT PANEL] A/S 내역 관제 & 스마트 필터 -->
+    <!-- ======================================== -->
+    <div class="lg:col-span-7 flex flex-col gap-3">
+      
+      <!-- Filter & Search Toolbar -->
+      <div class="bg-white rounded-2xl p-3.5 border border-slate-200 shadow-xs space-y-2.5">
+        
+        <!-- Search Row -->
+        <div class="flex flex-wrap items-center gap-2">
+          <!-- Multi-column Search Input -->
+          <div class="relative flex-1 min-w-[200px]">
+            <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+            <input type="text" id="searchInput" oninput="renderAsList()" placeholder="계약번호, 자산번호, 고객사명, 증상, 처리자 검색..." 
+                   class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-8 pr-3 py-1.5 font-bold text-xs text-slate-800 focus:bg-white focus:outline-none focus:border-indigo-500 transition">
+          </div>
+
+          <!-- Date Period Filter -->
+          <select id="periodFilter" onchange="onPeriodFilterChanged(this.value)" class="bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 font-bold text-xs text-slate-700 focus:outline-none">
+            <option value="all">전체 기간</option>
+            <option value="today">오늘</option>
+            <option value="week">최근 7일</option>
+            <option value="month">최근 30일</option>
+          </select>
+
+          <!-- Records Count Badge -->
+          <div class="text-[11px] font-bold text-slate-500 px-2">
+            검색 결과: <b id="filteredCount" class="text-indigo-600">0</b>건
+          </div>
+        </div>
+
+        <!-- Filter Buttons (Category & Status) -->
+        <div class="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100 text-xs">
+          <!-- Category Filter Pills -->
+          <div class="flex items-center gap-1 bg-slate-100 p-0.5 rounded-xl">
+            <button onclick="setCategoryFilter('all')" id="filterCatAll" class="px-2.5 py-1 rounded-lg font-bold text-[11px] tab-active transition">전체</button>
+            <button onclick="setCategoryFilter('원격지원')" id="filterCatRemote" class="px-2.5 py-1 rounded-lg font-bold text-[11px] tab-inactive transition">🌐 원격지원</button>
+            <button onclick="setCategoryFilter('유선안내')" id="filterCatPhone" class="px-2.5 py-1 rounded-lg font-bold text-[11px] tab-inactive transition">📞 유선안내</button>
+            <button onclick="setCategoryFilter('현장방문')" id="filterCatOnsite" class="px-2.5 py-1 rounded-lg font-bold text-[11px] tab-inactive transition">🚗 현장방문</button>
+          </div>
+
+          <!-- Status Filter Pills -->
+          <div class="flex items-center gap-1 bg-slate-100 p-0.5 rounded-xl">
+            <button onclick="setStatusFilter('all')" id="filterStatAll" class="px-2.5 py-1 rounded-lg font-bold text-[11px] tab-active transition">전체상태</button>
+            <button onclick="setStatusFilter('처리완료')" id="filterStatDone" class="px-2.5 py-1 rounded-lg font-bold text-[11px] tab-inactive transition">완료</button>
+            <button onclick="setStatusFilter('미완료')" id="filterStatPending" class="px-2.5 py-1 rounded-lg font-bold text-[11px] tab-inactive transition">대기/진행</button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- A/S Records List Container -->
+      <div class="bg-white rounded-2xl p-3 border border-slate-200 shadow-xs flex-1 min-h-[500px]">
+        <div id="asListContainer" class="space-y-2.5">
+          <!-- Dynamic Records Injected Here -->
+          <div class="py-16 text-center text-slate-400">
+            <i class="fa-solid fa-spinner fa-spin text-2xl mb-2 text-slate-300"></i>
+            <p class="font-bold">A/S 기록을 불러오는 중입니다...</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- ========================================== -->
+  <!-- 4. MODALS                                  -->
+  <!-- ========================================== -->
+
+  <!-- Modal 1: Contract Unified Lifecycle Timeline Modal -->
+  <div id="contractTimelineModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-3 animate-in fade-in duration-150">
+    <div class="bg-white rounded-3xl max-w-3xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden">
+      <!-- Modal Header -->
+      <div class="p-4 bg-gradient-to-r from-slate-900 to-indigo-950 text-white flex items-center justify-between shrink-0">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center text-white text-base">
+            <i class="fa-solid fa-timeline"></i>
+          </div>
+          <div>
+            <h3 class="font-black text-sm flex items-center gap-2">
+              <span>계약 통합 라이프사이클 타임라인</span>
+              <span id="modalContractBadge" class="bg-indigo-500/40 text-indigo-200 font-mono text-xs px-2 py-0.5 rounded-full border border-indigo-400/30">--</span>
+            </h3>
+            <p id="modalCustomerSub" class="text-[11px] text-slate-300">과거 배송·설치 이력 및 누적 A/S 처리 통합 내역</p>
+          </div>
+        </div>
+        <button onclick="closeContractTimelineModal()" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <!-- Customer Handover Banner in Modal -->
+      <div id="modalHandoverBanner" class="p-3 bg-amber-50 border-b border-amber-200 flex items-start gap-2 text-xs">
+        <i class="fa-solid fa-clipboard-user text-amber-600 mt-0.5"></i>
+        <div>
+          <b class="text-amber-950">거래처 인수인계 주의사항:</b>
+          <span id="modalHandoverText" class="text-amber-900 ml-1">등록된 인수인계 사항이 없습니다.</span>
+        </div>
+      </div>
+
+      <!-- Timeline List Body -->
+      <div id="modalTimelineList" class="p-4 overflow-y-auto custom-scroll flex-1 space-y-4">
+        <!-- Timeline items dynamic -->
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="p-3 bg-slate-50 border-t border-slate-100 flex items-center justify-end">
+        <button onclick="closeContractTimelineModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl text-xs transition">
+          닫기
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 2: Customer Handover Management Modal -->
+  <div id="handoversManageModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-3 animate-in fade-in duration-150">
+    <div class="bg-white rounded-3xl max-w-2xl w-full max-h-[85vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden">
+      <!-- Modal Header -->
+      <div class="p-4 bg-amber-500 text-white flex items-center justify-between shrink-0">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-xl bg-amber-600 flex items-center justify-center text-white text-base">
+            <i class="fa-solid fa-building-user"></i>
+          </div>
+          <div>
+            <h3 class="font-black text-sm">거래처별 인수인계 사항 통합 관리</h3>
+            <p class="text-[11px] text-amber-100">각 거래처별 특이사항, 주의점, 출입 안내 등을 상시 수정 및 영구 보존합니다.</p>
+          </div>
+        </div>
+        <button onclick="closeHandoversManageModal()" class="w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 text-white flex items-center justify-center transition">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <!-- Customer Handover Add/Search Toolbar -->
+      <div class="p-3 bg-slate-50 border-b border-slate-200 flex items-center gap-2">
+        <div class="relative flex-1">
+          <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+          <input type="text" id="handoverSearchInput" oninput="renderHandoverList()" placeholder="거래처명 검색..." 
+                 class="w-full bg-white border border-slate-200 rounded-xl pl-8 pr-3 py-1.5 font-bold text-xs focus:outline-none">
+        </div>
+        <button onclick="openAddNewHandoverPrompt()" class="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white font-black rounded-xl text-xs flex items-center gap-1 shadow-xs transition">
+          <i class="fa-solid fa-plus"></i>
+          <span>새 거래처 추가</span>
+        </button>
+      </div>
+
+      <!-- Customer Handover List Body -->
+      <div id="handoversListContainer" class="p-4 overflow-y-auto custom-scroll flex-1 space-y-3">
+        <!-- Injected dynamically -->
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="p-3 bg-slate-50 border-t border-slate-100 flex items-center justify-end">
+        <button onclick="closeHandoversManageModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl text-xs transition">
+          완료 및 닫기
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 3: Large Memo Detail Modal -->
+  <div id="memoDetailModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-3 animate-in fade-in duration-150">
+    <div class="bg-white rounded-3xl max-w-xl w-full max-h-[80vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden">
+      <div class="p-4 bg-slate-900 text-white flex items-center justify-between shrink-0">
+        <div class="flex items-center gap-2">
+          <i class="fa-solid fa-file-lines text-indigo-400 text-base"></i>
+          <h3 class="font-black text-sm" id="detailModalTitle">A/S 상세 조치 내역 전문</h3>
+        </div>
+        <button onclick="closeMemoDetailModal()" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div class="p-4 overflow-y-auto custom-scroll flex-1">
+        <div id="detailModalMeta" class="mb-3 p-2.5 bg-slate-50 rounded-xl border border-slate-200 text-[11px] space-y-1"></div>
+        <div class="font-black text-xs text-slate-700 mb-1">상세 조치 내역 전문:</div>
+        <div id="detailModalContent" class="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 font-medium text-xs leading-relaxed whitespace-pre-line text-slate-800"></div>
+      </div>
+      <div class="p-3 bg-slate-50 border-t border-slate-100 flex items-center justify-end">
+        <button onclick="closeMemoDetailModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl text-xs transition">
+          닫기
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- 5. Core Application Logic (JavaScript)     -->
+  <!-- ========================================== -->
+  <script>
+    // Supabase Configuration
+    var SUPABASE_URL = 'https://gideypynmhpjucgszyce.supabase.co';
+    var SUPABASE_ANON_KEY = 'sb_publishable_pLF_neZMUjj3G7PsiH_tuw_rfRuu8eP';
+    var supabaseClient = null;
+
+    // State Variables
+    var asRecords = [];            // All AS records (source_sheet: 'AS_RECORDS')
+    var allDeliveryRecords = [];    // All delivery records for autocomplete & history lookup
+    var customerHandovers = {};     // Map of customerName -> handoverText (from source_sheet: 'SYSTEM_CONFIG_CUSTOMER_HANDOVERS')
+    var knownCustomers = [];        // Unique customer names
+    var knownContracts = [];        // Unique contracts with customer mapping
+
+    var currentCategoryFilter = 'all';
+    var currentStatusFilter = 'all';
+    var currentPeriodFilter = 'all';
+
+    // Init App
+    window.addEventListener('DOMContentLoaded', function() {
+      // Set today's date in form
+      var today = new Date().toISOString().split('T')[0];
+      document.getElementById('inputDate').value = today;
+
+      // Initialize Supabase
+      if (window.supabase) {
+        supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        setupRealtimeSubscription();
+      }
+
+      // Initial Data Load
+      loadAsData(true);
+      loadCustomerHandovers();
+      loadDeliveryBackgroundData();
+    });
+
+    // Realtime Subscription
+    function setupRealtimeSubscription() {
+      if (!supabaseClient) return;
+      supabaseClient.channel('as-records-changes')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'delivery_schedules' }, function(payload) {
+          var row = payload.new || payload.old;
+          if (row && (row.source_sheet === 'AS_RECORDS' || row.source_sheet === 'SYSTEM_CONFIG_CUSTOMER_HANDOVERS')) {
+            console.log('Realtime update detected:', payload.eventType, row.source_sheet);
+            loadAsData(false);
+            if (row.source_sheet === 'SYSTEM_CONFIG_CUSTOMER_HANDOVERS') {
+              loadCustomerHandovers();
+            }
+          }
+        })
+        .subscribe();
+    }
+
+    // Set Sync Status
+    function setSyncStatus(isSyncing, text) {
+      var badge = document.getElementById('syncBadge');
+      var statusText = document.getElementById('syncStatusText');
+      var icon = document.getElementById('syncIcon');
+      if (icon) {
+        if (isSyncing) icon.classList.add('fa-spin');
+        else icon.classList.remove('fa-spin');
+      }
+      if (statusText) statusText.textContent = text;
+    }
+
+    // Load AS Records
+    async function loadAsData(initial) {
+      if (!supabaseClient) return;
+      setSyncStatus(true, 'A/S 데이터 조회 중...');
+
+      try {
+        var res = await supabaseClient
+          .from('delivery_schedules')
+          .select('*')
+          .eq('source_sheet', 'AS_RECORDS')
+          .order('delivery_date', { ascending: false });
+
+        if (res.error) throw res.error;
+
+        asRecords = res.data || [];
+        updateKpiCards();
+        renderAsList();
+        setSyncStatus(false, '⚡ 클라우드 실시간 동기화 (' + asRecords.length + '건)');
+      } catch (err) {
+        console.error('Error loading AS records:', err);
+        setSyncStatus(false, '⚠️ 동기화 실패');
+      }
+    }
+
+    // Load Customer Handovers Config
+    async function loadCustomerHandovers() {
+      if (!supabaseClient) return;
+      try {
+        var res = await supabaseClient
+          .from('delivery_schedules')
+          .select('*')
+          .eq('source_sheet', 'SYSTEM_CONFIG_CUSTOMER_HANDOVERS')
+          .limit(1);
+
+        if (res.error) throw res.error;
+
+        if (res.data && res.data.length > 0) {
+          var memoFull = res.data[0].memo_full || '{}';
+          try {
+            customerHandovers = JSON.parse(memoFull);
+          } catch (e) {
+            customerHandovers = {};
+          }
+        } else {
+          customerHandovers = {};
+        }
+
+        // Refresh current handover card if customer is selected
+        var currCust = (document.getElementById('inputCustomerName').value || '').trim();
+        if (currCust) showCustomerHandoverCard(currCust);
+      } catch (err) {
+        console.error('Error loading customer handovers:', err);
+      }
+    }
+
+    // Load Delivery Records for Background Autocomplete & Contract Linking
+    async function loadDeliveryBackgroundData() {
+      if (!supabaseClient) return;
+      try {
+        var res = await supabaseClient
+          .from('delivery_schedules')
+          .select('contract_no, customer_name, delivery_date, category, driver_name, items, memo_full, memo_special, address, source_sheet')
+          .neq('source_sheet', 'SYSTEM_CONFIG_USERS')
+          .neq('source_sheet', 'SYSTEM_CONFIG_DRIVER_ORIGINS')
+          .neq('source_sheet', 'SYSTEM_CONFIG_CUSTOMER_HANDOVERS')
+          .neq('source_sheet', 'VEHICLE_TRIP_LOGS')
+          .order('delivery_date', { ascending: false })
+          .limit(1000);
+
+        if (res.error) throw res.error;
+
+        allDeliveryRecords = res.data || [];
+
+        // Build unique lists
+        var custSet = new Set();
+        var contractMap = {}; // contractNo -> { customer, count }
+
+        allDeliveryRecords.forEach(function(r) {
+          if (r.customer_name && r.customer_name !== 'SYSTEM_CONFIG_USERS') {
+            custSet.add(r.customer_name.trim());
+          }
+          if (r.contract_no) {
+            var cNo = r.contract_no.trim();
+            if (!contractMap[cNo]) {
+              contractMap[cNo] = { customer: r.customer_name || '', count: 1 };
+            } else {
+              contractMap[cNo].count++;
+            }
+          }
+        });
+
+        knownCustomers = Array.from(custSet);
+        knownContracts = Object.keys(contractMap).map(function(k) {
+          return { contract: k, customer: contractMap[k].customer, count: contractMap[k].count };
+        });
+
+      } catch (err) {
+        console.error('Error loading delivery background data:', err);
+      }
+    }
+
+    // Update Top KPI Cards
+    function updateKpiCards() {
+      var total = asRecords.length;
+      var remote = 0;
+      var phone = 0;
+      var onsite = 0;
+      var pending = 0;
+
+      asRecords.forEach(function(r) {
+        if (r.category === '원격지원') remote++;
+        else if (r.category === '유선안내') phone++;
+        else if (r.category === '현장방문') onsite++;
+
+        if (r.status === '접수대기' || r.status === '처리중') pending++;
+      });
+
+      document.getElementById('kpiTotalCount').textContent = total + '건';
+      document.getElementById('kpiRemoteCount').textContent = remote + '건';
+      document.getElementById('kpiPhoneCount').textContent = phone + '건';
+      document.getElementById('kpiOnsiteCount').textContent = onsite + '건';
+      document.getElementById('kpiPendingCount').textContent = pending + '건';
+    }
+
+    // Category Selection Toggle
+    function selectCategory(cat) {
+      document.getElementById('inputCategory').value = cat;
+      var bRemote = document.getElementById('catBtnRemote');
+      var bPhone = document.getElementById('catBtnPhone');
+      var bOnsite = document.getElementById('catBtnOnsite');
+
+      // Reset
+      [bRemote, bPhone, bOnsite].forEach(function(b) {
+        b.className = 'py-1.5 px-2 rounded-xl font-bold text-xs border transition flex items-center justify-center gap-1 bg-slate-50 border-slate-200 text-slate-600';
+      });
+
+      if (cat === '원격지원') {
+        bRemote.className = 'py-1.5 px-2 rounded-xl font-black text-xs border transition flex items-center justify-center gap-1 bg-blue-50 border-blue-300 text-blue-800 shadow-xs';
+      } else if (cat === '유선안내') {
+        bPhone.className = 'py-1.5 px-2 rounded-xl font-black text-xs border transition flex items-center justify-center gap-1 bg-purple-50 border-purple-300 text-purple-800 shadow-xs';
+      } else if (cat === '현장방문') {
+        bOnsite.className = 'py-1.5 px-2 rounded-xl font-black text-xs border transition flex items-center justify-center gap-1 bg-orange-50 border-orange-300 text-orange-800 shadow-xs';
+      }
+    }
+
+    // Quick Chips Handlers
+    function appendSymptom(text) {
+      var input = document.getElementById('inputSymptom');
+      if (!input.value.trim()) {
+        input.value = text;
+      } else if (input.value.indexOf(text) === -1) {
+        input.value = input.value.trim() + ', ' + text;
+      }
+      input.focus();
+    }
+
+    function appendActionNote(text) {
+      var textarea = document.getElementById('inputMemoFull');
+      var curr = textarea.value.trim();
+      if (!curr) {
+        textarea.value = text;
+      } else {
+        textarea.value = curr + '\n' + text;
+      }
+      textarea.focus();
+    }
+
+    // Autocomplete: Contract No
+    function onContractInput(val) {
+      var q = (val || '').trim().toUpperCase();
+      var dropdown = document.getElementById('contractDropdown');
+      var btnHistory = document.getElementById('btnContractHistory');
+      var banner = document.getElementById('contractHistoryBanner');
+
+      if (!q) {
+        dropdown.classList.add('hidden');
+        if (btnHistory) btnHistory.classList.add('hidden');
+        if (banner) banner.classList.add('hidden');
+        return;
+      }
+
+      if (btnHistory) btnHistory.classList.remove('hidden');
+
+      // Check matches
+      var matches = knownContracts.filter(function(c) {
+        return c.contract.toUpperCase().indexOf(q) !== -1;
+      }).slice(0, 8);
+
+      if (matches.length > 0) {
+        var html = '';
+        matches.forEach(function(m) {
+          html += `
+            <div onclick="selectContractAutocomplete('${m.contract}', '${m.customer}')" class="p-2 hover:bg-indigo-50 cursor-pointer flex items-center justify-between text-xs border-b border-slate-100 last:border-b-0">
+              <span class="font-mono font-black text-indigo-700">${m.contract}</span>
+              <span class="text-slate-500 font-bold truncate max-w-[150px]">${m.customer}</span>
+            </div>
+          `;
+        });
+        dropdown.innerHTML = html;
+        dropdown.classList.remove('hidden');
+      } else {
+        dropdown.classList.add('hidden');
+      }
+
+      // Check existing history count for banner
+      checkContractHistorySummary(q);
+    }
+
+    function selectContractAutocomplete(contract, customer) {
+      document.getElementById('inputContractNo').value = contract;
+      document.getElementById('contractDropdown').classList.add('hidden');
+
+      if (customer && !document.getElementById('inputCustomerName').value.trim()) {
+        document.getElementById('inputCustomerName').value = customer;
+        showCustomerHandoverCard(customer);
+      }
+
+      checkContractHistorySummary(contract);
+    }
+
+    // Check Contract History Summary Banner
+    function checkContractHistorySummary(contractNo) {
+      var banner = document.getElementById('contractHistoryBanner');
+      var bannerText = document.getElementById('contractBannerText');
+      if (!contractNo) {
+        if (banner) banner.classList.add('hidden');
+        return;
+      }
+
+      var delCount = allDeliveryRecords.filter(function(r) {
+        return (r.contract_no || '').trim().toUpperCase() === contractNo.trim().toUpperCase() && r.source_sheet !== 'AS_RECORDS';
+      }).length;
+
+      var asCount = asRecords.filter(function(r) {
+        return (r.contract_no || '').trim().toUpperCase() === contractNo.trim().toUpperCase();
+      }).length;
+
+      if (delCount > 0 || asCount > 0) {
+        bannerText.textContent = `해당 계약 과거 배송/설치 ${delCount}건, A/S 누적 ${asCount}건 조회됨`;
+        banner.classList.remove('hidden');
+      } else {
+        banner.classList.add('hidden');
+      }
+    }
+
+    // Autocomplete: Customer Name
+    function onCustomerInput(val) {
+      var q = (val || '').trim();
+      var dropdown = document.getElementById('customerDropdown');
+
+      showCustomerHandoverCard(q);
+
+      if (!q) {
+        dropdown.classList.add('hidden');
+        return;
+      }
+
+      var matches = knownCustomers.filter(function(c) {
+        return c.indexOf(q) !== -1;
+      }).slice(0, 8);
+
+      if (matches.length > 0) {
+        var html = '';
+        matches.forEach(function(m) {
+          html += `
+            <div onclick="selectCustomerAutocomplete('${m}')" class="p-2 hover:bg-amber-50 cursor-pointer flex items-center justify-between text-xs border-b border-slate-100 last:border-b-0">
+              <span class="font-bold text-slate-800">${m}</span>
+              <span class="text-amber-600 font-bold text-[10px]">${customerHandovers[m] ? '인수인계 유' : ''}</span>
+            </div>
+          `;
+        });
+        dropdown.innerHTML = html;
+        dropdown.classList.remove('hidden');
+      } else {
+        dropdown.classList.add('hidden');
+      }
+    }
+
+    function selectCustomerAutocomplete(customer) {
+      document.getElementById('inputCustomerName').value = customer;
+      document.getElementById('customerDropdown').classList.add('hidden');
+      showCustomerHandoverCard(customer);
+    }
+
+    // Show Customer Handover Card
+    function showCustomerHandoverCard(customerName) {
+      var card = document.getElementById('customerHandoverCard');
+      var title = document.getElementById('handoverCustTitle');
+      var content = document.getElementById('handoverCustContent');
+
+      if (!customerName) {
+        title.innerHTML = '🏢 거래처 인수인계 사항';
+        content.textContent = '고객사를 선택하면 해당 거래처의 인수인계 사항이 여기에 표시됩니다.';
+        card.className = 'mb-2.5 p-2.5 bg-slate-50 rounded-xl border border-slate-200 transition';
+        return;
+      }
+
+      title.innerHTML = `🏢 <b>[${customerName}]</b> 인수인계 사항`;
+      var text = customerHandovers[customerName];
+      if (text && text.trim()) {
+        content.textContent = text.trim();
+        card.className = 'mb-2.5 p-2.5 bg-amber-50 rounded-xl border border-amber-300 shadow-xs transition';
+      } else {
+        content.innerHTML = '<span class="text-slate-400">등록된 인수인계 사항이 없습니다. [수정] 버튼을 눌러 등록하세요.</span>';
+        card.className = 'mb-2.5 p-2.5 bg-slate-50 rounded-xl border border-slate-200 transition';
+      }
+    }
+
+    // Inline Handover Edit
+    async function openInlineHandoverEdit() {
+      var cust = (document.getElementById('inputCustomerName').value || '').trim();
+      if (!cust) {
+        Swal.fire({
+          icon: 'warning',
+          title: '고객사명을 먼저 입력해주세요',
+          text: '인수인계 사항을 저장할 고객사명을 입력한 후 클릭해주세요.',
+          confirmButtonColor: '#4f46e5'
+        });
+        return;
+      }
+
+      var currentText = customerHandovers[cust] || '';
+
+      const { value: text } = await Swal.fire({
+        title: `🏢 [${cust}] 인수인계 사항 수정`,
+        input: 'textarea',
+        inputValue: currentText,
+        inputPlaceholder: '예: 주차권 1층 안내데스크 필히 수령 / 3층 진입 시 보안카드 요청 필요 / 점심시간 12:00~13:00 방문 불가',
+        showCancelButton: true,
+        confirmButtonText: '저장하기',
+        cancelButtonText: '취소',
+        confirmButtonColor: '#d97706',
+        inputAttributes: {
+          style: 'min-height: 120px; font-size: 13px;'
+        }
+      });
+
+      if (text !== undefined) {
+        customerHandovers[cust] = text.trim();
+        await saveCustomerHandoversToDb();
+        showCustomerHandoverCard(cust);
+        Swal.fire({
+          icon: 'success',
+          title: '저장 완료',
+          text: `[${cust}] 거래처 인수인계 사항이 영구 저장되었습니다.`,
+          timer: 1500,
+          showConfirmButton: false
+        });
+      }
+    }
+
+    // Save Customer Handovers Config to DB
+    async function saveCustomerHandoversToDb() {
+      if (!supabaseClient) return;
+      var payloadStr = JSON.stringify(customerHandovers);
+
+      try {
+        // Find if record exists
+        var checkRes = await supabaseClient
+          .from('delivery_schedules')
+          .select('id')
+          .eq('source_sheet', 'SYSTEM_CONFIG_CUSTOMER_HANDOVERS')
+          .limit(1);
+
+        if (checkRes.data && checkRes.data.length > 0) {
+          var updateRes = await supabaseClient
+            .from('delivery_schedules')
+            .update({
+              memo_full: payloadStr,
+              delivery_date: new Date().toISOString().split('T')[0]
+            })
+            .eq('id', checkRes.data[0].id);
+          if (updateRes.error) throw updateRes.error;
+        } else {
+          var insertRes = await supabaseClient
+            .from('delivery_schedules')
+            .insert([{
+              source_sheet: 'SYSTEM_CONFIG_CUSTOMER_HANDOVERS',
+              customer_name: 'SYSTEM_CONFIG_CUSTOMER_HANDOVERS',
+              contract_no: 'HANDOVER_CONFIG',
+              category: 'CONFIG',
+              delivery_date: new Date().toISOString().split('T')[0],
+              memo_full: payloadStr
+            }]);
+          if (insertRes.error) throw insertRes.error;
+        }
+      } catch (err) {
+        console.error('saveCustomerHandoversToDb error:', err);
+        Swal.fire('저장 오류', '거래처 인수인계 저장 중 오류가 발생했습니다.', 'error');
+      }
+    }
+
+    // Save or Update A/S Record
+    async function saveAsRecord() {
+      if (!supabaseClient) {
+        Swal.fire('연결 오류', 'Supabase DB 클라이언트가 연결되지 않았습니다.', 'error');
+        return;
+      }
+
+      var recordId = document.getElementById('editRecordId').value;
+      var contractNo = (document.getElementById('inputContractNo').value || '').trim().toUpperCase();
+      var assetNo = (document.getElementById('inputAssetNo').value || '').trim();
+      var customerName = (document.getElementById('inputCustomerName').value || '').trim();
+      var symptom = (document.getElementById('inputSymptom').value || '').trim();
+      var category = document.getElementById('inputCategory').value;
+      var status = document.getElementById('inputStatus').value;
+      var date = document.getElementById('inputDate').value;
+      var driver = (document.getElementById('inputDriver').value || '').trim();
+      var memoFull = (document.getElementById('inputMemoFull').value || '').trim();
+
+      // Validation
+      if (!contractNo) {
+        Swal.fire('입력 확인', '계약번호를 입력해주세요.', 'warning');
+        return;
+      }
+      if (!customerName) {
+        Swal.fire('입력 확인', '고객사명을 입력해주세요.', 'warning');
+        return;
+      }
+      if (!symptom) {
+        Swal.fire('입력 확인', '증상을 입력해주세요.', 'warning');
+        return;
+      }
+      if (!memoFull) {
+        Swal.fire('입력 확인', '상세 조치 내역 메모를 작성해주세요.', 'warning');
+        return;
+      }
+
+      // Pack special JSON for asset & symptom
+      var specialObj = {
+        asset_no: assetNo,
+        symptom: symptom,
+        processed_at: new Date().toISOString()
+      };
+
+      var payload = {
+        contract_no: contractNo,
+        customer_name: customerName,
+        category: category,
+        status: status,
+        delivery_date: date,
+        driver_name: driver || '관리자',
+        memo_full: memoFull,
+        memo_special: JSON.stringify(specialObj),
+        source_sheet: 'AS_RECORDS'
+      };
+
+      setSyncStatus(true, '저장 중...');
+
+      try {
+        if (recordId) {
+          // Update
+          var res = await supabaseClient
+            .from('delivery_schedules')
+            .update(payload)
+            .eq('id', recordId);
+          if (res.error) throw res.error;
+
+          Swal.fire({
+            icon: 'success',
+            title: '수정 완료',
+            text: `[${customerName}] A/S 내역이 성공적으로 수정되었습니다.`,
+            timer: 1500,
+            showConfirmButton: false
+          });
+        } else {
+          // Insert
+          var res = await supabaseClient
+            .from('delivery_schedules')
+            .insert([payload]);
+          if (res.error) throw res.error;
+
+          Swal.fire({
+            icon: 'success',
+            title: '등록 완료',
+            text: `[${customerName}] A/S 건이 성공적으로 접수/기록되었습니다.`,
+            timer: 1500,
+            showConfirmButton: false
+          });
+        }
+
+        resetAsForm();
+        await loadAsData(false);
+      } catch (err) {
+        console.error('Error saving AS record:', err);
+        Swal.fire('저장 실패', 'DB 저장 중 오류가 발생했습니다: ' + (err.message || ''), 'error');
+        setSyncStatus(false, '⚠️ 저장 실패');
+      }
+    }
+
+    // Reset Form
+    function resetAsForm() {
+      document.getElementById('editRecordId').value = '';
+      document.getElementById('inputContractNo').value = '';
+      document.getElementById('inputAssetNo').value = '';
+      document.getElementById('inputCustomerName').value = '';
+      document.getElementById('inputSymptom').value = '';
+      document.getElementById('inputDriver').value = '';
+      document.getElementById('inputMemoFull').value = '';
+      document.getElementById('inputDate').value = new Date().toISOString().split('T')[0];
+      document.getElementById('inputStatus').value = '처리완료';
+      selectCategory('원격지원');
+
+      document.getElementById('formModeBadge').textContent = '신규 접수';
+      document.getElementById('formModeBadge').className = 'px-2 py-0.5 rounded-lg text-[10px] font-black bg-rose-100 text-rose-800 border border-rose-200';
+      document.getElementById('formTitle').textContent = 'A/S 접수 및 처리 등록';
+      document.getElementById('submitBtnText').textContent = 'A/S 접수 및 처리 내역 저장';
+
+      document.getElementById('contractDropdown').classList.add('hidden');
+      document.getElementById('customerDropdown').classList.add('hidden');
+      document.getElementById('contractHistoryBanner').classList.add('hidden');
+      document.getElementById('btnContractHistory').classList.add('hidden');
+
+      showCustomerHandoverCard('');
+    }
+
+    // Edit Existing Record
+    function editRecord(id) {
+      var r = asRecords.find(function(item) { return item.id == id; });
+      if (!r) return;
+
+      document.getElementById('editRecordId').value = r.id;
+      document.getElementById('inputContractNo').value = r.contract_no || '';
+      document.getElementById('inputCustomerName').value = r.customer_name || '';
+      document.getElementById('inputDate').value = r.delivery_date || '';
+      document.getElementById('inputDriver').value = r.driver_name || '';
+      document.getElementById('inputStatus').value = r.status || '처리완료';
+      document.getElementById('inputMemoFull').value = r.memo_full || '';
+
+      // Parse asset & symptom
+      var assetNo = '';
+      var symptom = '';
+      if (r.memo_special) {
+        try {
+          var p = JSON.parse(r.memo_special);
+          assetNo = p.asset_no || '';
+          symptom = p.symptom || '';
+        } catch (e) {}
+      }
+      document.getElementById('inputAssetNo').value = assetNo;
+      document.getElementById('inputSymptom').value = symptom;
+
+      selectCategory(r.category || '원격지원');
+
+      // Update Form Headers
+      document.getElementById('formModeBadge').textContent = '수정 모드';
+      document.getElementById('formModeBadge').className = 'px-2 py-0.5 rounded-lg text-[10px] font-black bg-amber-100 text-amber-900 border border-amber-300';
+      document.getElementById('formTitle').textContent = 'A/S 내역 수정';
+      document.getElementById('submitBtnText').textContent = '수정 내용 반영 저장';
+
+      showCustomerHandoverCard(r.customer_name || '');
+      checkContractHistorySummary(r.contract_no || '');
+      document.getElementById('btnContractHistory').classList.remove('hidden');
+
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // Delete Record
+    async function deleteRecord(id) {
+      var r = asRecords.find(function(item) { return item.id == id; });
+      if (!r) return;
+
+      var result = await Swal.fire({
+        title: 'A/S 기록 삭제',
+        html: `[${r.customer_name}]의 A/S 기록을 삭제하시겠습니까?<br><span class="text-rose-600 text-xs">삭제된 기록은 복구할 수 없습니다.</span>`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: '삭제하기',
+        cancelButtonText: '취소',
+        confirmButtonColor: '#e11d48'
+      });
+
+      if (result.isConfirmed) {
+        try {
+          var res = await supabaseClient
+            .from('delivery_schedules')
+            .delete()
+            .eq('id', id);
+          if (res.error) throw res.error;
+
+          Swal.fire({
+            icon: 'success',
+            title: '삭제 완료',
+            text: 'A/S 기록이 삭제되었습니다.',
+            timer: 1200,
+            showConfirmButton: false
+          });
+
+          await loadAsData(false);
+        } catch (err) {
+          console.error('Delete error:', err);
+          Swal.fire('삭제 실패', '기록 삭제 중 오류가 발생했습니다.', 'error');
+        }
+      }
+    }
+
+    // Render A/S List in Right Panel
+    function renderAsList() {
+      var container = document.getElementById('asListContainer');
+      var searchQ = (document.getElementById('searchInput').value || '').trim().toLowerCase();
+
+      var filtered = asRecords.filter(function(r) {
+        // Category Filter
+        if (currentCategoryFilter !== 'all' && r.category !== currentCategoryFilter) return false;
+
+        // Status Filter
+        if (currentStatusFilter === '처리완료' && r.status !== '처리완료') return false;
+        if (currentStatusFilter === '미완료' && r.status === '처리완료') return false;
+
+        // Period Filter
+        if (currentPeriodFilter !== 'all') {
+          var today = new Date();
+          var itemDate = new Date(r.delivery_date);
+          if (currentPeriodFilter === 'today') {
+            var tStr = today.toISOString().split('T')[0];
+            if (r.delivery_date !== tStr) return false;
+          } else if (currentPeriodFilter === 'week') {
+            var weekAgo = new Date();
+            weekAgo.setDate(today.getDate() - 7);
+            if (itemDate < weekAgo) return false;
+          } else if (currentPeriodFilter === 'month') {
+            var monthAgo = new Date();
+            monthAgo.setDate(today.getDate() - 30);
+            if (itemDate < monthAgo) return false;
+          }
+        }
+
+        // Multi-column Search
+        if (searchQ) {
+          var assetNo = '';
+          var symptom = '';
+          if (r.memo_special) {
+            try {
+              var p = JSON.parse(r.memo_special);
+              assetNo = p.asset_no || '';
+              symptom = p.symptom || '';
+            } catch (e) {}
+          }
+
+          var haystack = [
+            r.contract_no || '',
+            r.customer_name || '',
+            r.category || '',
+            r.driver_name || '',
+            r.memo_full || '',
+            assetNo,
+            symptom
+          ].join(' ').toLowerCase();
+
+          if (haystack.indexOf(searchQ) === -1) return false;
+        }
+
+        return true;
+      });
+
+      document.getElementById('filteredCount').textContent = filtered.length;
+
+      if (filtered.length === 0) {
+        container.innerHTML = `
+          <div class="py-16 text-center text-slate-400 space-y-2">
+            <i class="fa-solid fa-file-circle-question text-3xl text-slate-300"></i>
+            <p class="font-bold text-slate-600">일치하는 A/S 기록이 없습니다.</p>
+            <p class="text-[11px] text-slate-400">검색 조건이나 필터를 변경해보세요.</p>
+          </div>
+        `;
+        return;
+      }
+
+      var html = '';
+      filtered.forEach(function(r) {
+        var assetNo = '';
+        var symptom = '';
+        if (r.memo_special) {
+          try {
+            var p = JSON.parse(r.memo_special);
+            assetNo = p.asset_no || '';
+            symptom = p.symptom || '';
+          } catch (e) {}
+        }
+
+        // Category Badge Style
+        var catBadge = '';
+        if (r.category === '원격지원') {
+          catBadge = '<span class="px-2 py-0.5 rounded-lg font-black text-[10px] category-badge-remote flex items-center gap-1"><i class="fa-solid fa-network-wired text-[9px]"></i> 원격지원</span>';
+        } else if (r.category === '유선안내') {
+          catBadge = '<span class="px-2 py-0.5 rounded-lg font-black text-[10px] category-badge-phone flex items-center gap-1"><i class="fa-solid fa-headset text-[9px]"></i> 유선안내</span>';
+        } else {
+          catBadge = '<span class="px-2 py-0.5 rounded-lg font-black text-[10px] category-badge-onsite flex items-center gap-1"><i class="fa-solid fa-screwdriver-wrench text-[9px]"></i> 현장방문</span>';
+        }
+
+        // Status Badge Style
+        var statBadge = '';
+        if (r.status === '처리완료') {
+          statBadge = '<span class="px-2 py-0.5 rounded-lg font-black text-[10px] bg-emerald-100 text-emerald-800 border border-emerald-200">완료</span>';
+        } else if (r.status === '처리중') {
+          statBadge = '<span class="px-2 py-0.5 rounded-lg font-black text-[10px] bg-amber-100 text-amber-800 border border-amber-200">처리중</span>';
+        } else {
+          statBadge = '<span class="px-2 py-0.5 rounded-lg font-black text-[10px] bg-rose-100 text-rose-800 border border-rose-200">접수대기</span>';
+        }
+
+        var memoPreview = (r.memo_full || '-').replace(/\n/g, ' ');
+        if (memoPreview.length > 90) memoPreview = memoPreview.substring(0, 90) + '...';
+
+        html += `
+          <div class="p-3 bg-slate-50 hover:bg-slate-100/80 rounded-2xl border border-slate-200 transition space-y-2">
+            <!-- Row 1: Badges, Date, Cust, Contract -->
+            <div class="flex items-center justify-between flex-wrap gap-1.5">
+              <div class="flex items-center gap-1.5 flex-wrap">
+                ${catBadge}
+                ${statBadge}
+                <span class="font-black text-slate-900 text-xs">${r.customer_name || '-'}</span>
+                <span class="font-mono text-indigo-700 font-bold text-[11px] bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-200">계약: ${r.contract_no || '-'}</span>
+                ${assetNo ? `<span class="text-slate-500 font-bold text-[10px] bg-white px-1.5 py-0.5 rounded border border-slate-200">자산: ${assetNo}</span>` : ''}
+              </div>
+              <div class="flex items-center gap-2 text-[11px] text-slate-500 font-bold">
+                <span><i class="fa-regular fa-calendar text-slate-400"></i> ${r.delivery_date || '-'}</span>
+                <span><i class="fa-solid fa-user-gear text-slate-400"></i> ${r.driver_name || '-'}</span>
+              </div>
+            </div>
+
+            <!-- Row 2: Symptom -->
+            <div class="flex items-start gap-1.5 text-xs">
+              <span class="font-black text-rose-800 bg-rose-50 px-1.5 py-0.5 rounded text-[10px] shrink-0 border border-rose-200">증상</span>
+              <span class="font-bold text-slate-800 leading-snug">${symptom || '증상 미기재'}</span>
+            </div>
+
+            <!-- Row 3: Large Memo Preview & Actions -->
+            <div class="p-2 bg-white rounded-xl border border-slate-200/80 text-[11px] text-slate-600 flex items-start justify-between gap-2">
+              <div class="flex-1 cursor-pointer hover:text-slate-900 transition" onclick="openMemoDetailModal(${r.id})" title="클릭하여 상세 메모 전문 보기">
+                <i class="fa-solid fa-quote-left text-slate-300 text-[10px] mr-1"></i>
+                <span>${memoPreview}</span>
+                <span class="text-indigo-600 font-bold text-[10px] ml-1">[상세보기]</span>
+              </div>
+              
+              <!-- Action Buttons -->
+              <div class="flex items-center gap-1 shrink-0">
+                <button onclick="openContractTimelineModal('${r.contract_no}')" class="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-black rounded-lg text-[10px] transition border border-indigo-200 flex items-center gap-1 shadow-2xs" title="계약 통합 타임라인 열람">
+                  <i class="fa-solid fa-timeline"></i>
+                  <span>통합 이력</span>
+                </button>
+                <button onclick="editRecord(${r.id})" class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg text-[10px] transition border border-slate-200" title="수정">
+                  <i class="fa-solid fa-pen"></i>
+                </button>
+                <button onclick="deleteRecord(${r.id})" class="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold rounded-lg text-[10px] transition border border-rose-200" title="삭제">
+                  <i class="fa-solid fa-trash-can"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+      });
+
+      container.innerHTML = html;
+    }
+
+    // Filter Buttons Handlers
+    function setCategoryFilter(cat) {
+      currentCategoryFilter = cat;
+      var buttons = {
+        'all': document.getElementById('filterCatAll'),
+        '원격지원': document.getElementById('filterCatRemote'),
+        '유선안내': document.getElementById('filterCatPhone'),
+        '현장방문': document.getElementById('filterCatOnsite')
+      };
+
+      Object.keys(buttons).forEach(function(k) {
+        if (k === cat) buttons[k].className = 'px-2.5 py-1 rounded-lg font-bold text-[11px] tab-active transition';
+        else buttons[k].className = 'px-2.5 py-1 rounded-lg font-bold text-[11px] tab-inactive transition';
+      });
+
+      renderAsList();
+    }
+
+    function setStatusFilter(stat) {
+      currentStatusFilter = stat;
+      var buttons = {
+        'all': document.getElementById('filterStatAll'),
+        '처리완료': document.getElementById('filterStatDone'),
+        '미완료': document.getElementById('filterStatPending')
+      };
+
+      Object.keys(buttons).forEach(function(k) {
+        if (k === stat) buttons[k].className = 'px-2.5 py-1 rounded-lg font-bold text-[11px] tab-active transition';
+        else buttons[k].className = 'px-2.5 py-1 rounded-lg font-bold text-[11px] tab-inactive transition';
+      });
+
+      renderAsList();
+    }
+
+    function onPeriodFilterChanged(val) {
+      currentPeriodFilter = val;
+      renderAsList();
+    }
+
+    // Open Contract Unified Timeline Modal
+    async function openContractTimelineModal(contractNo) {
+      var cNo = (contractNo || '').trim().toUpperCase();
+      if (!cNo) {
+        Swal.fire('계약번호 확인', '조회할 계약번호를 입력해주세요.', 'warning');
+        return;
+      }
+
+      var modal = document.getElementById('contractTimelineModal');
+      document.getElementById('modalContractBadge').textContent = cNo;
+      var timelineContainer = document.getElementById('modalTimelineList');
+      var custSub = document.getElementById('modalCustomerSub');
+      var handoverBanner = document.getElementById('modalHandoverBanner');
+      var handoverText = document.getElementById('modalHandoverText');
+
+      timelineContainer.innerHTML = '<div class="py-12 text-center text-slate-400"><i class="fa-solid fa-spinner fa-spin text-2xl mb-2 text-indigo-500"></i><p class="font-bold">과거 배송 및 A/S 이력 통합 조회 중...</p></div>';
+      modal.classList.remove('hidden');
+
+      try {
+        // Query both delivery and AS records matching this contract
+        var res = await supabaseClient
+          .from('delivery_schedules')
+          .select('*')
+          .ilike('contract_no', '%' + cNo + '%')
+          .order('delivery_date', { ascending: false });
+
+        if (res.error) throw res.error;
+
+        var allRows = (res.data || []).filter(function(r) {
+          return r.source_sheet !== 'SYSTEM_CONFIG_USERS' &&
+                 r.source_sheet !== 'SYSTEM_CONFIG_DRIVER_ORIGINS' &&
+                 r.source_sheet !== 'SYSTEM_CONFIG_CUSTOMER_HANDOVERS' &&
+                 r.source_sheet !== 'VEHICLE_TRIP_LOGS';
+        });
+
+        if (allRows.length === 0) {
+          custSub.textContent = '해당 계약번호 관련 내역 없음';
+          handoverBanner.classList.add('hidden');
+          timelineContainer.innerHTML = `
+            <div class="py-16 text-center text-slate-400 space-y-2">
+              <i class="fa-solid fa-folder-open text-3xl text-slate-300"></i>
+              <p class="font-bold text-slate-600">계약번호 [${cNo}]에 대한 등록 내역이 없습니다.</p>
+            </div>
+          `;
+          return;
+        }
+
+        var customerName = allRows[0].customer_name || '-';
+        custSub.textContent = `고객사: ${customerName} · 총 ${allRows.length}건의 라이프사이클 이력`;
+
+        // Check Handover text
+        var hText = customerHandovers[customerName];
+        if (hText && hText.trim()) {
+          handoverText.textContent = hText.trim();
+          handoverBanner.classList.remove('hidden');
+        } else {
+          handoverBanner.classList.add('hidden');
+        }
+
+        // Render Timeline Cards
+        var html = '<div class="relative border-l-2 border-slate-200 ml-4 pl-4 space-y-4">';
+
+        allRows.forEach(function(row) {
+          var isAs = (row.source_sheet === 'AS_RECORDS');
+          var date = row.delivery_date || '-';
+          var cat = row.category || (isAs ? 'A/S' : '배송');
+          var driver = row.driver_name || '미배정';
+          var memoFull = row.memo_full || '-';
+
+          if (isAs) {
+            // A/S Record Card
+            var assetNo = '';
+            var symptom = '';
+            if (row.memo_special) {
+              try {
+                var p = JSON.parse(row.memo_special);
+                assetNo = p.asset_no || '';
+                symptom = p.symptom || '';
+              } catch(e) {}
+            }
+
+            var iconClass = 'fa-solid fa-wrench text-rose-600';
+            var dotBg = 'bg-rose-500';
+            var cardBorder = 'border-rose-200 bg-rose-50/40';
+
+            html += `
+              <div class="relative">
+                <span class="absolute -left-[23px] top-1.5 w-3.5 h-3.5 rounded-full ${dotBg} border-2 border-white ring-2 ring-slate-100"></span>
+                <div class="p-3 rounded-2xl border ${cardBorder} space-y-1.5 shadow-2xs">
+                  <div class="flex items-center justify-between flex-wrap gap-1">
+                    <div class="flex items-center gap-1.5">
+                      <span class="px-2 py-0.5 rounded text-[10px] font-black bg-rose-100 text-rose-900 border border-rose-200 flex items-center gap-1">
+                        <i class="fa-solid fa-wrench"></i> A/S [${cat}]
+                      </span>
+                      <span class="font-bold text-slate-800 text-xs">${date}</span>
+                      ${assetNo ? `<span class="text-[10px] text-slate-500 font-bold">자산: ${assetNo}</span>` : ''}
+                    </div>
+                    <span class="text-[10px] font-bold text-slate-600 bg-white px-2 py-0.5 rounded-md border border-slate-200">
+                      처리자: ${driver}
+                    </span>
+                  </div>
+                  <div class="text-xs font-bold text-slate-900 flex items-center gap-1">
+                    <span class="text-rose-700 font-black text-[10px]">[증상]</span> ${symptom || '-'}
+                  </div>
+                  <div class="p-2 bg-white rounded-xl border border-slate-200 text-xs text-slate-700 leading-relaxed whitespace-pre-line font-medium">
+                    ${memoFull}
+                  </div>
+                </div>
+              </div>
+            `;
+          } else {
+            // Delivery / Setup Record Card
+            var items = row.items || row.품목_수량 || '';
+            var addr = row.address || row.주소 || '';
+            var dotBg = 'bg-indigo-500';
+            var cardBorder = 'border-indigo-200 bg-indigo-50/30';
+
+            html += `
+              <div class="relative">
+                <span class="absolute -left-[23px] top-1.5 w-3.5 h-3.5 rounded-full ${dotBg} border-2 border-white ring-2 ring-slate-100"></span>
+                <div class="p-3 rounded-2xl border ${cardBorder} space-y-1.5 shadow-2xs">
+                  <div class="flex items-center justify-between flex-wrap gap-1">
+                    <div class="flex items-center gap-1.5">
+                      <span class="px-2 py-0.5 rounded text-[10px] font-black bg-indigo-100 text-indigo-900 border border-indigo-200 flex items-center gap-1">
+                        <i class="fa-solid fa-box"></i> 배송·설치 [${cat}]
+                      </span>
+                      <span class="font-bold text-slate-800 text-xs">${date}</span>
+                    </div>
+                    <span class="text-[10px] font-bold text-slate-600 bg-white px-2 py-0.5 rounded-md border border-slate-200">
+                      담당기사: ${driver}
+                    </span>
+                  </div>
+                  ${items ? `<div class="text-xs font-bold text-indigo-950 flex items-center gap-1"><i class="fa-solid fa-boxes-stacked text-indigo-500 text-[10px]"></i> 품목: ${items}</div>` : ''}
+                  ${addr ? `<div class="text-[11px] text-slate-500 truncate"><i class="fa-solid fa-location-dot text-rose-500 text-[10px]"></i> ${addr}</div>` : ''}
+                  ${memoFull && memoFull !== '-' ? `
+                    <div class="p-2 bg-white rounded-xl border border-slate-200 text-xs text-slate-700 leading-relaxed whitespace-pre-line font-medium">
+                      ${memoFull}
+                    </div>
+                  ` : ''}
+                </div>
+              </div>
+            `;
+          }
+        });
+
+        html += '</div>';
+        timelineContainer.innerHTML = html;
+
+      } catch (err) {
+        console.error('Error fetching contract timeline:', err);
+        timelineContainer.innerHTML = '<div class="py-12 text-center text-rose-500 font-bold">타임라인 조회 중 오류가 발생했습니다.</div>';
+      }
+    }
+
+    function closeContractTimelineModal() {
+      document.getElementById('contractTimelineModal').classList.add('hidden');
+    }
+
+    // Modal 2: Customer Handover Management Modal
+    function openHandoversManageModal() {
+      document.getElementById('handoversManageModal').classList.remove('hidden');
+      renderHandoverList();
+    }
+
+    function closeHandoversManageModal() {
+      document.getElementById('handoversManageModal').classList.add('hidden');
+    }
+
+    function renderHandoverList() {
+      var container = document.getElementById('handoversListContainer');
+      var q = (document.getElementById('handoverSearchInput').value || '').trim().toLowerCase();
+
+      var customers = Object.keys(customerHandovers);
+      if (q) {
+        customers = customers.filter(function(c) {
+          return c.toLowerCase().indexOf(q) !== -1 || (customerHandovers[c] || '').toLowerCase().indexOf(q) !== -1;
+        });
+      }
+
+      if (customers.length === 0) {
+        container.innerHTML = `
+          <div class="py-12 text-center text-slate-400 space-y-1">
+            <i class="fa-solid fa-clipboard-question text-3xl text-slate-300"></i>
+            <p class="font-bold text-slate-600 text-xs">등록된 거래처 인수인계 사항이 없습니다.</p>
+            <p class="text-[11px]">상단의 [+ 새 거래처 추가] 버튼을 눌러 등록하세요.</p>
+          </div>
+        `;
+        return;
+      }
+
+      var html = '';
+      customers.forEach(function(cust) {
+        var text = customerHandovers[cust] || '';
+        html += `
+          <div class="p-3 bg-slate-50 hover:bg-amber-50/50 rounded-2xl border border-slate-200 transition space-y-2">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-1.5 font-black text-xs text-slate-900">
+                <i class="fa-solid fa-building text-amber-600"></i>
+                <span>${cust}</span>
+              </div>
+              <div class="flex items-center gap-1">
+                <button onclick="editSingleHandover('${cust}')" class="px-2 py-1 bg-amber-100 hover:bg-amber-200 text-amber-950 font-bold rounded-lg text-[10px] transition border border-amber-300">
+                  수정
+                </button>
+                <button onclick="deleteSingleHandover('${cust}')" class="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold rounded-lg text-[10px] transition border border-rose-200">
+                  삭제
+                </button>
+              </div>
+            </div>
+            <div class="p-2.5 bg-white rounded-xl border border-slate-200 text-xs text-slate-700 leading-relaxed whitespace-pre-line font-medium">
+              ${text || '<span class="text-slate-400">내용 없음</span>'}
+            </div>
+          </div>
+        `;
+      });
+
+      container.innerHTML = html;
+    }
+
+    async function openAddNewHandoverPrompt() {
+      const { value: formValues } = await Swal.fire({
+        title: '새 거래처 인수인계 등록',
+        html: `
+          <input id="swalCustName" class="swal2-input text-xs" placeholder="거래처/고객사명 (예: (주)인투온)">
+          <textarea id="swalCustNotes" class="swal2-textarea text-xs" placeholder="인수인계 사항 (예: 출입 시 경비실 통과 필요, 주차 도장 필수)"></textarea>
+        `,
+        focusConfirm: false,
+        showCancelButton: true,
+        confirmButtonText: '등록하기',
+        cancelButtonText: '취소',
+        confirmButtonColor: '#d97706',
+        preConfirm: () => {
+          var name = document.getElementById('swalCustName').value;
+          var notes = document.getElementById('swalCustNotes').value;
+          if (!name) {
+            Swal.showValidationMessage('거래처명을 입력해주세요.');
+            return false;
+          }
+          return { name: name.trim(), notes: notes.trim() };
+        }
+      });
+
+      if (formValues) {
+        customerHandovers[formValues.name] = formValues.notes;
+        await saveCustomerHandoversToDb();
+        renderHandoverList();
+        Swal.fire({
+          icon: 'success',
+          title: '등록 완료',
+          text: `[${formValues.name}] 인수인계 사항이 등록되었습니다.`,
+          timer: 1500,
+          showConfirmButton: false
+        });
+      }
+    }
+
+    async function editSingleHandover(cust) {
+      var current = customerHandovers[cust] || '';
+      const { value: text } = await Swal.fire({
+        title: `🏢 [${cust}] 인수인계 사항 수정`,
+        input: 'textarea',
+        inputValue: current,
+        showCancelButton: true,
+        confirmButtonText: '저장하기',
+        cancelButtonText: '취소',
+        confirmButtonColor: '#d97706',
+        inputAttributes: {
+          style: 'min-height: 120px; font-size: 13px;'
+        }
+      });
+
+      if (text !== undefined) {
+        customerHandovers[cust] = text.trim();
+        await saveCustomerHandoversToDb();
+        renderHandoverList();
+        Swal.fire({
+          icon: 'success',
+          title: '저장 완료',
+          text: `[${cust}] 수정 내용이 반영되었습니다.`,
+          timer: 1200,
+          showConfirmButton: false
+        });
+      }
+    }
+
+    async function deleteSingleHandover(cust) {
+      var result = await Swal.fire({
+        title: '인수인계 삭제',
+        text: `[${cust}] 인수인계 사항을 삭제하시겠습니까?`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: '삭제',
+        cancelButtonText: '취소',
+        confirmButtonColor: '#e11d48'
+      });
+
+      if (result.isConfirmed) {
+        delete customerHandovers[cust];
+        await saveCustomerHandoversToDb();
+        renderHandoverList();
+        Swal.fire({
+          icon: 'success',
+          title: '삭제 완료',
+          timer: 1000,
+          showConfirmButton: false
+        });
+      }
+    }
+
+    // Modal 3: Large Memo Detail Modal
+    function openMemoDetailModal(id) {
+      var r = asRecords.find(function(item) { return item.id == id; });
+      if (!r) return;
+
+      var assetNo = '';
+      var symptom = '';
+      if (r.memo_special) {
+        try {
+          var p = JSON.parse(r.memo_special);
+          assetNo = p.asset_no || '';
+          symptom = p.symptom || '';
+        } catch(e) {}
+      }
+
+      document.getElementById('detailModalTitle').textContent = `[${r.customer_name}] A/S 상세 조치 내역`;
+      document.getElementById('detailModalMeta').innerHTML = `
+        <div class="flex items-center justify-between font-bold">
+          <span>구분: <b class="text-indigo-600">${r.category}</b> (${r.status})</span>
+          <span>일자: ${r.delivery_date} · 처리자: ${r.driver_name}</span>
+        </div>
+        <div class="font-bold text-slate-700">계약번호: <span class="font-mono text-indigo-700">${r.contract_no}</span> ${assetNo ? `· 자산번호: ${assetNo}` : ''}</div>
+        <div class="font-bold text-rose-700">증상: ${symptom || '-'}</div>
+      `;
+      document.getElementById('detailModalContent').textContent = r.memo_full || '-';
+
+      document.getElementById('memoDetailModal').classList.remove('hidden');
+    }
+
+    function closeMemoDetailModal() {
+      document.getElementById('memoDetailModal').classList.add('hidden');
+    }
+
+    // Export CSV
+    function exportAsRecordsCsv() {
+      if (asRecords.length === 0) {
+        Swal.fire('알림', '내보낼 A/S 기록이 없습니다.', 'info');
+        return;
+      }
+
+      var rows = asRecords.map(function(r, idx) {
+        var assetNo = '';
+        var symptom = '';
+        if (r.memo_special) {
+          try {
+            var p = JSON.parse(r.memo_special);
+            assetNo = p.asset_no || '';
+            symptom = p.symptom || '';
+          } catch(e) {}
+        }
+
+        return {
+          'No': idx + 1,
+          '처리일자': r.delivery_date || '',
+          '처리구분': r.category || '',
+          '상태': r.status || '',
+          '고객사명': r.customer_name || '',
+          '계약번호': r.contract_no || '',
+          '자산번호': assetNo,
+          '증상': symptom,
+          '처리담당자': r.driver_name || '',
+          '상세처리내역_메모': r.memo_full || ''
+        };
+      });
+
+      var ws = XLSX.utils.json_to_sheet(rows);
+      var wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'AS기록');
+      var dateStr = new Date().toISOString().split('T')[0];
+      XLSX.writeFile(wb, `현대렌탈_AS처리내역_${dateStr}.xlsx`);
+    }
+
+  </script>
+</body>
+</html>
