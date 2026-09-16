@@ -5448,6 +5448,43 @@
               });
               console.log('[CSV 병합] DB에서 직접 추가 배송지', dbManualStops.length, '건 조회됨');
             }
+
+            // 3. 당일 기존 진행/완료 배송지 추출 (이미 출발/도착했거나 완료된 배송지는 새 CSV에 없더라도 100% 무조건 보존)
+            var dbProgressedStops = targetRows.filter(function(row) {
+              if (row.source_sheet === '직접추가' || row.contract_no === '신규등록') return false; // 수동 추가는 별도 처리
+              var hasTimes = false;
+              if (row.memo_special) {
+                try {
+                  var sp = JSON.parse(row.memo_special);
+                  if (sp && (sp.arrive || sp.depart)) hasTimes = true;
+                } catch(e) {}
+              }
+              var isCompletedOrOngoing = ['도착완료', '수령완료', '운행중', '배송완료', '완료', '퀵출발'].indexOf(row.status) !== -1;
+              return hasTimes || isCompletedOrOngoing;
+            }).map(function(row) {
+              return {
+                ID: row.id,
+                배송일자: row.delivery_date || targetDate,
+                계약번호: row.contract_no || '',
+                구분: row.category || '배송',
+                담당기사: row.driver_name || '',
+                고객사: row.customer_name || '',
+                주소: row.address || '',
+                기본주소: row.address || '',
+                상세주소: '',
+                방문시간: row.visit_time || '',
+                담당자_연락처: row.contact || '',
+                품목_수량: row.items || '',
+                의뢰상태: row.status || '도착완료',
+                status: row.status || '도착완료',
+                배송방법: row.delivery_method || '직배송',
+                비고_전문: row.memo_full || '',
+                memo_special: row.memo_special || '',
+                source_sheet: row.source_sheet || 'CSV업로드',
+                원본시트: row.source_sheet || 'CSV업로드',
+                stop_order: row.stop_order || null
+              };
+            });
           }
         } catch (e) {
           console.warn('[CSV 병합] 기존 데이터 조회 실패:', e);
@@ -5459,7 +5496,7 @@
         records.forEach(function(r) {
           var k1 = (r.계약번호 && r.계약번호 !== '신규등록') ? r.계약번호.trim() : null;
           var k2 = (r.고객사 ? r.고객사.trim() : '') + '|||' + (r.주소 ? r.주소.trim() : '');
-          if ((r.memo_special || r.의뢰상태 === '완료' || r.의뢰상태 === '배송완료') && !existingTrackingMap[k1] && !existingTrackingMap[k2]) {
+          if ((r.memo_special || r.의뢰상태 === '완료' || r.의뢰상태 === '배송완료' || r.의뢰상태 === '도착완료' || r.의뢰상태 === '수령완료') && !existingTrackingMap[k1] && !existingTrackingMap[k2]) {
             var info = {
               memo_special: r.memo_special || '',
               status: r.의뢰상태 || r.status || '',
@@ -5509,6 +5546,21 @@
         }
       });
 
+      // 당일 진행/완료 배송지를 merged에 추가 (새 CSV에 없더라도 100% 영구 보존)
+      var preservedCompletedCount = 0;
+      if (dbProgressedStops && dbProgressedStops.length > 0) {
+        dbProgressedStops.forEach(function(prog) {
+          var isDup = merged.some(function(c) {
+            return (c.계약번호 && prog.계약번호 && c.계약번호 !== '신규등록' && c.계약번호 === prog.계약번호)
+                   || (c.고객사 && prog.고객사 && c.고객사.trim() === prog.고객사.trim() && c.주소 && prog.주소 && c.주소.trim() === prog.주소.trim());
+          });
+          if (!isDup) {
+            merged.push(prog);
+            preservedCompletedCount++;
+          }
+        });
+      }
+
       // ────────────────────────────────────────────────────────────────────
       // [핵심] 기존에 찍어둔 출발 시각 / 도착 시각 / 배송 상태 100% 복원 계승
       // ────────────────────────────────────────────────────────────────────
@@ -5522,7 +5574,7 @@
           if (matchedTrack.memo_special) {
             r.memo_special = matchedTrack.memo_special;
           }
-          if (matchedTrack.status && (matchedTrack.status === '완료' || matchedTrack.status === '배송완료' || matchedTrack.status === '운행중')) {
+          if (matchedTrack.status && (matchedTrack.status === '완료' || matchedTrack.status === '배송완료' || matchedTrack.status === '도착완료' || matchedTrack.status === '수령완료' || matchedTrack.status === '운행중' || matchedTrack.status === '퀵출발')) {
             r.의뢰상태 = matchedTrack.status;
             r.status = matchedTrack.status;
           }
@@ -5587,10 +5639,11 @@
       renderRouteMap();
 
       var toastMsg = '🎉 ' + parsedCsvPendingData.length + '건의 스케줄이 [' + targetDate + '] 일자로 자동 등록되었습니다!';
-      if (manualMergedCount > 0 || restoredTimeCount > 0) {
-        var extraNotes = [];
-        if (manualMergedCount > 0) extraNotes.push('직접 추가 ' + manualMergedCount + '건');
-        if (restoredTimeCount > 0) extraNotes.push('기존 출발·도착시각 ' + restoredTimeCount + '건 안전 보존');
+      var extraNotes = [];
+      if (manualMergedCount > 0) extraNotes.push('직접 추가 ' + manualMergedCount + '건');
+      if (preservedCompletedCount > 0) extraNotes.push('진행/완료 ' + preservedCompletedCount + '건 자동 보존');
+      if (restoredTimeCount > 0) extraNotes.push('기존 출발·도착시각 ' + restoredTimeCount + '건 안전 보존');
+      if (extraNotes.length > 0) {
         toastMsg = '🎉 CSV 등록 완료 (' + extraNotes.join(', ') + ')';
       }
       showToast(toastMsg);
@@ -5626,16 +5679,35 @@
           var cleanTargetDate = targetDate.replace(/\./g, '-');
           var shortTargetDate = targetDate.replace(/-/g, '.');
 
-          // 해당 일자 구버전/중복 데이터를 완전히 삭제 후 최신(CSV + 직접추가 합본 + 시간 보존) 데이터로 일괄 등록
-          await supabaseClient.from('delivery_schedules').delete().eq('delivery_date', targetDate);
+          // [핵심 방어] 해당 일자 구버전 스케줄만 삭제하며, 법인차량 운행일지(VEHICLE_TRIP_LOGS) 및 시스템 설정은 절대 삭제되지 않도록 엄격 보호
+          await supabaseClient.from('delivery_schedules')
+            .delete()
+            .eq('delivery_date', targetDate)
+            .neq('source_sheet', 'VEHICLE_TRIP_LOGS')
+            .neq('source_sheet', 'SYSTEM_CONFIG_VEHICLES')
+            .neq('source_sheet', 'SYSTEM_CONFIG_USERS')
+            .neq('source_sheet', 'SYSTEM_CONFIG_DRIVER_ORIGINS');
+
           if (cleanTargetDate !== targetDate) {
-            await supabaseClient.from('delivery_schedules').delete().eq('delivery_date', cleanTargetDate);
+            await supabaseClient.from('delivery_schedules')
+              .delete()
+              .eq('delivery_date', cleanTargetDate)
+              .neq('source_sheet', 'VEHICLE_TRIP_LOGS')
+              .neq('source_sheet', 'SYSTEM_CONFIG_VEHICLES')
+              .neq('source_sheet', 'SYSTEM_CONFIG_USERS')
+              .neq('source_sheet', 'SYSTEM_CONFIG_DRIVER_ORIGINS');
           }
           if (shortTargetDate !== targetDate) {
-            await supabaseClient.from('delivery_schedules').delete().eq('delivery_date', shortTargetDate);
+            await supabaseClient.from('delivery_schedules')
+              .delete()
+              .eq('delivery_date', shortTargetDate)
+              .neq('source_sheet', 'VEHICLE_TRIP_LOGS')
+              .neq('source_sheet', 'SYSTEM_CONFIG_VEHICLES')
+              .neq('source_sheet', 'SYSTEM_CONFIG_USERS')
+              .neq('source_sheet', 'SYSTEM_CONFIG_DRIVER_ORIGINS');
           }
-          await supabaseClient.from('delivery_schedules').delete().eq('source_sheet', targetDate);
-          await supabaseClient.from('delivery_schedules').delete().eq('source_sheet', shortTargetDate);
+          await supabaseClient.from('delivery_schedules').delete().eq('source_sheet', targetDate).neq('source_sheet', 'VEHICLE_TRIP_LOGS');
+          await supabaseClient.from('delivery_schedules').delete().eq('source_sheet', shortTargetDate).neq('source_sheet', 'VEHICLE_TRIP_LOGS');
 
           var res = await supabaseClient.from('delivery_schedules').insert(payload);
           if (res.error) {
