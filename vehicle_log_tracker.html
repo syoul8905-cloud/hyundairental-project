@@ -1021,8 +1021,12 @@
                 memo_special: row.memo_special || '',
                 is_local_dismissal: Boolean(parsed.is_local_dismissal),
                 destination_addr: parsed.destination_addr || '',
-                destination_name: parsed.destination_name || '',
-                stops: parsed.stops || [],
+                stops: (parsed.stops || []).filter(function(st) {
+                  var sId = String(st.id || '');
+                  var sName = String(st.name || '');
+                  if (sName.startsWith('SYSTEM_CONFIG') || sId.includes('HANDOVER') || sId.includes('1356') || sId.includes('1357') || sId.includes('1358') || sId.includes('1359')) return false;
+                  return true;
+                }),
                 memo: parsed.memo || ''
               };
             });
@@ -1285,7 +1289,13 @@
         return [];
       }
 
-      var stops = log.stops;
+      var rawStops = log.stops;
+      var stops = rawStops.filter(function(st) {
+        var sId = String(st.id || '');
+        var sName = String(st.name || '');
+        if (sName.startsWith('SYSTEM_CONFIG') || sId.includes('HANDOVER') || sId.includes('1356') || sId.includes('1357') || sId.includes('1358') || sId.includes('1359')) return false;
+        return true;
+      });
       var hasOrigin = (stops[0] && stops[0].type === 'origin');
       var startIdx = hasOrigin ? 1 : 0;
       var totalLegCount = stops.length - (hasOrigin ? 1 : 0);
@@ -2270,7 +2280,12 @@
       document.getElementById('modalMemo').value = log.memo;
 
       if (log.stops && log.stops.length > 0) {
-        modalStops = JSON.parse(JSON.stringify(log.stops));
+        modalStops = JSON.parse(JSON.stringify(log.stops)).filter(function(st) {
+          var sId = String(st.id || '');
+          var sName = String(st.name || '');
+          if (sName.startsWith('SYSTEM_CONFIG') || sId.includes('HANDOVER') || sId.includes('1356') || sId.includes('1357') || sId.includes('1358') || sId.includes('1359')) return false;
+          return true;
+        });
       } else {
         modalStops = [
           { id: 'stop_origin', type: 'origin', name: '가산 센터', addr: '서울 금천구 벚꽃로 278 (가산 센터)', time: '08:30' },

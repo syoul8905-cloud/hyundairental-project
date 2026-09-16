@@ -2290,6 +2290,11 @@
         if (window.driverRecords && window.driverRecords.length > 0) {
           // 법인차량 경유지는 실제 차량으로 직배송하는 건만 포함 (퀵배송, 방문수령, 택배 제외)
           var eligibleRecords = window.driverRecords.filter(function(r) {
+            var src = (r.source_sheet || '').trim();
+            var cust = (r.customer_name || '').trim();
+            var contract = (r.contract_no || '').trim();
+            if (src === 'AS_RECORDS' || src.startsWith('SYSTEM_CONFIG') || cust.startsWith('SYSTEM_CONFIG') || contract === 'HANDOVER_CONFIG') return false;
+
             var isQuick = (r.delivery_method === '퀵배송' || r.delivery_method === '퀵' || r.driver_name === '퀵' || (r.category && r.category.indexOf('퀵') !== -1));
             var isPickup = (r.delivery_method === '방문수령' || r.driver_name === '방문수령' || r.category === '수령');
             var isParcel = (r.delivery_method === '택배' || r.driver_name === '택배');
@@ -2590,6 +2595,11 @@
         if (driverRecords && driverRecords.length > 0) {
           // 법인차량 경유지는 실제 차량으로 직배송하는 건만 포함 (퀵배송, 방문수령, 택배 제외)
           var eligibleRecords = driverRecords.filter(function(r) {
+            var src = (r.source_sheet || '').trim();
+            var cust = (r.customer_name || '').trim();
+            var contract = (r.contract_no || '').trim();
+            if (src === 'AS_RECORDS' || src.startsWith('SYSTEM_CONFIG') || cust.startsWith('SYSTEM_CONFIG') || contract === 'HANDOVER_CONFIG') return false;
+
             var isQuick = (r.delivery_method === '퀵배송' || r.delivery_method === '퀵' || r.driver_name === '퀵' || (r.category && r.category.indexOf('퀵') !== -1));
             var isPickup = (r.delivery_method === '방문수령' || r.driver_name === '방문수령' || r.category === '수령');
             var isParcel = (r.delivery_method === '택배' || r.driver_name === '택배');
