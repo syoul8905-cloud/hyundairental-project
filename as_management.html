@@ -26,6 +26,7 @@
     .category-badge-remote { background-color: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
     .category-badge-phone { background-color: #faf5ff; color: #7e22ce; border: 1px solid #e9d5ff; }
     .category-badge-onsite { background-color: #fff7ed; color: #c2410c; border: 1px solid #fed7aa; }
+    .category-badge-inhouse { background-color: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; }
     
     .tab-active { background-color: #4f46e5; color: #ffffff; }
     .tab-inactive { background-color: #f1f5f9; color: #64748b; }
@@ -98,7 +99,7 @@
   <!-- ========================================== -->
   <!-- 2. KPI Summary Cards                       -->
   <!-- ========================================== -->
-  <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-4">
+  <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-4">
     <!-- Total Records -->
     <div class="bg-white rounded-2xl p-3.5 border border-slate-200 shadow-xs flex items-center justify-between">
       <div>
@@ -137,6 +138,16 @@
       </div>
       <div class="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center text-orange-600 text-base">
         <i class="fa-solid fa-screwdriver-wrench"></i>
+      </div>
+    </div>
+    <!-- Inhouse Repair (입고수리) -->
+    <div class="bg-white rounded-2xl p-3.5 border border-slate-200 shadow-xs flex items-center justify-between">
+      <div>
+        <p class="text-[11px] font-bold text-emerald-600">📦 입고수리</p>
+        <h3 id="kpiInhouseCount" class="text-xl font-black text-emerald-900 mt-0.5">0건</h3>
+      </div>
+      <div class="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600 text-base">
+        <i class="fa-solid fa-boxes-packing"></i>
       </div>
     </div>
     <!-- Pending / Processing -->
@@ -273,7 +284,7 @@
           <label class="block text-[11px] font-bold text-slate-600 mb-1">
             처리 구분 <span class="text-rose-500">*</span>
           </label>
-          <div class="grid grid-cols-3 gap-1.5">
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
             <button type="button" onclick="selectCategory('원격지원')" id="catBtnRemote" class="py-1.5 px-2 rounded-xl font-black text-xs border transition flex items-center justify-center gap-1 bg-blue-50 border-blue-300 text-blue-800 shadow-xs">
               <i class="fa-solid fa-network-wired"></i> 원격지원
             </button>
@@ -282,6 +293,9 @@
             </button>
             <button type="button" onclick="selectCategory('현장방문')" id="catBtnOnsite" class="py-1.5 px-2 rounded-xl font-bold text-xs border transition flex items-center justify-center gap-1 bg-slate-50 border-slate-200 text-slate-600 hover:bg-orange-50">
               <i class="fa-solid fa-screwdriver-wrench"></i> 현장방문
+            </button>
+            <button type="button" onclick="selectCategory('입고수리')" id="catBtnInhouse" class="py-1.5 px-2 rounded-xl font-bold text-xs border transition flex items-center justify-center gap-1 bg-slate-50 border-slate-200 text-slate-600 hover:bg-emerald-50">
+              <i class="fa-solid fa-boxes-packing"></i> 입고수리
             </button>
           </div>
           <input type="hidden" id="inputCategory" value="원격지원">
@@ -395,6 +409,7 @@
             <button onclick="setCategoryFilter('원격지원')" id="filterCatRemote" class="px-2.5 py-1 rounded-lg font-bold text-[11px] tab-inactive transition">🌐 원격지원</button>
             <button onclick="setCategoryFilter('유선안내')" id="filterCatPhone" class="px-2.5 py-1 rounded-lg font-bold text-[11px] tab-inactive transition">📞 유선안내</button>
             <button onclick="setCategoryFilter('현장방문')" id="filterCatOnsite" class="px-2.5 py-1 rounded-lg font-bold text-[11px] tab-inactive transition">🚗 현장방문</button>
+            <button onclick="setCategoryFilter('입고수리')" id="filterCatInhouse" class="px-2.5 py-1 rounded-lg font-bold text-[11px] tab-inactive transition">📦 입고수리</button>
           </div>
 
           <!-- Status Filter Pills -->
@@ -733,12 +748,14 @@
       var remote = 0;
       var phone = 0;
       var onsite = 0;
+      var inhouse = 0;
       var pending = 0;
 
       asRecords.forEach(function(r) {
         if (r.category === '원격지원') remote++;
         else if (r.category === '유선안내') phone++;
         else if (r.category === '현장방문') onsite++;
+        else if (r.category === '입고수리') inhouse++;
 
         if (r.status === '접수대기' || r.status === '처리중') pending++;
       });
@@ -747,6 +764,9 @@
       document.getElementById('kpiRemoteCount').textContent = remote + '건';
       document.getElementById('kpiPhoneCount').textContent = phone + '건';
       document.getElementById('kpiOnsiteCount').textContent = onsite + '건';
+      if (document.getElementById('kpiInhouseCount')) {
+        document.getElementById('kpiInhouseCount').textContent = inhouse + '건';
+      }
       document.getElementById('kpiPendingCount').textContent = pending + '건';
     }
 
@@ -756,18 +776,21 @@
       var bRemote = document.getElementById('catBtnRemote');
       var bPhone = document.getElementById('catBtnPhone');
       var bOnsite = document.getElementById('catBtnOnsite');
+      var bInhouse = document.getElementById('catBtnInhouse');
 
       // Reset
-      [bRemote, bPhone, bOnsite].forEach(function(b) {
-        b.className = 'py-1.5 px-2 rounded-xl font-bold text-xs border transition flex items-center justify-center gap-1 bg-slate-50 border-slate-200 text-slate-600';
+      [bRemote, bPhone, bOnsite, bInhouse].forEach(function(b) {
+        if (b) b.className = 'py-1.5 px-2 rounded-xl font-bold text-xs border transition flex items-center justify-center gap-1 bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100';
       });
 
-      if (cat === '원격지원') {
+      if (cat === '원격지원' && bRemote) {
         bRemote.className = 'py-1.5 px-2 rounded-xl font-black text-xs border transition flex items-center justify-center gap-1 bg-blue-50 border-blue-300 text-blue-800 shadow-xs';
-      } else if (cat === '유선안내') {
+      } else if (cat === '유선안내' && bPhone) {
         bPhone.className = 'py-1.5 px-2 rounded-xl font-black text-xs border transition flex items-center justify-center gap-1 bg-purple-50 border-purple-300 text-purple-800 shadow-xs';
-      } else if (cat === '현장방문') {
+      } else if (cat === '현장방문' && bOnsite) {
         bOnsite.className = 'py-1.5 px-2 rounded-xl font-black text-xs border transition flex items-center justify-center gap-1 bg-orange-50 border-orange-300 text-orange-800 shadow-xs';
+      } else if (cat === '입고수리' && bInhouse) {
+        bInhouse.className = 'py-1.5 px-2 rounded-xl font-black text-xs border transition flex items-center justify-center gap-1 bg-emerald-50 border-emerald-300 text-emerald-800 shadow-xs';
       }
     }
 
@@ -1343,6 +1366,8 @@
           catBadge = '<span class="px-2 py-0.5 rounded-lg font-black text-[10px] category-badge-remote flex items-center gap-1"><i class="fa-solid fa-network-wired text-[9px]"></i> 원격지원</span>';
         } else if (r.category === '유선안내') {
           catBadge = '<span class="px-2 py-0.5 rounded-lg font-black text-[10px] category-badge-phone flex items-center gap-1"><i class="fa-solid fa-headset text-[9px]"></i> 유선안내</span>';
+        } else if (r.category === '입고수리') {
+          catBadge = '<span class="px-2 py-0.5 rounded-lg font-black text-[10px] category-badge-inhouse flex items-center gap-1"><i class="fa-solid fa-boxes-packing text-[9px]"></i> 입고수리</span>';
         } else {
           catBadge = '<span class="px-2 py-0.5 rounded-lg font-black text-[10px] category-badge-onsite flex items-center gap-1"><i class="fa-solid fa-screwdriver-wrench text-[9px]"></i> 현장방문</span>';
         }
@@ -1422,7 +1447,8 @@
         'all': document.getElementById('filterCatAll'),
         '원격지원': document.getElementById('filterCatRemote'),
         '유선안내': document.getElementById('filterCatPhone'),
-        '현장방문': document.getElementById('filterCatOnsite')
+        '현장방문': document.getElementById('filterCatOnsite'),
+        '입고수리': document.getElementById('filterCatInhouse')
       };
 
       Object.keys(buttons).forEach(function(k) {
