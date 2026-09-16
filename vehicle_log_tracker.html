@@ -1037,7 +1037,10 @@
                 .lte('delivery_date', `${monthPrefix}-31`)
                 .neq('source_sheet', 'VEHICLE_TRIP_LOGS')
                 .neq('source_sheet', 'SYSTEM_CONFIG_VEHICLES')
-                .neq('source_sheet', 'SYSTEM_CONFIG_USERS');
+                .neq('source_sheet', 'SYSTEM_CONFIG_USERS')
+                .neq('source_sheet', 'AS_RECORDS')
+                .not('source_sheet', 'like', 'SYSTEM_CONFIG_%')
+                .neq('contract_no', 'HANDOVER_CONFIG');
 
               var liveSchedules = schRes.data || [];
 
@@ -2117,6 +2120,9 @@
           .eq('delivery_date', dateStr)
           .neq('source_sheet', 'VEHICLE_TRIP_LOGS')
           .neq('source_sheet', 'SYSTEM_CONFIG_VEHICLES')
+          .neq('source_sheet', 'AS_RECORDS')
+          .not('source_sheet', 'like', 'SYSTEM_CONFIG_%')
+          .neq('contract_no', 'HANDOVER_CONFIG')
           .order('id', { ascending: true });
 
         if (res.data && res.data.length > 0) {
@@ -3000,7 +3006,10 @@
             .gte('delivery_date', `${monthPrefix}-01`)
             .lte('delivery_date', `${monthPrefix}-${daysInMonth}`)
             .neq('source_sheet', 'VEHICLE_TRIP_LOGS')
-            .neq('source_sheet', 'SYSTEM_CONFIG_VEHICLES');
+            .neq('source_sheet', 'SYSTEM_CONFIG_VEHICLES')
+            .neq('source_sheet', 'AS_RECORDS')
+            .not('source_sheet', 'like', 'SYSTEM_CONFIG_%')
+            .neq('contract_no', 'HANDOVER_CONFIG');
 
           if (res.data && res.data.length > 0) {
             res.data.forEach(function(r) {

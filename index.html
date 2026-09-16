@@ -3003,7 +3003,7 @@
 
       var todayStr = getTodayLocalDate();
       var validDates = (availableDates || []).filter(function(d) {
-        return d && d !== '2099-12-31' && d !== '1970-01-01' && d !== 'SYSTEM_CONFIG' && d !== 'SYSTEM_CONFIG_USERS';
+        return d && d !== '2099-12-31' && d !== '1970-01-01' && !d.startsWith('SYSTEM_CONFIG') && d !== 'AS_RECORDS' && d !== 'HANDOVER_CONFIG';
       });
 
       // 오늘 날짜가 목록에 없더라도 무조건 포함
@@ -3092,7 +3092,13 @@
         if (res.data && res.data.length > 0) {
           var dateSet = new Set();
           res.data.forEach(function(row) {
-            if (row.delivery_date && row.delivery_date !== '2099-12-31' && row.delivery_date !== '1970-01-01' && row.source_sheet !== 'SYSTEM_CONFIG_USERS') {
+            var src = (row.source_sheet || '').trim();
+            if (row.delivery_date && 
+                row.delivery_date !== '2099-12-31' && 
+                row.delivery_date !== '1970-01-01' && 
+                src !== 'AS_RECORDS' && 
+                src !== 'VEHICLE_TRIP_LOGS' && 
+                !src.startsWith('SYSTEM_CONFIG')) {
               dateSet.add(row.delivery_date);
             }
           });
@@ -5406,10 +5412,11 @@
           if (!existRes.error && existRes.data && existRes.data.length > 0) {
             var validDates = [targetDate, cleanDateForQuery, shortDateForQuery];
             var targetRows = existRes.data.filter(function(row) {
+              var src = (row.source_sheet || '').trim();
               return validDates.indexOf(row.delivery_date) !== -1 &&
-                     row.source_sheet !== 'VEHICLE_TRIP_LOGS' &&
-                     row.source_sheet !== 'SYSTEM_CONFIG_VEHICLES' &&
-                     row.source_sheet !== 'SYSTEM_CONFIG_USERS';
+                     src !== 'VEHICLE_TRIP_LOGS' &&
+                     src !== 'AS_RECORDS' &&
+                     !src.startsWith('SYSTEM_CONFIG');
             });
 
             // 1. 기존 트래킹 정보 (출발/도착 시간, 완료 상태, 기사 등) 맵 구축
@@ -5691,11 +5698,13 @@
           var cleanTargetDate = targetDate.replace(/\./g, '-');
           var shortTargetDate = targetDate.replace(/-/g, '.');
 
-          // [핵심 방어] 해당 일자 구버전 스케줄만 삭제하며, 법인차량 운행일지(VEHICLE_TRIP_LOGS) 및 시스템 설정은 절대 삭제되지 않도록 엄격 보호
+          // [핵심 방어] 해당 일자 구버전 스케줄만 삭제하며, 법인차량 운행일지(VEHICLE_TRIP_LOGS), A/S 기록(AS_RECORDS) 및 시스템 설정은 절대 삭제되지 않도록 엄격 보호
           await supabaseClient.from('delivery_schedules')
             .delete()
             .eq('delivery_date', targetDate)
             .neq('source_sheet', 'VEHICLE_TRIP_LOGS')
+            .neq('source_sheet', 'AS_RECORDS')
+            .neq('source_sheet', 'SYSTEM_CONFIG_CUSTOMER_HANDOVERS')
             .neq('source_sheet', 'SYSTEM_CONFIG_VEHICLES')
             .neq('source_sheet', 'SYSTEM_CONFIG_USERS')
             .neq('source_sheet', 'SYSTEM_CONFIG_DRIVER_ORIGINS');
@@ -5705,6 +5714,8 @@
               .delete()
               .eq('delivery_date', cleanTargetDate)
               .neq('source_sheet', 'VEHICLE_TRIP_LOGS')
+              .neq('source_sheet', 'AS_RECORDS')
+              .neq('source_sheet', 'SYSTEM_CONFIG_CUSTOMER_HANDOVERS')
               .neq('source_sheet', 'SYSTEM_CONFIG_VEHICLES')
               .neq('source_sheet', 'SYSTEM_CONFIG_USERS')
               .neq('source_sheet', 'SYSTEM_CONFIG_DRIVER_ORIGINS');
@@ -5714,12 +5725,14 @@
               .delete()
               .eq('delivery_date', shortTargetDate)
               .neq('source_sheet', 'VEHICLE_TRIP_LOGS')
+              .neq('source_sheet', 'AS_RECORDS')
+              .neq('source_sheet', 'SYSTEM_CONFIG_CUSTOMER_HANDOVERS')
               .neq('source_sheet', 'SYSTEM_CONFIG_VEHICLES')
               .neq('source_sheet', 'SYSTEM_CONFIG_USERS')
               .neq('source_sheet', 'SYSTEM_CONFIG_DRIVER_ORIGINS');
           }
-          await supabaseClient.from('delivery_schedules').delete().eq('source_sheet', targetDate).neq('source_sheet', 'VEHICLE_TRIP_LOGS');
-          await supabaseClient.from('delivery_schedules').delete().eq('source_sheet', shortTargetDate).neq('source_sheet', 'VEHICLE_TRIP_LOGS');
+          await supabaseClient.from('delivery_schedules').delete().eq('source_sheet', targetDate).neq('source_sheet', 'VEHICLE_TRIP_LOGS').neq('source_sheet', 'AS_RECORDS');
+          await supabaseClient.from('delivery_schedules').delete().eq('source_sheet', shortTargetDate).neq('source_sheet', 'VEHICLE_TRIP_LOGS').neq('source_sheet', 'AS_RECORDS');
 
           var res = await supabaseClient.from('delivery_schedules').insert(payload);
           if (res.error) {
@@ -7030,6 +7043,9 @@
 
         var query = supabaseClient.from('delivery_schedules')
           .select('*')
+          .neq('source_sheet', 'AS_RECORDS')
+          .not('source_sheet', 'like', 'SYSTEM_CONFIG_%')
+          .neq('contract_no', 'HANDOVER_CONFIG')
           .order('id', { ascending: true });
 
         if (selectedDate && selectedDate !== 'all') {
@@ -7043,14 +7059,19 @@
 
         var rawData = res.data || [];
         var data = rawData.filter(function(row) {
-          return row.source_sheet !== 'SYSTEM_CONFIG_USERS' &&
-                 row.customer_name !== 'SYSTEM_CONFIG_USERS' &&
-                 row.customer_name !== '시스템_계정_설정' &&
-                 row.source_sheet !== 'SYSTEM_CONFIG_VEHICLES' &&
-                 row.source_sheet !== 'VEHICLE_TRIP_LOGS' &&
-                 row.customer_name !== 'SYSTEM_CONFIG_VEHICLES' &&
-                 row.delivery_date !== '2099-12-31' &&
-                 row.delivery_date !== '1970-01-01';
+          var src = (row.source_sheet || '').trim();
+          var cust = (row.customer_name || '').trim();
+          var contract = (row.contract_no || '').trim();
+          var date = (row.delivery_date || '').trim();
+
+          // 배송 관제 대시보드에서는 순수 배송/회수/수령 건만 표출 (A/S 기록, 차량운행일지, 시스템 설정 레코드 100% 배제)
+          if (src === 'AS_RECORDS' || src === 'VEHICLE_TRIP_LOGS') return false;
+          if (src.startsWith('SYSTEM_CONFIG')) return false;
+          if (cust.startsWith('SYSTEM_CONFIG') || cust === '시스템_계정_설정') return false;
+          if (contract === 'HANDOVER_CONFIG') return false;
+          if (date === '2099-12-31' || date === '1970-01-01') return false;
+
+          return true;
         });
 
         var fetchedRecords = data.map(function(row) {
@@ -7263,8 +7284,10 @@
 
         if (res.error) throw res.error;
         var rows = (res.data || []).filter(function(row) {
-          return row.source_sheet !== 'SYSTEM_CONFIG_USERS' &&
-                 row.source_sheet !== 'SYSTEM_CONFIG_DRIVER_ORIGINS' &&
+          var s = (row.source_sheet || '');
+          var c = (row.contract_no || '');
+          return !s.startsWith('SYSTEM_CONFIG') &&
+                 c !== 'HANDOVER_CONFIG' &&
                  row.customer_name !== 'SYSTEM_CONFIG_USERS';
         });
         renderContractHistoryResults(rows, q);

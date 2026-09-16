@@ -690,6 +690,8 @@
           .neq('source_sheet', 'SYSTEM_CONFIG_DRIVER_ORIGINS')
           .neq('source_sheet', 'SYSTEM_CONFIG_CUSTOMER_HANDOVERS')
           .neq('source_sheet', 'VEHICLE_TRIP_LOGS')
+          .neq('source_sheet', 'AS_RECORDS')
+          .not('source_sheet', 'like', 'SYSTEM_CONFIG_%')
           .order('delivery_date', { ascending: false })
           .limit(1000);
 
@@ -993,7 +995,7 @@
             .from('delivery_schedules')
             .update({
               memo_full: payloadStr,
-              delivery_date: new Date().toISOString().split('T')[0]
+              delivery_date: '1970-01-01'
             })
             .eq('id', checkRes.data[0].id);
           if (updateRes.error) throw updateRes.error;
@@ -1005,7 +1007,7 @@
               customer_name: 'SYSTEM_CONFIG_CUSTOMER_HANDOVERS',
               contract_no: 'HANDOVER_CONFIG',
               category: 'CONFIG',
-              delivery_date: new Date().toISOString().split('T')[0],
+              delivery_date: '1970-01-01',
               memo_full: payloadStr
             }]);
           if (insertRes.error) throw insertRes.error;
