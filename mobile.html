@@ -306,7 +306,12 @@
           <span id="mobileModalOriginName" class="font-bold text-emerald-800 underline underline-offset-2 truncate text-xs">가산 센터</span>
           <span id="mobileModalOriginBadge" class="text-[9px] bg-emerald-200 text-emerald-900 px-1.5 py-0.2 rounded font-bold shrink-0">🏢 가산 센터</span>
         </div>
-        <span id="mobileModalOriginAddr" class="text-[10px] text-slate-500 truncate max-w-[140px] font-mono" title=""></span>
+        <div class="flex items-center gap-1.5 shrink-0 ml-1">
+          <span id="mobileModalOriginAddr" class="text-[10px] text-slate-500 truncate max-w-[120px] font-mono hidden sm:inline" title=""></span>
+          <button type="button" onclick="openMobileOriginModal()" class="px-2 py-0.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md font-bold text-[10px] shrink-0 active:scale-95 transition shadow-xs">
+            변경 ✏️
+          </button>
+        </div>
       </div>
 
       <!-- Route Toolbar (실제 경로 계산 & 거리/시간 뱃지) -->
@@ -620,6 +625,81 @@
           </button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- 8-B. Mobile Driver Origin Modal (당일 출발지 변경) -->
+  <!-- ========================================== -->
+  <div id="mobileOriginModal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 hidden flex flex-col justify-end sm:justify-center p-0 sm:p-4" onclick="if(event.target===this)closeMobileOriginModal()">
+    <div class="bg-white rounded-t-3xl sm:rounded-2xl max-w-sm w-full mx-auto p-5 shadow-2xl border border-slate-200 space-y-4 animate-in slide-in-from-bottom duration-200" onclick="event.stopPropagation()">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center text-sm shadow-xs">
+            <i class="fa-solid fa-flag"></i>
+          </div>
+          <div>
+            <h3 class="font-black text-sm text-slate-900">당일 출발지 변경</h3>
+            <p class="text-[11px] text-slate-400" id="mobileOriginDriverText">배송기사 출발 거점 설정</p>
+          </div>
+        </div>
+        <button type="button" onclick="closeMobileOriginModal()" class="w-7 h-7 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center hover:bg-slate-200">
+          <i class="fa-solid fa-xmark text-xs"></i>
+        </button>
+      </div>
+
+      <!-- Quick Preset Selection Buttons -->
+      <div class="space-y-2">
+        <div class="text-[11px] font-black text-slate-600 flex items-center gap-1">
+          <i class="fa-solid fa-bolt text-amber-500"></i> 빠른 선택
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <button type="button" onclick="selectMobileOriginQuick('gasan')" class="p-3 rounded-xl border border-emerald-300 bg-emerald-50/70 hover:bg-emerald-100 text-left transition flex flex-col justify-between active:scale-[0.98]">
+            <div class="flex items-center gap-1.5 mb-1">
+              <span class="text-xs">🏢</span>
+              <span class="font-black text-xs text-emerald-950">가산 센터</span>
+            </div>
+            <span class="text-[10px] text-slate-500 truncate">금천구 벚꽃로 278</span>
+          </button>
+          <button type="button" onclick="selectMobileOriginQuick('base')" class="p-3 rounded-xl border border-teal-300 bg-teal-50/70 hover:bg-teal-100 text-left transition flex flex-col justify-between active:scale-[0.98]">
+            <div class="flex items-center gap-1.5 mb-1">
+              <span class="text-xs">🏠</span>
+              <span class="font-black text-xs text-teal-950" id="mobileOriginBaseBtnTitle">내 등록 거점</span>
+            </div>
+            <span class="text-[10px] text-slate-500 truncate" id="mobileOriginBaseBtnAddr">자택 주소</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Custom Address Input Section -->
+      <div class="space-y-2.5 pt-2 border-t border-slate-100">
+        <div class="text-[11px] font-black text-slate-600 flex items-center gap-1">
+          <i class="fa-solid fa-pen text-indigo-500"></i> 직접 주소 지정
+        </div>
+        <div>
+          <label class="block text-[11px] font-bold text-slate-700 mb-1">출발지 명칭 (선택)</label>
+          <input type="text" id="mobileCustomOriginName" placeholder="예: 자택, 현장출발, 지점 등" class="w-full bg-slate-50 text-slate-800 px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-emerald-500 font-semibold focus:outline-none">
+        </div>
+        <div>
+          <label class="block text-[11px] font-bold text-slate-700 mb-1">출발지 주소 (도로명/지번) *</label>
+          <input type="text" id="mobileCustomOriginAddr" placeholder="예: 서울 강서구 공항대로 248" class="w-full bg-white text-slate-800 px-3 py-2 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-emerald-500 font-medium focus:outline-none">
+          <p class="text-[10px] text-slate-400 mt-1">* 저장 즉시 배송 동선 및 실제 주행 경로가 재계산됩니다.</p>
+        </div>
+        <div class="flex items-center gap-2 pt-1">
+          <input type="checkbox" id="mobileSaveOriginAsBase" class="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500">
+          <label for="mobileSaveOriginAsBase" class="text-[11px] font-bold text-slate-700 cursor-pointer">
+            이 주소를 내 기본 등록 거점(자택)으로도 저장
+          </label>
+        </div>
+      </div>
+
+      <!-- Action Button -->
+      <div class="pt-2 border-t border-slate-100">
+        <button type="button" id="mobileSaveOriginSubmitBtn" onclick="saveMobileCustomOrigin()" class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl shadow-md transition flex items-center justify-center gap-1.5 active:scale-98">
+          <i class="fa-solid fa-check"></i>
+          <span>출발지 적용 및 클라우드 동기화</span>
+        </button>
+      </div>
     </div>
   </div>
 
@@ -993,7 +1073,7 @@
     var isMobileRoadMode = false;
     var cachedMobileRoadData = null;
 
-    // Preset Coordinates
+    // Preset Coordinates (주요 거점 및 9월 15일 배송지 사전 정의)
     const PRESET_COORDINATES = {
       "가산 센터": { lat: 37.476483, lng: 126.883705 },
       "서울특별시 금천구 벚꽃로 278": { lat: 37.476483, lng: 126.883705 },
@@ -1012,7 +1092,13 @@
       "서울 강남구 논현로81길 9": { lat: 37.49799, lng: 127.03735 },
       "경기 용인시 기흥구 중부대로 262": { lat: 37.26975, lng: 127.09651 },
       "서울 구로구 디지털로26길 5": { lat: 37.48161, lng: 126.89347 },
-      "인천광역시 남동구 만수로 107": { lat: 37.46474, lng: 126.73773 }
+      "인천광역시 남동구 만수로 107": { lat: 37.46474, lng: 126.73773 },
+      // 9월 15일 및 주요 배송지 프리셋
+      "서울 중구 명동길 26": { lat: 37.563066, lng: 126.986629 },
+      "서울 강서구 하늘길 13": { lat: 37.5585, lng: 126.8016 },
+      "경기 파주시 회동길 231-10": { lat: 37.7126, lng: 126.6853 },
+      "서울 중구 수표로 34": { lat: 37.5645, lng: 126.9904 },
+      "서울 서대문구 통일로 440-1": { lat: 37.5887103667691, lng: 126.944242309924 }
     };
 
     var GEO_CACHE = {};
@@ -1021,6 +1107,105 @@
     } catch(e) {}
     for (var k in PRESET_COORDINATES) {
       GEO_CACHE[k] = PRESET_COORDINATES[k];
+    }
+
+    var mobileKakaoGeocoder = null;
+    var mobileKakaoPlaces = null;
+
+    function extractRoadBaseAddress(addr) {
+      if (!addr) return '';
+      var cleaned = addr.replace(/\r?\n/g, ' ').replace(/\s+/g, ' ').trim();
+      var m = cleaned.match(/^([가-힣0-9\s]+?(?:대로|로\d*길|로|길|가|동|리)\s+\d+(?:-\d+)?)/);
+      if (m) return m[1].trim();
+      return cleaned.replace(/\([^)]*\)/g, ' ').replace(/(빌딩|타워|센터|오피스텔|아파트|상가|지점|\d+층|\d+호).*/g, '').trim();
+    }
+
+    function resolveMobileAddressCoord(rawAddr) {
+      return new Promise(function(resolve) {
+        if (!rawAddr) {
+          resolve({ lat: 37.476483, lng: 126.883705 });
+          return;
+        }
+        var cleanKey = rawAddr.replace(/\r?\n/g, ' ').replace(/\s+/g, ' ').trim();
+        if (GEO_CACHE[cleanKey]) {
+          resolve(GEO_CACHE[cleanKey]);
+          return;
+        }
+        var baseAddr = extractRoadBaseAddress(cleanKey);
+        if (baseAddr && GEO_CACHE[baseAddr]) {
+          GEO_CACHE[cleanKey] = GEO_CACHE[baseAddr];
+          resolve(GEO_CACHE[baseAddr]);
+          return;
+        }
+
+        if (!mobileKakaoGeocoder && window.kakao && window.kakao.maps && window.kakao.maps.services) {
+          mobileKakaoGeocoder = new kakao.maps.services.Geocoder();
+          mobileKakaoPlaces = new kakao.maps.services.Places();
+        }
+
+        if (!mobileKakaoGeocoder) {
+          resolve({ lat: 37.476483, lng: 126.883705 });
+          return;
+        }
+
+        mobileKakaoGeocoder.addressSearch(cleanKey, function(res1, st1) {
+          if (st1 === kakao.maps.services.Status.OK && res1 && res1.length > 0) {
+            var c1 = { lat: parseFloat(res1[0].y), lng: parseFloat(res1[0].x) };
+            GEO_CACHE[cleanKey] = c1;
+            try { localStorage.setItem('KAKAO_GEO_CACHE_V2', JSON.stringify(GEO_CACHE)); } catch(e) {}
+            resolve(c1);
+          } else {
+            if (baseAddr && baseAddr !== cleanKey) {
+              mobileKakaoGeocoder.addressSearch(baseAddr, function(res2, st2) {
+                if (st2 === kakao.maps.services.Status.OK && res2 && res2.length > 0) {
+                  var c2 = { lat: parseFloat(res2[0].y), lng: parseFloat(res2[0].x) };
+                  GEO_CACHE[cleanKey] = c2;
+                  GEO_CACHE[baseAddr] = c2;
+                  try { localStorage.setItem('KAKAO_GEO_CACHE_V2', JSON.stringify(GEO_CACHE)); } catch(e) {}
+                  resolve(c2);
+                } else if (mobileKakaoPlaces) {
+                  mobileKakaoPlaces.keywordSearch(baseAddr, function(res3, st3) {
+                    if (st3 === kakao.maps.services.Status.OK && res3 && res3.length > 0) {
+                      var c3 = { lat: parseFloat(res3[0].y), lng: parseFloat(res3[0].x) };
+                      GEO_CACHE[cleanKey] = c3;
+                      try { localStorage.setItem('KAKAO_GEO_CACHE_V2', JSON.stringify(GEO_CACHE)); } catch(e) {}
+                      resolve(c3);
+                    } else {
+                      resolve({ lat: 37.476483, lng: 126.883705 });
+                    }
+                  });
+                } else {
+                  resolve({ lat: 37.476483, lng: 126.883705 });
+                }
+              });
+            } else if (mobileKakaoPlaces) {
+              mobileKakaoPlaces.keywordSearch(cleanKey, function(res4, st4) {
+                if (st4 === kakao.maps.services.Status.OK && res4 && res4.length > 0) {
+                  var c4 = { lat: parseFloat(res4[0].y), lng: parseFloat(res4[0].x) };
+                  GEO_CACHE[cleanKey] = c4;
+                  try { localStorage.setItem('KAKAO_GEO_CACHE_V2', JSON.stringify(GEO_CACHE)); } catch(e) {}
+                  resolve(c4);
+                } else {
+                  resolve({ lat: 37.476483, lng: 126.883705 });
+                }
+              });
+            } else {
+              resolve({ lat: 37.476483, lng: 126.883705 });
+            }
+          }
+        });
+      });
+    }
+
+    async function preGeocodeMobileRecords(records) {
+      if (!records || records.length === 0) return;
+      var tasks = records.map(function(r) {
+        if (r.address) {
+          return resolveMobileAddressCoord(r.address);
+        }
+        return Promise.resolve(null);
+      });
+      await Promise.all(tasks);
     }
 
     function getDriverOrigin(driverName, targetDate) {
@@ -1066,14 +1251,177 @@
       }
     }
 
+    async function saveDriverOriginsToCloud() {
+      if (!supabaseClient) return;
+      try {
+        var bases = {};
+        try { bases = JSON.parse(localStorage.getItem('DELIVERY_DRIVER_REGISTERED_BASES_V1') || '{}'); } catch(e) {}
+        var daily = {};
+        try { daily = JSON.parse(localStorage.getItem('DELIVERY_DAILY_DRIVER_ORIGINS_V1') || '{}'); } catch(e) {}
+        var payload = { bases: bases, daily: daily };
+        await supabaseClient.from('delivery_schedules')
+          .delete()
+          .eq('source_sheet', 'SYSTEM_CONFIG_DRIVER_ORIGINS');
+        await supabaseClient.from('delivery_schedules').insert([{
+          customer_name: 'SYSTEM_CONFIG_DRIVER_ORIGINS',
+          source_sheet: 'SYSTEM_CONFIG_DRIVER_ORIGINS',
+          memo_full: JSON.stringify(payload),
+          delivery_date: '1970-01-01'
+        }]);
+        console.log('✅ [Mobile] 출발지 설정이 클라우드에 영구 저장되었습니다.');
+      } catch (e) {
+        console.warn('Save driver origins to cloud error:', e);
+      }
+    }
+
+    function openMobileOriginModal() {
+      var drvName = getCurrentDriverName();
+      var origin = getDriverOrigin(drvName, currentDate);
+      var regBase = getMobileDriverRegisteredBase();
+
+      var drvText = document.getElementById('mobileOriginDriverText');
+      if (drvText) drvText.innerText = (drvName || '배송기사') + ' 님 당일(' + currentDate + ') 출발 거점';
+
+      var baseBtnTitle = document.getElementById('mobileOriginBaseBtnTitle');
+      var baseBtnAddr = document.getElementById('mobileOriginBaseBtnAddr');
+      if (baseBtnTitle) baseBtnTitle.innerText = drvName ? drvName + ' 거점' : '내 등록 거점';
+      if (baseBtnAddr) baseBtnAddr.innerText = regBase.addr || '등록 거점 미등록';
+
+      var nameInput = document.getElementById('mobileCustomOriginName');
+      var addrInput = document.getElementById('mobileCustomOriginAddr');
+      var baseCheck = document.getElementById('mobileSaveOriginAsBase');
+      if (nameInput) nameInput.value = (origin.type === 'custom' || origin.type === 'base') ? (origin.name || '') : '';
+      if (addrInput) addrInput.value = (origin.type === 'custom' || origin.type === 'base') ? (origin.addr || '') : '';
+      if (baseCheck) baseCheck.checked = false;
+
+      var modal = document.getElementById('mobileOriginModal');
+      if (modal) modal.classList.remove('hidden');
+    }
+
+    function closeMobileOriginModal() {
+      var modal = document.getElementById('mobileOriginModal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    async function selectMobileOriginQuick(type) {
+      var drvName = getCurrentDriverName();
+      if (type === 'gasan') {
+        await applyAndSaveMobileOrigin({
+          type: 'gasan',
+          name: '가산 센터',
+          addr: '서울특별시 금천구 벚꽃로 278',
+          lat: 37.476483,
+          lng: 126.883705
+        }, false);
+      } else if (type === 'base') {
+        var regBase = getMobileDriverRegisteredBase();
+        if (!regBase || !regBase.addr || regBase.addr.indexOf('미등록') !== -1) {
+          alert('등록 거점(자택) 주소가 없습니다. 아래 직접 주소 지정을 통해 주소를 입력하고 [내 기본 등록 거점으로도 저장]을 체크해주세요.');
+          return;
+        }
+        await applyAndSaveMobileOrigin({
+          type: 'base',
+          name: regBase.name || (drvName + ' 자택'),
+          addr: regBase.addr,
+          lat: regBase.lat || 37.476483,
+          lng: regBase.lng || 126.883705
+        }, false);
+      }
+      closeMobileOriginModal();
+    }
+
+    async function saveMobileCustomOrigin() {
+      var addrInput = document.getElementById('mobileCustomOriginAddr');
+      var nameInput = document.getElementById('mobileCustomOriginName');
+      var baseCheck = document.getElementById('mobileSaveOriginAsBase');
+      var addr = addrInput ? addrInput.value.trim() : '';
+      var name = nameInput ? nameInput.value.trim() : '';
+      var saveAsBase = baseCheck ? baseCheck.checked : false;
+
+      if (!addr) {
+        alert('출발지 주소를 입력해주세요.');
+        if (addrInput) addrInput.focus();
+        return;
+      }
+
+      var submitBtn = document.getElementById('mobileSaveOriginSubmitBtn');
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>주소 좌표 변환 및 동기화 중...</span>';
+      }
+
+      try {
+        var coord = await resolveMobileAddressCoord(addr);
+        var originData = {
+          type: saveAsBase ? 'base' : 'custom',
+          name: name || (saveAsBase ? (getCurrentDriverName() + ' 자택') : '지정 출발지'),
+          addr: addr,
+          lat: coord.lat,
+          lng: coord.lng
+        };
+
+        await applyAndSaveMobileOrigin(originData, saveAsBase);
+        closeMobileOriginModal();
+      } catch (err) {
+        console.error('출발지 저장 오류:', err);
+        alert('출발지 저장 중 오류가 발생했습니다.');
+      } finally {
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = '<i class="fa-solid fa-check"></i> <span>출발지 적용 및 클라우드 동기화</span>';
+        }
+      }
+    }
+
+    async function applyAndSaveMobileOrigin(originData, saveAsBase) {
+      var drvName = getCurrentDriverName();
+      var d = currentDate;
+
+      // 1. 당일 출발지 로컬 저장
+      var daily = {};
+      try { daily = JSON.parse(localStorage.getItem('DELIVERY_DAILY_DRIVER_ORIGINS_V1') || '{}'); } catch(e) {}
+      if (!daily[d]) daily[d] = {};
+      var key = drvName ? drvName.trim() : '__all__';
+      daily[d][key] = originData;
+      localStorage.setItem('DELIVERY_DAILY_DRIVER_ORIGINS_V1', JSON.stringify(daily));
+
+      // 2. 등록 거점 저장 옵션 체크 시
+      if (saveAsBase && drvName) {
+        var bases = {};
+        try { bases = JSON.parse(localStorage.getItem('DELIVERY_DRIVER_REGISTERED_BASES_V1') || '{}'); } catch(e) {}
+        bases[drvName] = {
+          name: originData.name,
+          addr: originData.addr,
+          lat: originData.lat,
+          lng: originData.lng
+        };
+        localStorage.setItem('DELIVERY_DRIVER_REGISTERED_BASES_V1', JSON.stringify(bases));
+      }
+
+      // 3. Supabase Cloud DB 동기화
+      await saveDriverOriginsToCloud();
+
+      // 4. 경로 캐시 초기화 및 화면 갱신
+      cachedMobileRoadData = null;
+      filterAndRenderSchedule(false);
+
+      if (mobileKakaoMap) {
+        renderMobileMapStops();
+      }
+
+      showToast('✅ [' + (drvName || '전체') + '] ' + d + ' 출발지가 "' + (originData.name || originData.addr) + '"(으)로 변경되었습니다.');
+    }
+
     function getCoordForAddress(addr) {
       if (!addr) return { lat: 37.476483, lng: 126.883705 };
       var clean = addr.replace(/\r?\n/g, ' ').replace(/\s+/g, ' ').trim();
       if (GEO_CACHE[clean]) return GEO_CACHE[clean];
+      var base = extractRoadBaseAddress(clean);
+      if (base && GEO_CACHE[base]) return GEO_CACHE[base];
       for (var key in GEO_CACHE) {
         if (clean.indexOf(key) !== -1 || key.indexOf(clean) !== -1) return GEO_CACHE[key];
       }
-      return { lat: 37.4850 + (Math.random() - 0.5) * 0.05, lng: 126.9000 + (Math.random() - 0.5) * 0.05 };
+      return { lat: 37.476483, lng: 126.883705 };
     }
 
     const DEFAULT_AUTH_USERS = [
@@ -2974,9 +3322,14 @@
             <i class="fa-solid fa-location-dot text-emerald-600 text-xs shrink-0"></i>
             <span class="truncate font-semibold text-slate-800 text-[11px]" title="${originCoord.addr}">${originCoord.addr}</span>
           </div>
-          <button type="button" onclick="openMobileMapModal()" class="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 shrink-0 ml-1">
-            지도 ↗
-          </button>
+          <div class="flex items-center gap-1.5 shrink-0 ml-1">
+            <button type="button" onclick="openMobileOriginModal()" class="px-2 py-0.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md font-bold text-[10px] active:scale-95 transition shadow-xs">
+              변경 ✏️
+            </button>
+            <button type="button" onclick="openMobileMapModal()" class="text-[10px] font-bold text-indigo-600 hover:text-indigo-800">
+              지도 ↗
+            </button>
+          </div>
         </div>
       `;
       container.appendChild(originCard);
@@ -3919,7 +4272,7 @@
     // ==========================================
     // Map Popup & Real Road Route Engine
     // ==========================================
-    function openMobileMapModal() {
+    async function openMobileMapModal() {
       document.getElementById('mobileMapModal').classList.remove('hidden');
       document.getElementById('mobileMapStopCount').innerText = driverRecords.length + '개소';
 
@@ -3939,6 +4292,9 @@
         addrEl.innerText = originCoord.addr;
         addrEl.title = originCoord.addr;
       }
+
+      // 배송지 사전 지오코딩 완료 후 지도 렌더링
+      await preGeocodeMobileRecords(driverRecords);
 
       setTimeout(function() {
         initOrUpdateMobileMap();
@@ -4104,6 +4460,7 @@
 
       try {
         if (!cachedMobileRoadData) {
+          await preGeocodeMobileRecords(driverRecords);
           var drvName = getCurrentDriverName();
           var originCoord = getDriverOrigin(drvName, currentDate);
           var dest = getMobileDriverDestination();
@@ -4242,9 +4599,11 @@
       }, msUntilMidnight);
     }
 
+    var lastKnownSystemDate = getTodayLocalDate();
     function checkAndApplyDateRollover() {
       var newToday = getTodayLocalDate();
-      if (currentDate !== newToday) {
+      if (lastKnownSystemDate !== newToday) {
+        lastKnownSystemDate = newToday;
         setDate(newToday);
         showToast('🌅 자정이 경과하여 오늘 날짜(' + newToday + ')로 일정이 자동 갱신되었습니다.');
       }
