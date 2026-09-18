@@ -434,11 +434,11 @@
           <div class="grid grid-cols-2 gap-2.5">
             <div>
               <label class="block text-[11px] font-bold text-slate-500 mb-1">주차비 (원)</label>
-              <input type="number" id="modalParkingFee" value="0" step="500" class="w-full bg-slate-50 font-mono font-bold text-slate-800 px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none">
+              <input type="number" id="modalParkingFee" value="0" step="1" min="0" class="w-full bg-slate-50 font-mono font-bold text-slate-800 px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none">
             </div>
             <div>
               <label class="block text-[11px] font-bold text-slate-500 mb-1">주유 금액 (원)</label>
-              <input type="number" id="modalFuelFee" value="0" step="1000" class="w-full bg-slate-50 font-mono font-bold text-slate-800 px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-rose-500 focus:outline-none">
+              <input type="number" id="modalFuelFee" value="0" step="1" min="0" class="w-full bg-slate-50 font-mono font-bold text-slate-800 px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-rose-500 focus:outline-none">
             </div>
           </div>
 
@@ -2062,12 +2062,12 @@
             <div class="pt-1 border-t border-slate-100 flex items-center justify-end gap-2 text-[10px]">
               <div class="flex items-center gap-1">
                 <span class="text-amber-700 font-bold flex items-center gap-0.5"><i class="fa-solid fa-square-parking text-[11px]"></i> 주차:</span>
-                <input type="number" step="500" min="0" value="${curParking}" oninput="updateModalStopFee(${idx}, 'parking_fee', this.value)" class="w-16 px-1.5 py-0.5 border border-slate-200 rounded text-right font-mono font-bold text-amber-800 focus:ring-1 focus:ring-amber-400">
+                <input type="number" step="1" min="0" value="${curParking}" oninput="updateModalStopFee(${idx}, 'parking_fee', this.value)" class="w-16 px-1.5 py-0.5 border border-slate-200 rounded text-right font-mono font-bold text-amber-800 focus:ring-1 focus:ring-amber-400">
                 <span class="text-slate-400">원</span>
               </div>
               <div class="flex items-center gap-1">
                 <span class="text-rose-700 font-bold flex items-center gap-0.5"><i class="fa-solid fa-gas-pump text-[11px]"></i> 주유:</span>
-                <input type="number" step="1000" min="0" value="${curFuel}" oninput="updateModalStopFee(${idx}, 'fuel_fee', this.value)" class="w-16 px-1.5 py-0.5 border border-slate-200 rounded text-right font-mono font-bold text-rose-800 focus:ring-1 focus:ring-rose-400">
+                <input type="number" step="1" min="0" value="${curFuel}" oninput="updateModalStopFee(${idx}, 'fuel_fee', this.value)" class="w-16 px-1.5 py-0.5 border border-slate-200 rounded text-right font-mono font-bold text-rose-800 focus:ring-1 focus:ring-rose-400">
                 <span class="text-slate-400">원</span>
               </div>
             </div>

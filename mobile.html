@@ -2704,14 +2704,14 @@
             <div class="grid grid-cols-2 gap-2 pt-1.5 border-t border-slate-100 text-xs">
               <div class="flex items-center gap-1 bg-amber-50/70 p-1.5 rounded-lg border border-amber-200">
                 <span class="text-amber-900 font-black shrink-0 text-[11px]"><i class="fa-solid fa-square-parking text-amber-600"></i> 주차</span>
-                <input type="number" step="500" min="0" inputmode="numeric" placeholder="0" value="${curParking || ''}"
+                <input type="number" step="1" min="0" inputmode="numeric" placeholder="0" value="${curParking || ''}"
                        oninput="updateMobileClosingStopFee(${idx}, 'parking_fee', this.value)"
                        class="w-full bg-white px-2 py-1 border border-amber-300 rounded text-right font-mono font-black text-amber-950 text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none">
                 <span class="text-amber-800 text-[10px] shrink-0 font-bold">원</span>
               </div>
               <div class="flex items-center gap-1 bg-rose-50/70 p-1.5 rounded-lg border border-rose-200">
                 <span class="text-rose-900 font-black shrink-0 text-[11px]"><i class="fa-solid fa-gas-pump text-rose-600"></i> 주유</span>
-                <input type="number" step="1000" min="0" inputmode="numeric" placeholder="0" value="${curFuel || ''}"
+                <input type="number" step="1" min="0" inputmode="numeric" placeholder="0" value="${curFuel || ''}"
                        oninput="updateMobileClosingStopFee(${idx}, 'fuel_fee', this.value)"
                        class="w-full bg-white px-2 py-1 border border-rose-300 rounded text-right font-mono font-black text-rose-950 text-xs focus:ring-2 focus:ring-rose-500 focus:outline-none">
                 <span class="text-rose-800 text-[10px] shrink-0 font-bold">원</span>
