@@ -1049,10 +1049,11 @@
               var liveSchedules = schRes.data || [];
 
               tripLogs.forEach(function(log) {
+                var logDrivers = (log.driver_name || '').split(',').map(function(s) { return s.trim(); }).filter(Boolean);
                 var dateSchedules = liveSchedules.filter(function(s) {
-                  return s.delivery_date === log.trip_date && (
-                    !log.driver_name || log.driver_name === '미운행' || s.driver_name === log.driver_name
-                  );
+                  if (s.delivery_date !== log.trip_date) return false;
+                  if (logDrivers.length === 0 || log.driver_name === '미운행') return false;
+                  return logDrivers.indexOf((s.driver_name || '').trim()) !== -1;
                 });
 
                 if (Array.isArray(log.stops) && log.stops.length > 0) {
@@ -2140,11 +2141,34 @@
             var dest = document.getElementById('modalDestAddr').value || '서울 금천구 벚꽃로 278 (가산 센터)';
             var destName = document.getElementById('modalDestType').value === 'gasan' ? '가산 센터' : dest;
 
+            // [핵심 가드] 모달에 선택된 차량 및 운행자 정보 추출
+            var curDriverStr = document.getElementById('modalDriverName') ? document.getElementById('modalDriverName').value.trim() : '';
+            var curVehNo = document.getElementById('modalVehicleNo') ? document.getElementById('modalVehicleNo').value.trim() : currentSelectedVehicleNo;
+            var curVeh = vehiclesMaster.find(function(v) { return v.vehicle_no === curVehNo; }) || {};
+            if (!curDriverStr || curDriverStr === '미운행') {
+              curDriverStr = curVeh.default_driver || '';
+            }
+            var allowedDrivers = curDriverStr.split(',').map(function(s) { return s.trim(); }).filter(Boolean);
+
+            // 해당 차량 운행자의 직배송 건만 엄격 필터링 (퀵, 방문수령, 택배 및 타 차량 배송지 100% 배제)
+            var eligibleRows = res.data.filter(function(r) {
+              var isQuick = (r.delivery_method === '퀵배송' || r.delivery_method === '퀵' || r.driver_name === '퀵' || (r.category && r.category.indexOf('퀵') !== -1));
+              var isPickup = (r.delivery_method === '방문수령' || r.driver_name === '방문수령' || r.category === '수령');
+              var isParcel = (r.delivery_method === '택배' || r.driver_name === '택배');
+              if (isQuick || isPickup || isParcel) return false;
+
+              if (allowedDrivers.length > 0) {
+                var rDrv = (r.driver_name || '').trim();
+                if (allowedDrivers.indexOf(rDrv) === -1) return false;
+              }
+              return true;
+            });
+
             modalStops = [
               { id: 'stop_origin', type: 'origin', name: '가산 센터', addr: '서울 금천구 벚꽃로 278 (가산 센터)', time: '08:30' }
             ];
 
-            res.data.forEach(function(r, idx) {
+            eligibleRows.forEach(function(r, idx) {
               var dep = '', arr = '';
               if (r.memo_special) {
                 try {

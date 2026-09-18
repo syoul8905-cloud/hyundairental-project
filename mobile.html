@@ -2301,7 +2301,17 @@
             var isQuick = (r.delivery_method === '퀵배송' || r.delivery_method === '퀵' || r.driver_name === '퀵' || (r.category && r.category.indexOf('퀵') !== -1));
             var isPickup = (r.delivery_method === '방문수령' || r.driver_name === '방문수령' || r.category === '수령');
             var isParcel = (r.delivery_method === '택배' || r.driver_name === '택배');
-            return !isQuick && !isPickup && !isParcel;
+            if (isQuick || isPickup || isParcel) return false;
+
+            // [핵심 가드] 해당 차량 운행자(drvName)의 배송지만 배타적 포함 (타 차량 기사 배송지 원천 차단)
+            if (drvName && drvName !== '전체' && drvName !== '관리자') {
+              var recDrv = (r.driver_name || '').trim();
+              var drvParts = drvName.split(',').map(function(s) { return s.trim(); }).filter(Boolean);
+              if (drvParts.length > 0 && drvParts.indexOf(recDrv) === -1) {
+                return false;
+              }
+            }
+            return true;
           });
 
           eligibleRecords.forEach(function(r, idx) {
@@ -2606,7 +2616,18 @@
             var isQuick = (r.delivery_method === '퀵배송' || r.delivery_method === '퀵' || r.driver_name === '퀵' || (r.category && r.category.indexOf('퀵') !== -1));
             var isPickup = (r.delivery_method === '방문수령' || r.driver_name === '방문수령' || r.category === '수령');
             var isParcel = (r.delivery_method === '택배' || r.driver_name === '택배');
-            return !isQuick && !isPickup && !isParcel;
+            if (isQuick || isPickup || isParcel) return false;
+
+            // [핵심 가드] 현재 마감하는 차량의 운행 기사 배송지만 배타적 포함
+            var currentDrv = getCurrentDriverName() || veh.default_driver || '';
+            if (currentDrv && currentDrv !== '전체' && currentDrv !== '관리자') {
+              var recDrv = (r.driver_name || '').trim();
+              var drvParts = currentDrv.split(',').map(function(s) { return s.trim(); }).filter(Boolean);
+              if (drvParts.length > 0 && drvParts.indexOf(recDrv) === -1) {
+                return false;
+              }
+            }
+            return true;
           });
 
           eligibleRecords.forEach(function(r, idx) {
