@@ -2829,23 +2829,20 @@
 
         if (exportMode === 'detail') {
           // ----------------------------------------------------
-          // [배송지별 상세 모드] 경유지별 순서, 주소, 구간Km, 개별비용 포함
+          // [배송지별 상세 모드] 사용자 서식 완벽 일치 (12개 열)
           // ----------------------------------------------------
-          lines.push('법인차량 운행일지 (배송지별 상세 서식),,,,,,,,,,,');
-          lines.push(`차종,,${modelName},차량번호,${vehNo},,,,,,,`);
-          lines.push(',전월말 계기판,당월말 계기판,총 주행거리,총 주차비,총 주유비,,,,,,,');
-          lines.push(`Km,"${prevKm.toLocaleString()}","${currKm.toLocaleString()}","${totalDist.toLocaleString()}","₩${totalParking.toLocaleString()}","₩${totalFuel.toLocaleString()}",,,,,,,`);
-          lines.push(',,,,,,,,,,,');
-          lines.push('날짜,요일,운전자,순번,구분,방문지명(고객사),상세 도로명 주소,출발 계기판(km),도착 계기판(km),구간거리(km),해당 배송지 주차비(원),해당 배송지 주유비(원),비고/품목');
+          lines.push(`법인차량 운행일지 (배송지별 상세 서식),,,,,,차종,,${modelName},차량번호,${vehNo},`);
+          lines.push(',,,,,,전월말 계기판,당월말 계기판,총 주행거리,총 주차비,총 주유비,');
+          lines.push(`,,,,,,"${prevKm.toLocaleString()}","${currKm.toLocaleString()}","${totalDist.toLocaleString()}","₩${totalParking.toLocaleString()}","₩${totalFuel.toLocaleString()}",`);
+          lines.push('날짜,운전자,순번,구분,방문지명(고객사),상세 도로명 주소,출발 계기판(km),도착 계기판(km),구간거리(km),해당 배송지 주차비(원),해당 배송지 주유비(원),비고/품목');
 
           tripLogs.forEach(function(l) {
             var dateParts = (l.trip_date || '').split('-');
             var dateFormatted = dateParts.length >= 3 ? `${Number(dateParts[1])}월 ${Number(dateParts[2])}일` : l.trip_date;
-            var dayOfWeek = l.day_of_week || '';
             var drvStr = (l.driver_name || '').indexOf(',') !== -1 ? `"${l.driver_name}"` : (l.driver_name || '-');
 
             if (l.is_unoperated) {
-              lines.push(`${dateFormatted},${dayOfWeek},미운행,0,미운행,-,-,"${(l.start_km || 0).toLocaleString()}","${(l.end_km || 0).toLocaleString()}",0,0,0,"미운행"`);
+              lines.push(`${dateFormatted},미운행,0,미운행,-,-,"${(l.start_km || 0).toLocaleString()}","${(l.end_km || 0).toLocaleString()}",0,0,0,"미운행"`);
               return;
             }
 
@@ -2855,7 +2852,7 @@
               var sKm = Number(l.start_km || 0);
               var eKm = Number(l.end_km || 0);
               var dKm = Number(l.distance_km || (eKm - sKm) || 0);
-              lines.push(`${dateFormatted},${dayOfWeek},${drvStr},1,운행,${destStr},-, "${sKm.toLocaleString()}","${eKm.toLocaleString()}","${dKm.toLocaleString()}",${l.parking_fee || 0},${l.fuel_fee || 0},"${(l.memo || '').replace(/"/g, '""')}"`);
+              lines.push(`${dateFormatted},${drvStr},1,운행,${destStr},-, "${sKm.toLocaleString()}","${eKm.toLocaleString()}",${dKm},${l.parking_fee || 0},${l.fuel_fee || 0},"${(l.memo || '').replace(/"/g, '""')}"`);
               return;
             }
 
@@ -2868,9 +2865,9 @@
               var dKm = Number(leg.distance_km !== undefined ? leg.distance_km : (leg.distKm !== undefined ? leg.distKm : (eKm - sKm)));
               var pVal = Number(leg.parking_fee !== undefined ? leg.parking_fee : (leg.parkingFee || 0));
               var fVal = Number(leg.fuel_fee !== undefined ? leg.fuel_fee : (leg.fuelFee || 0));
-              var memoStr = leg.memo ? `"${leg.memo.replace(/"/g, '""')}"` : '';
+              var memoStr = leg.memo ? `"${leg.memo.replace(/"/g, '""')}"` : (leg.type === 'return' ? '"운행 복귀 및 마감"' : '""');
 
-              lines.push(`${dateFormatted},${dayOfWeek},${drvStr},${idx + 1},${badge},${nameStr},${addrStr},"${sKm.toLocaleString()}","${eKm.toLocaleString()}","${dKm.toLocaleString()}",${pVal},${fVal},${memoStr}`);
+              lines.push(`${dateFormatted},${drvStr},${idx + 1},${badge},${nameStr},${addrStr},"${sKm.toLocaleString()}","${eKm.toLocaleString()}",${dKm},${pVal},${fVal},${memoStr}`);
             });
           });
         } else {
