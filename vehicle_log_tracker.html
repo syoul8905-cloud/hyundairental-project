@@ -1156,24 +1156,56 @@
                     }
                   });
 
-                  // 3) 최종 복귀지 상태 및 시간 동기화
+                  // 3) 최종 복귀지 상태 및 시간 동기화 (시간 역전 방지)
                   if (returnStop) {
-                    if (!returnStop.arrive) {
-                      if (log.closed_at) returnStop.arrive = log.closed_at;
-                      else if (log.memo_special) {
+                    var lastStop = mergedStops.length > 0 ? mergedStops[mergedStops.length - 1] : null;
+                    var lastTimeStr = lastStop ? (lastStop.arrive || lastStop.depart || '') : '';
+                    var lastMin = parseTimeToMinutes(lastTimeStr);
+
+                    // 복귀 출발 시간: 직전 경유지 도착/출발 시각 이후여야 함
+                    var curDepMin = parseTimeToMinutes(returnStop.depart);
+                    if (!returnStop.depart || (lastMin !== null && curDepMin !== null && curDepMin < lastMin)) {
+                      returnStop.depart = lastTimeStr;
+                    }
+
+                    // 복귀 도착 시간: 직전 경유지 및 복귀 출발 시각보다 빠를 수 없음 (아침의 낡은 마감시각 역전 방지)
+                    var depMin = parseTimeToMinutes(returnStop.depart);
+                    var curArrMin = parseTimeToMinutes(returnStop.arrive);
+                    if (curArrMin !== null && ((lastMin !== null && curArrMin < lastMin) || (depMin !== null && curArrMin < depMin))) {
+                      // 낡은 과거 마감시간 무효화 후 이동시간(약 45분) 감안하여 갱신
+                      var baseM = (depMin !== null ? depMin : lastMin) || 960;
+                      var newArrM = baseM + 45;
+                      var nH = Math.floor(newArrM / 60) % 24;
+                      var nM = newArrM % 60;
+                      returnStop.arrive = String(nH).padStart(2, '0') + ':' + String(nM).padStart(2, '0');
+                    } else if (!returnStop.arrive) {
+                      if (log.closed_at) {
+                        var cMin = parseTimeToMinutes(log.closed_at);
+                        if (cMin !== null && lastMin !== null && cMin >= lastMin) {
+                          returnStop.arrive = log.closed_at;
+                        }
+                      }
+                      if (!returnStop.arrive && log.memo_special) {
                         try {
                           var sp = JSON.parse(log.memo_special);
-                          if (sp.arrive) returnStop.arrive = sp.arrive;
+                          if (sp.arrive) {
+                            var spM = parseTimeToMinutes(sp.arrive);
+                            if (spM !== null && lastMin !== null && spM >= lastMin) {
+                              returnStop.arrive = sp.arrive;
+                            }
+                          }
                         } catch(e) {}
                       }
                     }
-                    if (!returnStop.depart && mergedStops.length > 0) {
-                      var lastStop = mergedStops[mergedStops.length - 1];
-                      returnStop.depart = lastStop.arrive || lastStop.depart || '';
-                    }
+
                     if (log.is_closed) {
                       returnStop.status = '도착완료';
-                      if (!returnStop.arrive && returnStop.time && returnStop.time !== '18:00') returnStop.arrive = returnStop.time;
+                      if (!returnStop.arrive && returnStop.time && returnStop.time !== '18:00') {
+                        var rTimeM = parseTimeToMinutes(returnStop.time);
+                        if (rTimeM !== null && lastMin !== null && rTimeM >= lastMin) {
+                          returnStop.arrive = returnStop.time;
+                        }
+                      }
                     }
                   }
 
@@ -1388,6 +1420,13 @@
       }
     }
 
+    function parseTimeToMinutes(tStr) {
+      if (!tStr || typeof tStr !== 'string') return null;
+      var m = tStr.match(/(\d{1,2}):(\d{2})/);
+      if (!m) return null;
+      return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+    }
+
     function getResolvedStopLegs(log) {
       if (!log.stops || !Array.isArray(log.stops) || log.stops.length === 0) {
         return [];
@@ -1441,16 +1480,32 @@
         var fromName = (i > 0 && stops[i - 1]) ? stops[i - 1].name : '가산 센터';
         var sArrive = s.arrive || '';
         var sDepart = s.depart || '';
-        if (isReturn && !sArrive) {
-          if (log.closed_at) sArrive = log.closed_at;
-          else if (log.memo_special) {
-            try { var sp = JSON.parse(log.memo_special); if (sp.arrive) sArrive = sp.arrive; } catch(e) {}
+
+        if (isReturn) {
+          var prevLegTime = (i > 0 && stops[i - 1]) ? (stops[i - 1].arrive || stops[i - 1].depart || '') : '';
+          var prevM = parseTimeToMinutes(prevLegTime);
+          var depM = parseTimeToMinutes(sDepart);
+          if (!sDepart || (prevM !== null && depM !== null && depM < prevM)) {
+            sDepart = prevLegTime;
+            depM = prevM;
           }
-          if (!sArrive && s.time && s.time !== '18:00') sArrive = s.time;
+          if (!sArrive) {
+            if (log.closed_at) sArrive = log.closed_at;
+            else if (log.memo_special) {
+              try { var sp = JSON.parse(log.memo_special); if (sp.arrive) sArrive = sp.arrive; } catch(e) {}
+            }
+            if (!sArrive && s.time && s.time !== '18:00') sArrive = s.time;
+          }
+          var arrM = parseTimeToMinutes(sArrive);
+          if (arrM !== null && ((prevM !== null && arrM < prevM) || (depM !== null && arrM < depM))) {
+            var calcM = (depM !== null ? depM : prevM) || 960;
+            calcM += 45;
+            var ch = Math.floor(calcM / 60) % 24;
+            var cm = calcM % 60;
+            sArrive = String(ch).padStart(2, '0') + ':' + String(cm).padStart(2, '0');
+          }
         }
-        if (isReturn && !sDepart && i > 0 && stops[i - 1]) {
-          sDepart = stops[i - 1].arrive || stops[i - 1].depart || '';
-        }
+
         var sStatus = s.status || '';
         if (isReturn && log.is_closed && (!sStatus || sStatus === '진행중')) {
           sStatus = '도착완료';
