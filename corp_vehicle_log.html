@@ -1,0 +1,1991 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>스마트 법인차량 운행관리 시스템 (B2B Demo)</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome CDN -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <!-- Daum 우편번호 서비스 (무료 도로명 주소 검색) -->
+  <script src="https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700;800;900&display=swap');
+    body { font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif; }
+    .custom-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+    .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    .custom-scroll::-webkit-scrollbar-track { background: #f8fafc; }
+    @media print {
+      body { background: white !important; padding: 0 !important; }
+      .no-print { display: none !important; }
+      .print-border { border: 1px solid #cbd5e1 !important; }
+      #tripLogTableContainer { max-height: none !important; overflow: visible !important; }
+    }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 antialiased p-3 sm:p-5 select-none text-xs">
+
+  <!-- ========================================== -->
+  <!-- Top Navigation & Demo Control Bar         -->
+  <!-- ========================================== -->
+  <header class="bg-white rounded-2xl px-4 py-3.5 shadow-xs border border-slate-200 flex flex-wrap items-center justify-between gap-3 mb-4 no-print">
+    <!-- Brand Title & Company Name (Editable) -->
+    <div class="flex items-center gap-3">
+      <div class="w-11 h-11 rounded-xl bg-indigo-600 flex items-center justify-center text-white text-lg shadow-md shadow-indigo-600/20">
+        <i class="fa-solid fa-car-side"></i>
+      </div>
+      <div>
+        <div class="flex items-center gap-2 flex-wrap">
+          <h1 id="brandCompanyName" class="text-base font-black text-slate-900 cursor-pointer hover:text-indigo-600 transition flex items-center gap-1.5" title="클릭하여 회사명 변경">
+            <span>(주)스마트물류 법인차량 운행관리 시스템</span>
+            <i class="fa-solid fa-pen text-[10px] text-slate-400"></i>
+          </h1>
+          <span class="bg-indigo-100 text-indigo-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-indigo-200">
+            📊 세무 증빙 표준
+          </span>
+          <span class="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-emerald-200">
+            ⚡ Km 스마트 자동분배
+          </span>
+        </div>
+        <p class="text-[11px] text-slate-400 mt-0.5">국세청 업무용승용차 운행기록부 호환 · 수동 경유지 등록 · 도로명 주소 자동완성</p>
+      </div>
+    </div>
+
+    <!-- Demo Actions: Sample Data, Reset, Backup, Add Vehicle -->
+    <div class="flex flex-wrap items-center gap-2">
+      <button onclick="loadDemoSampleData()" class="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold rounded-xl transition flex items-center gap-1.5 border border-indigo-200 shadow-xs text-xs" title="1달치 실전 운행일지 샘플 즉시 채우기">
+        <i class="fa-solid fa-wand-magic-sparkles text-indigo-600"></i>
+        <span>🎯 1클릭 샘플 데이터 로드</span>
+      </button>
+
+      <button onclick="openVehicleManageModal()" class="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition flex items-center gap-1.5 shadow-xs text-xs">
+        <i class="fa-solid fa-truck text-slate-600"></i>
+        <span>차량 등록/관리</span>
+      </button>
+
+      <button onclick="openBackupModal()" class="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition flex items-center gap-1.5 shadow-xs text-xs" title="데이터 백업 및 복원">
+        <i class="fa-solid fa-floppy-disk text-slate-600"></i>
+        <span>백업/복원</span>
+      </button>
+
+      <button onclick="resetAllDataPrompt()" class="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold rounded-xl transition flex items-center gap-1.5 border border-rose-200 shadow-xs text-xs" title="데이터 초기화">
+        <i class="fa-solid fa-rotate-left text-rose-600"></i>
+        <span>초기화</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- ========================================== -->
+  <!-- Vehicle Selector & Month Navigation Bar    -->
+  <!-- ========================================== -->
+  <div class="bg-white rounded-2xl p-4 shadow-xs border border-slate-200 mb-4 flex flex-wrap items-center justify-between gap-4 no-print">
+    <!-- Left: Vehicle Dropdown -->
+    <div class="flex items-center gap-3 flex-wrap">
+      <label class="font-bold text-slate-700 flex items-center gap-1.5">
+        <i class="fa-solid fa-car text-indigo-600"></i>
+        <span>관리 차량:</span>
+      </label>
+      <select id="vehicleSelector" onchange="onVehicleChange()" class="bg-slate-50 border border-slate-300 text-slate-800 text-xs rounded-xl px-3 py-2 font-bold focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none shadow-xs">
+        <!-- Injected dynamically -->
+      </select>
+      <span id="vehicleMetaBadge" class="text-[11px] font-bold px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
+        스타리아 · 기본운전자: 조경찬
+      </span>
+    </div>
+
+    <!-- Center: Month Stepper -->
+    <div class="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl border border-slate-200">
+      <button onclick="shiftMonth(-1)" class="w-8 h-8 rounded-lg bg-white hover:bg-slate-50 text-slate-600 flex items-center justify-center shadow-xs transition font-bold">
+        <i class="fa-solid fa-chevron-left"></i>
+      </button>
+      <span id="currentMonthDisplay" class="font-black text-slate-800 px-3 min-w-[95px] text-center text-xs">
+        2026년 09월
+      </span>
+      <button onclick="shiftMonth(1)" class="w-8 h-8 rounded-lg bg-white hover:bg-slate-50 text-slate-600 flex items-center justify-center shadow-xs transition font-bold">
+        <i class="fa-solid fa-chevron-right"></i>
+      </button>
+      <button onclick="goToCurrentMonth()" class="px-2.5 py-1.5 rounded-lg bg-white hover:bg-slate-50 text-slate-600 font-bold text-[11px] shadow-xs transition ml-1">
+        이번 달
+      </button>
+    </div>
+
+    <!-- Right: Primary Actions (Distribute, Add, Export) -->
+    <div class="flex items-center gap-2 flex-wrap">
+      <button onclick="openAutoDistributeModal()" class="px-3.5 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold rounded-xl shadow-xs transition flex items-center gap-2 text-xs">
+        <i class="fa-solid fa-wand-magic-sparkles"></i>
+        <span>월말 Km 자동분배</span>
+      </button>
+
+      <button onclick="openCreateLogModal()" class="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-xs transition flex items-center gap-2 text-xs">
+        <i class="fa-solid fa-plus"></i>
+        <span>운행일지 직접 등록</span>
+      </button>
+
+      <!-- CSV Export Dropdown -->
+      <div class="relative inline-block text-left" id="exportDropdownContainer">
+        <button onclick="toggleExportMenu()" class="px-3 py-2 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-xl shadow-xs transition flex items-center gap-1.5 text-xs">
+          <i class="fa-solid fa-file-excel text-emerald-400"></i>
+          <span>엑셀(CSV) 다운로드</span>
+          <i class="fa-solid fa-chevron-down text-[10px] ml-0.5"></i>
+        </button>
+        <div id="exportDropdownMenu" class="hidden absolute right-0 mt-2 w-56 rounded-xl bg-white shadow-xl border border-slate-200 z-50 py-1.5 text-xs">
+          <button onclick="exportVehicleLogCsv('detail')" class="w-full text-left px-3.5 py-2 hover:bg-indigo-50 text-slate-700 hover:text-indigo-600 font-bold flex items-center gap-2">
+            <i class="fa-solid fa-table-cells text-indigo-500"></i>
+            <div>
+              <div>배송지별 상세 CSV</div>
+              <div class="text-[10px] text-slate-400 font-normal">실무 표준 12열 (주소/구간거리/비용)</div>
+            </div>
+          </button>
+          <button onclick="exportVehicleLogCsv('summary')" class="w-full text-left px-3.5 py-2 hover:bg-emerald-50 text-slate-700 hover:text-emerald-700 font-bold flex items-center gap-2 border-t border-slate-100">
+            <i class="fa-solid fa-file-invoice text-emerald-500"></i>
+            <div>
+              <div>일자별 요약 CSV</div>
+              <div class="text-[10px] text-slate-400 font-normal">국세청 업무용승용차 표준 서식</div>
+            </div>
+          </button>
+        </div>
+      </div>
+
+      <button onclick="window.print()" class="px-2.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition shadow-xs" title="인쇄">
+        <i class="fa-solid fa-print"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- KPI Summary Cards                          -->
+  <!-- ========================================== -->
+  <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-4">
+    <!-- 1. Total Mileage -->
+    <div class="bg-white rounded-2xl p-3.5 border border-slate-200 shadow-xs">
+      <div class="flex items-center justify-between mb-1.5">
+        <span class="text-[11px] font-bold text-slate-400">당월 총 주행거리</span>
+        <div class="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center text-xs">
+          <i class="fa-solid fa-road"></i>
+        </div>
+      </div>
+      <div class="flex items-baseline gap-1">
+        <span id="kpiTotalDist" class="text-xl font-black text-slate-800">0</span>
+        <span class="text-xs font-bold text-slate-400">km</span>
+      </div>
+      <p id="kpiDistDesc" class="text-[10px] text-slate-400 mt-1">시작: 0 km ➔ 종료: 0 km</p>
+    </div>
+
+    <!-- 2. Operating Days -->
+    <div class="bg-white rounded-2xl p-3.5 border border-slate-200 shadow-xs">
+      <div class="flex items-center justify-between mb-1.5">
+        <span class="text-[11px] font-bold text-slate-400">운행 일수</span>
+        <div class="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center text-xs">
+          <i class="fa-solid fa-calendar-check"></i>
+        </div>
+      </div>
+      <div class="flex items-baseline gap-1">
+        <span id="kpiOperatingDays" class="text-xl font-black text-emerald-700">0</span>
+        <span class="text-xs font-bold text-slate-400">일</span>
+      </div>
+      <p id="kpiDayRatio" class="text-[10px] text-slate-400 mt-1">당월 가동률 0%</p>
+    </div>
+
+    <!-- 3. Total Parking Fee -->
+    <div class="bg-white rounded-2xl p-3.5 border border-slate-200 shadow-xs">
+      <div class="flex items-center justify-between mb-1.5">
+        <span class="text-[11px] font-bold text-slate-400">총 주차비</span>
+        <div class="w-7 h-7 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center text-xs">
+          <i class="fa-solid fa-square-parking"></i>
+        </div>
+      </div>
+      <div class="flex items-baseline gap-1">
+        <span class="text-sm font-bold text-slate-400">₩</span>
+        <span id="kpiTotalParking" class="text-xl font-black text-slate-800">0</span>
+      </div>
+      <p id="kpiParkingCount" class="text-[10px] text-slate-400 mt-1">0건 지출</p>
+    </div>
+
+    <!-- 4. Total Fuel Fee -->
+    <div class="bg-white rounded-2xl p-3.5 border border-slate-200 shadow-xs">
+      <div class="flex items-center justify-between mb-1.5">
+        <span class="text-[11px] font-bold text-slate-400">총 주유비</span>
+        <div class="w-7 h-7 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center text-xs">
+          <i class="fa-solid fa-gas-pump"></i>
+        </div>
+      </div>
+      <div class="flex items-baseline gap-1">
+        <span class="text-sm font-bold text-slate-400">₩</span>
+        <span id="kpiTotalFuel" class="text-xl font-black text-slate-800">0</span>
+      </div>
+      <p id="kpiFuelCount" class="text-[10px] text-slate-400 mt-1">0건 지출</p>
+    </div>
+
+    <!-- 5. Unoperated Days -->
+    <div class="bg-white rounded-2xl p-3.5 border border-slate-200 shadow-xs">
+      <div class="flex items-center justify-between mb-1.5">
+        <span class="text-[11px] font-bold text-slate-400">미운행 일수</span>
+        <div class="w-7 h-7 rounded-lg bg-slate-100 text-slate-500 flex items-center justify-center text-xs">
+          <i class="fa-solid fa-bed"></i>
+        </div>
+      </div>
+      <div class="flex items-baseline gap-1">
+        <span id="kpiUnopDays" class="text-xl font-black text-slate-600">0</span>
+        <span class="text-xs font-bold text-slate-400">일</span>
+      </div>
+      <p class="text-[10px] text-slate-400 mt-1">주말 및 정기 미운행</p>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- Main Table Section                         -->
+  <!-- ========================================== -->
+  <div class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden print-border">
+    <!-- View Mode Switcher Header -->
+    <div class="px-4 py-3 bg-slate-50/70 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 no-print">
+      <div class="flex items-center gap-2">
+        <h2 id="tableHeaderTitle" class="font-bold text-slate-800 text-xs">
+          801라8744 · 2026년 9월 운행 및 비용 명세
+        </h2>
+        <span id="tableRowCount" class="text-[11px] font-bold text-slate-400"></span>
+      </div>
+
+      <!-- Mode Toggle Buttons -->
+      <div class="inline-flex rounded-xl bg-slate-200/70 p-1 border border-slate-300/60">
+        <button id="btnViewDetail" onclick="setViewMode('detailed')" class="px-3 py-1 text-xs font-bold rounded-lg transition shadow-xs bg-white text-indigo-700">
+          <i class="fa-solid fa-route mr-1 text-indigo-600"></i>
+          <span>배송지별 상세 보기</span>
+        </button>
+        <button id="btnViewSummary" onclick="setViewMode('summary')" class="px-3 py-1 text-xs font-bold rounded-lg transition text-slate-600 hover:text-slate-900">
+          <i class="fa-solid fa-calendar-day mr-1"></i>
+          <span>일자별 요약 보기 (국세청)</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Table Container -->
+    <div id="tripLogTableContainer" class="overflow-x-auto max-h-[640px] custom-scroll">
+      <table class="w-full text-left border-collapse" id="tripLogTable">
+        <thead class="bg-slate-50 sticky top-0 z-10 border-b border-slate-200" id="tripLogTableHead">
+          <!-- Dynamically Rendered based on View Mode -->
+        </thead>
+        <tbody class="divide-y divide-slate-200/80 font-sans" id="tripLogTableBody">
+          <!-- Dynamically Injected -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- Modal 1: Smart Mileage Auto-Distribute     -->
+  <!-- ========================================== -->
+  <div id="autoDistributeModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-3 bg-slate-900/60 backdrop-blur-xs no-print">
+    <div class="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+      <div class="px-5 py-4 bg-gradient-to-r from-emerald-600 to-teal-700 text-white flex items-center justify-between">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center text-sm backdrop-blur-xs">
+            <i class="fa-solid fa-wand-magic-sparkles"></i>
+          </div>
+          <div>
+            <h3 class="font-black text-sm">월말 계기판 Km 스마트 자동분배</h3>
+            <p class="text-[11px] text-emerald-100">최종 계기판만 입력하면 전 경유지 마일리지가 0km 오차 없이 자동 분배됩니다.</p>
+          </div>
+        </div>
+        <button onclick="closeAutoDistributeModal()" class="w-8 h-8 rounded-full hover:bg-white/20 flex items-center justify-center transition">
+          <i class="fa-solid fa-xmark text-base"></i>
+        </button>
+      </div>
+
+      <div class="p-5 space-y-4 text-xs">
+        <!-- Target Info Card -->
+        <div class="grid grid-cols-3 gap-2 bg-slate-50 p-3 rounded-2xl border border-slate-200">
+          <div>
+            <span class="text-[10px] text-slate-400 font-bold block">대상 차량</span>
+            <span id="autoDistributeVehicleText" class="font-bold text-slate-800">801라8744 (스타리아)</span>
+          </div>
+          <div>
+            <span class="text-[10px] text-slate-400 font-bold block">분배 대상 월</span>
+            <span id="autoDistributeMonthText" class="font-bold text-slate-800">2026년 09월</span>
+          </div>
+          <div>
+            <span class="text-[10px] text-slate-400 font-bold block">기본 운전자</span>
+            <span id="autoDistributeDriverText" class="font-bold text-slate-800">조경찬</span>
+          </div>
+        </div>
+
+        <!-- Input Odometer Fields -->
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="font-bold text-slate-700 mb-1 block">전월말 계기판 (시작 Km) <span class="text-rose-500">*</span></label>
+            <div class="relative">
+              <input type="number" id="autoStartKm" oninput="calculateAutoDistributePreview()" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 font-mono font-bold text-slate-900 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none" placeholder="예: 70532">
+              <span class="absolute right-3 top-2.5 text-slate-400 font-bold">km</span>
+            </div>
+          </div>
+          <div>
+            <label class="font-bold text-emerald-800 mb-1 block">당월말 계기판 (종료 Km) <span class="text-rose-500">*</span></label>
+            <div class="relative">
+              <input type="number" id="autoEndKm" oninput="calculateAutoDistributePreview()" class="w-full bg-emerald-50/60 border-2 border-emerald-500 rounded-xl px-3 py-2.5 font-mono font-black text-emerald-950 focus:bg-white focus:ring-2 focus:ring-emerald-600 outline-none" placeholder="예: 71771">
+              <span class="absolute right-3 top-2.5 text-emerald-600 font-bold">km</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Total Calculation Pill -->
+        <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-3 flex items-center justify-between">
+          <div>
+            <span class="text-[11px] font-bold text-emerald-900">총 분배 주행거리</span>
+            <div id="autoTotalDistText" class="text-lg font-black text-emerald-800">0 km</div>
+          </div>
+          <div id="autoTotalDistBadge" class="text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-200 text-emerald-900">
+            종료 Km를 입력하세요
+          </div>
+        </div>
+
+        <!-- Preview Table -->
+        <div>
+          <div class="flex items-center justify-between mb-1.5">
+            <span class="font-bold text-slate-700 text-xs">일자별 분배 시뮬레이션 미리보기</span>
+            <span id="autoPreviewRowCount" class="text-[10px] font-bold text-slate-400"></span>
+          </div>
+          <div class="max-h-48 overflow-y-auto rounded-xl border border-slate-200 custom-scroll">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-slate-100 text-slate-600 sticky top-0 text-[11px]">
+                <tr>
+                  <th class="py-2 px-3">날짜</th>
+                  <th class="py-2 px-3">구분</th>
+                  <th class="py-2 px-3 text-right">구간수</th>
+                  <th class="py-2 px-3 text-right">주행거리</th>
+                  <th class="py-2 px-3 text-right">종료 계기판</th>
+                </tr>
+              </thead>
+              <tbody id="autoPreviewTableBody" class="divide-y divide-slate-100">
+                <tr>
+                  <td colspan="5" class="py-6 text-center text-slate-400">
+                    당월 최종 운행종료 Km를 입력해주세요.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="px-5 py-3.5 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
+        <p class="text-[11px] text-slate-400">⚠️ 기존에 저장된 일자별 계기판이 새 연속 수치로 자동 갱신됩니다.</p>
+        <div class="flex items-center gap-2">
+          <button onclick="closeAutoDistributeModal()" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-xl transition">
+            취소
+          </button>
+          <button id="btnExecuteAutoDistribute" onclick="executeAutoDistribute()" disabled class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 disabled:pointer-events-none text-white font-bold rounded-xl shadow-xs transition flex items-center gap-1.5">
+            <i class="fa-solid fa-check"></i>
+            <span>자동분배 적용 및 저장</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- Modal 2: Daily Log Manual Editor           -->
+  <!-- ========================================== -->
+  <div id="logEditorModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-3 bg-slate-900/60 backdrop-blur-xs no-print">
+    <div class="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-3xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+      <div class="px-5 py-4 bg-indigo-600 text-white flex items-center justify-between">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center text-sm">
+            <i class="fa-solid fa-pen-to-square"></i>
+          </div>
+          <div>
+            <h3 id="editorModalTitle" class="font-black text-sm">운행일지 직접 등록 / 수정</h3>
+            <p class="text-[11px] text-indigo-100">일자별 운전자와 경유지, 주소, 비용을 상세하게 등록합니다.</p>
+          </div>
+        </div>
+        <button onclick="closeLogEditorModal()" class="w-8 h-8 rounded-full hover:bg-white/20 flex items-center justify-center transition">
+          <i class="fa-solid fa-xmark text-base"></i>
+        </button>
+      </div>
+
+      <div class="p-5 space-y-4 max-h-[75vh] overflow-y-auto custom-scroll text-xs">
+        <!-- Header Info (Date, Driver, Unoperated Toggle) -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
+          <div>
+            <label class="font-bold text-slate-700 mb-1 block">운행 일자 <span class="text-rose-500">*</span></label>
+            <input type="date" id="modalTripDate" class="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 font-bold focus:ring-2 focus:ring-indigo-500 outline-none">
+          </div>
+          <div>
+            <label class="font-bold text-slate-700 mb-1 block">운전자 성명 <span class="text-rose-500">*</span></label>
+            <input type="text" id="modalDriverName" class="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 font-bold focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="예: 조경찬">
+          </div>
+          <div>
+            <label class="font-bold text-slate-700 mb-1 block">운행 여부</label>
+            <div class="flex items-center gap-2 mt-1">
+              <label class="inline-flex items-center gap-1.5 cursor-pointer">
+                <input type="checkbox" id="modalIsUnoperated" onchange="onToggleUnoperated()" class="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500">
+                <span class="font-bold text-slate-700">미운행 (정기휴무/주말)</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Stops Section Container -->
+        <div id="stopsSectionWrapper">
+          <div class="flex items-center justify-between mb-2">
+            <span class="font-bold text-slate-800 text-xs flex items-center gap-1.5">
+              <i class="fa-solid fa-location-dot text-indigo-600"></i>
+              <span>방문지 및 경유지 목록</span>
+            </span>
+            <button type="button" onclick="addNewStopRow()" class="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold rounded-xl border border-indigo-200 flex items-center gap-1.5 transition">
+              <i class="fa-solid fa-plus text-xs"></i>
+              <span>경유지 추가</span>
+            </button>
+          </div>
+
+          <!-- Dynamic Stops List -->
+          <div id="modalStopsList" class="space-y-2.5">
+            <!-- Injected via renderModalStops() -->
+          </div>
+        </div>
+
+        <!-- Daily Memo & Summary -->
+        <div>
+          <label class="font-bold text-slate-700 mb-1 block">당일 운행 특이사항 / 비고</label>
+          <input type="text" id="modalTripMemo" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-slate-800 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="예: 우천으로 인한 지연, 특수 장비 배송 등">
+        </div>
+      </div>
+
+      <div class="px-5 py-3.5 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
+        <button id="btnDeleteCurrentLog" onclick="deleteCurrentLog()" class="px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold rounded-xl border border-rose-200 transition flex items-center gap-1.5">
+          <i class="fa-solid fa-trash"></i>
+          <span>삭제</span>
+        </button>
+        <div class="flex items-center gap-2">
+          <button onclick="closeLogEditorModal()" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-xl transition">
+            취소
+          </button>
+          <button onclick="saveLogEditorModal()" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-xs transition flex items-center gap-1.5">
+            <i class="fa-solid fa-check"></i>
+            <span>저장 완료</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- Modal 3: Vehicle Management               -->
+  <!-- ========================================== -->
+  <div id="vehicleManageModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-3 bg-slate-900/60 backdrop-blur-xs no-print">
+    <div class="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+      <div class="px-5 py-4 bg-slate-800 text-white flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <i class="fa-solid fa-truck text-emerald-400"></i>
+          <h3 class="font-black text-sm">차량 등록 및 관리</h3>
+        </div>
+        <button onclick="closeVehicleManageModal()" class="w-8 h-8 rounded-full hover:bg-white/20 flex items-center justify-center transition">
+          <i class="fa-solid fa-xmark text-base"></i>
+        </button>
+      </div>
+
+      <div class="p-5 space-y-4 text-xs">
+        <!-- Vehicle List -->
+        <div class="space-y-2 max-h-48 overflow-y-auto custom-scroll" id="vehicleListContainer">
+          <!-- Injected dynamically -->
+        </div>
+
+        <!-- Add New Vehicle Form -->
+        <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 space-y-2.5">
+          <h4 class="font-bold text-slate-800 text-[11px] flex items-center gap-1">
+            <i class="fa-solid fa-plus-circle text-indigo-600"></i>
+            <span>새 차량 등록</span>
+          </h4>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="font-bold text-slate-600 text-[10px] block mb-0.5">차량번호</label>
+              <input type="text" id="newVehNo" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 font-bold outline-none" placeholder="예: 801라8744">
+            </div>
+            <div>
+              <label class="font-bold text-slate-600 text-[10px] block mb-0.5">차종 / 모델명</label>
+              <input type="text" id="newVehModel" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 font-bold outline-none" placeholder="예: 현대 스타리아">
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="font-bold text-slate-600 text-[10px] block mb-0.5">기본 운전자</label>
+              <input type="text" id="newVehDriver" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 font-bold outline-none" placeholder="예: 조경찬">
+            </div>
+            <div>
+              <label class="font-bold text-slate-600 text-[10px] block mb-0.5">기초 계기판 (km)</label>
+              <input type="number" id="newVehInitialKm" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 font-mono font-bold outline-none" placeholder="예: 70000">
+            </div>
+          </div>
+          <button onclick="addNewVehicle()" class="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-xs transition">
+            + 차량 추가하기
+          </button>
+        </div>
+      </div>
+
+      <div class="px-5 py-3 bg-slate-50 border-t border-slate-200 text-right">
+        <button onclick="closeVehicleManageModal()" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-xl transition">
+          닫기
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- Modal 4: Backup & Restore                  -->
+  <!-- ========================================== -->
+  <div id="backupModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-3 bg-slate-900/60 backdrop-blur-xs no-print">
+    <div class="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+      <div class="px-5 py-4 bg-slate-800 text-white flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <i class="fa-solid fa-floppy-disk text-indigo-400"></i>
+          <h3 class="font-black text-sm">데이터 백업 및 복원</h3>
+        </div>
+        <button onclick="closeBackupModal()" class="w-8 h-8 rounded-full hover:bg-white/20 flex items-center justify-center transition">
+          <i class="fa-solid fa-xmark text-base"></i>
+        </button>
+      </div>
+
+      <div class="p-5 space-y-4 text-xs">
+        <div class="bg-indigo-50 border border-indigo-200 rounded-2xl p-3.5 space-y-1.5">
+          <span class="font-bold text-indigo-900 block flex items-center gap-1.5">
+            <i class="fa-solid fa-download text-indigo-600"></i>
+            <span>현재 데이터 파일로 내보내기</span>
+          </span>
+          <p class="text-[11px] text-indigo-700">모든 차량 정보와 운행일지 기록을 안전한 JSON 파일로 컴퓨터에 저장합니다.</p>
+          <button onclick="downloadBackupJson()" class="w-full mt-2 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-xs transition">
+            JSON 백업 다운로드
+          </button>
+        </div>
+
+        <div class="bg-slate-50 border border-slate-200 rounded-2xl p-3.5 space-y-1.5">
+          <span class="font-bold text-slate-800 block flex items-center gap-1.5">
+            <i class="fa-solid fa-upload text-slate-600"></i>
+            <span>백업 파일로부터 복원하기</span>
+          </span>
+          <p class="text-[11px] text-slate-500">이전에 저장해 둔 JSON 백업 파일을 선택하여 데이터를 복구합니다.</p>
+          <input type="file" id="restoreFileInput" accept=".json" class="w-full text-[11px] text-slate-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:bg-slate-200 file:text-slate-700 file:font-bold hover:file:bg-slate-300 cursor-pointer mt-1">
+          <button onclick="executeRestoreJson()" class="w-full mt-2 py-2 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-xl shadow-xs transition">
+            데이터 복원 실행
+          </button>
+        </div>
+      </div>
+
+      <div class="px-5 py-3 bg-slate-50 border-t border-slate-200 text-right">
+        <button onclick="closeBackupModal()" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-xl transition">
+          닫기
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none no-print"></div>
+
+  <!-- ========================================== -->
+  <!-- JavaScript Core Engine                     -->
+  <!-- ========================================== -->
+  <script>
+    // ------------------------------------------
+    // 1. Global State & LocalStorage Keys
+    // ------------------------------------------
+    var STORAGE_KEYS = {
+      COMPANY_NAME: 'corp_vehicle_company_name',
+      VEHICLES: 'corp_vehicles_master',
+      TRIP_LOGS: 'corp_trip_logs_data',
+      CURRENT_VEHICLE: 'corp_current_selected_veh'
+    };
+
+    var currentYear = 2026;
+    var currentMonth = 9;
+    var currentSelectedVehicleNo = '801라8744';
+    var currentViewMode = 'detailed'; // 'detailed' | 'summary'
+
+    var vehiclesMaster = [];
+    var allTripLogs = [];
+
+    // ------------------------------------------
+    // 2. Initialization & Bootstrapping
+    // ------------------------------------------
+    window.addEventListener('DOMContentLoaded', function() {
+      initSettings();
+      loadVehicles();
+      loadLogs();
+      renderVehicleSelector();
+      updateMonthDisplay();
+      renderAll();
+
+      // Close dropdowns on outer click
+      window.addEventListener('click', function(e) {
+        var container = document.getElementById('exportDropdownContainer');
+        if (container && !container.contains(e.target)) {
+          document.getElementById('exportDropdownMenu').classList.add('hidden');
+        }
+      });
+    });
+
+    function initSettings() {
+      var compName = localStorage.getItem(STORAGE_KEYS.COMPANY_NAME) || '(주)스마트물류 법인차량 운행관리 시스템';
+      var el = document.getElementById('brandCompanyName');
+      if (el) el.querySelector('span').innerText = compName;
+      document.title = compName + ' (B2B Demo)';
+
+      if (el) {
+        el.onclick = function() {
+          var current = el.querySelector('span').innerText;
+          var next = prompt('표시할 회사명을 입력해주세요:', current);
+          if (next && next.trim()) {
+            localStorage.setItem(STORAGE_KEYS.COMPANY_NAME, next.trim());
+            el.querySelector('span').innerText = next.trim();
+            document.title = next.trim() + ' (B2B Demo)';
+            showToast('🏢 회사명이 변경되었습니다.');
+          }
+        };
+      }
+    }
+
+    function loadVehicles() {
+      var raw = localStorage.getItem(STORAGE_KEYS.VEHICLES);
+      if (raw) {
+        try { vehiclesMaster = JSON.parse(raw); } catch(e) { vehiclesMaster = []; }
+      }
+      if (!vehiclesMaster || vehiclesMaster.length === 0) {
+        // Default Fleet
+        vehiclesMaster = [
+          { vehicle_no: '801라8744', model_name: '현대 스타리아', default_driver: '조경찬', initial_km: 70532 },
+          { vehicle_no: '826라8911', model_name: '기아 카니발', default_driver: '김승지,현민혁', initial_km: 33785 },
+          { vehicle_no: '123가4567', model_name: '현대 아반떼', default_driver: '홍길동', initial_km: 15400 }
+        ];
+        saveVehicles();
+      }
+
+      var savedSelected = localStorage.getItem(STORAGE_KEYS.CURRENT_VEHICLE);
+      if (savedSelected && vehiclesMaster.some(function(v) { return v.vehicle_no === savedSelected; })) {
+        currentSelectedVehicleNo = savedSelected;
+      } else {
+        currentSelectedVehicleNo = vehiclesMaster[0].vehicle_no;
+      }
+    }
+
+    function saveVehicles() {
+      localStorage.setItem(STORAGE_KEYS.VEHICLES, JSON.stringify(vehiclesMaster));
+    }
+
+    function loadLogs() {
+      var raw = localStorage.getItem(STORAGE_KEYS.TRIP_LOGS);
+      if (raw) {
+        try { allTripLogs = JSON.parse(raw); } catch(e) { allTripLogs = []; }
+      } else {
+        allTripLogs = [];
+        // Automatically preload demo sample data if clean
+        loadDemoSampleData(true);
+      }
+    }
+
+    function saveLogs() {
+      localStorage.setItem(STORAGE_KEYS.TRIP_LOGS, JSON.stringify(allTripLogs));
+    }
+
+    // ------------------------------------------
+    // 3. UI Navigation & Rendering
+    // ------------------------------------------
+    function renderVehicleSelector() {
+      var sel = document.getElementById('vehicleSelector');
+      if (!sel) return;
+      sel.innerHTML = '';
+      vehiclesMaster.forEach(function(v) {
+        var opt = document.createElement('option');
+        opt.value = v.vehicle_no;
+        opt.innerText = `${v.vehicle_no} (${v.model_name || '차량'})`;
+        if (v.vehicle_no === currentSelectedVehicleNo) opt.selected = true;
+        sel.appendChild(opt);
+      });
+      updateVehicleMetaBadge();
+    }
+
+    function updateVehicleMetaBadge() {
+      var badge = document.getElementById('vehicleMetaBadge');
+      var veh = vehiclesMaster.find(function(v) { return v.vehicle_no === currentSelectedVehicleNo; });
+      if (badge && veh) {
+        badge.innerText = `${veh.model_name || '차종미정'} · 기본운전자: ${veh.default_driver || '-'}`;
+      }
+    }
+
+    function onVehicleChange() {
+      var sel = document.getElementById('vehicleSelector');
+      if (!sel) return;
+      currentSelectedVehicleNo = sel.value;
+      localStorage.setItem(STORAGE_KEYS.CURRENT_VEHICLE, currentSelectedVehicleNo);
+      updateVehicleMetaBadge();
+      renderAll();
+    }
+
+    function updateMonthDisplay() {
+      var el = document.getElementById('currentMonthDisplay');
+      if (el) el.innerText = `${currentYear}년 ${String(currentMonth).padStart(2, '0')}월`;
+      var title = document.getElementById('tableHeaderTitle');
+      if (title) title.innerText = `${currentSelectedVehicleNo} · ${currentYear}년 ${currentMonth}월 운행 및 비용 명세`;
+    }
+
+    function shiftMonth(delta) {
+      currentMonth += delta;
+      if (currentMonth > 12) { currentMonth = 1; currentYear++; }
+      if (currentMonth < 1) { currentMonth = 12; currentYear--; }
+      updateMonthDisplay();
+      renderAll();
+    }
+
+    function goToCurrentMonth() {
+      var now = new Date();
+      currentYear = now.getFullYear();
+      currentMonth = now.getMonth() + 1;
+      updateMonthDisplay();
+      renderAll();
+    }
+
+    function setViewMode(mode) {
+      currentViewMode = mode;
+      var btnD = document.getElementById('btnViewDetail');
+      var btnS = document.getElementById('btnViewSummary');
+      if (mode === 'detailed') {
+        btnD.className = 'px-3 py-1 text-xs font-bold rounded-lg transition shadow-xs bg-white text-indigo-700';
+        btnS.className = 'px-3 py-1 text-xs font-bold rounded-lg transition text-slate-600 hover:text-slate-900';
+      } else {
+        btnS.className = 'px-3 py-1 text-xs font-bold rounded-lg transition shadow-xs bg-white text-indigo-700';
+        btnD.className = 'px-3 py-1 text-xs font-bold rounded-lg transition text-slate-600 hover:text-slate-900';
+      }
+      renderTripLogTable();
+    }
+
+    // ------------------------------------------
+    // 4. Data Filter & KPI Calculation
+    // ------------------------------------------
+    function getCurrentMonthLogs() {
+      var monthPrefix = `${currentYear}-${String(currentMonth).padStart(2, '0')}`;
+      return allTripLogs.filter(function(l) {
+        return l.vehicle_no === currentSelectedVehicleNo && (l.trip_date || '').startsWith(monthPrefix);
+      }).sort(function(a, b) {
+        return (a.trip_date || '').localeCompare(b.trip_date || '');
+      });
+    }
+
+    function renderAll() {
+      updateMonthDisplay();
+      renderKpis();
+      renderTripLogTable();
+    }
+
+    function renderKpis() {
+      var logs = getCurrentMonthLogs();
+      var totalDist = 0;
+      var operatingDays = 0;
+      var unoperatedDays = 0;
+      var totalParking = 0;
+      var totalFuel = 0;
+      var parkingCount = 0;
+      var fuelCount = 0;
+
+      var currentVeh = vehiclesMaster.find(function(v) { return v.vehicle_no === currentSelectedVehicleNo; }) || {};
+      var startKm = logs.length > 0 ? (logs[0].start_km || 0) : (currentVeh.initial_km || 0);
+      var endKm = logs.length > 0 ? (logs[logs.length - 1].end_km || startKm) : startKm;
+
+      logs.forEach(function(l) {
+        if (l.is_unoperated || l.driver_name === '미운행') {
+          unoperatedDays++;
+        } else {
+          operatingDays++;
+          var d = Number(l.distance_km || (l.end_km - l.start_km) || 0);
+          totalDist += d;
+        }
+
+        var p = Number(l.parking_fee || 0);
+        var f = Number(l.fuel_fee || 0);
+        if (p > 0) { totalParking += p; parkingCount++; }
+        if (f > 0) { totalFuel += f; fuelCount++; }
+      });
+
+      // If logs exist, total dist is calculated from odometer difference
+      if (logs.length > 0 && endKm >= startKm) {
+        totalDist = endKm - startKm;
+      }
+
+      document.getElementById('kpiTotalDist').innerText = totalDist.toLocaleString();
+      document.getElementById('kpiDistDesc').innerText = `시작: ${startKm.toLocaleString()} km ➔ 종료: ${endKm.toLocaleString()} km`;
+
+      document.getElementById('kpiOperatingDays').innerText = operatingDays;
+      var daysInMonth = new Date(currentYear, currentMonth, 0).getDate();
+      var ratio = daysInMonth > 0 ? Math.round((operatingDays / daysInMonth) * 100) : 0;
+      document.getElementById('kpiDayRatio').innerText = `당월 가동률 ${ratio}% (${operatingDays}/${daysInMonth}일)`;
+
+      document.getElementById('kpiTotalParking').innerText = totalParking.toLocaleString();
+      document.getElementById('kpiParkingCount').innerText = `${parkingCount}건 지출`;
+
+      document.getElementById('kpiTotalFuel').innerText = totalFuel.toLocaleString();
+      document.getElementById('kpiFuelCount').innerText = `${fuelCount}건 지출`;
+
+      document.getElementById('kpiUnopDays').innerText = unoperatedDays;
+    }
+
+    // ------------------------------------------
+    // 5. Table Rendering (Detail & Summary)
+    // ------------------------------------------
+    function renderTripLogTable() {
+      var thead = document.getElementById('tripLogTableHead');
+      var tbody = document.getElementById('tripLogTableBody');
+      var countEl = document.getElementById('tableRowCount');
+      var logs = getCurrentMonthLogs();
+
+      if (!tbody || !thead) return;
+
+      if (logs.length === 0) {
+        if (countEl) countEl.innerText = `(총 0건)`;
+        thead.innerHTML = '';
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="12" class="py-12 text-center text-slate-400">
+              <div class="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400 mx-auto mb-2 text-xl">
+                <i class="fa-solid fa-calendar-xmark"></i>
+              </div>
+              <p class="font-bold text-slate-600">${currentYear}년 ${currentMonth}월에 등록된 운행일지가 없습니다.</p>
+              <p class="text-[11px] text-slate-400 mt-1">상단 <b>[🎯 1클릭 샘플 데이터 로드]</b> 또는 <b>[운행일지 직접 등록]</b>을 실행해주세요.</p>
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      if (countEl) countEl.innerText = `(총 ${logs.length}일 운행기록)`;
+
+      if (currentViewMode === 'detailed') {
+        // [Mode A] 배송지별 상세 보기 (실무 12열 표준 서식)
+        thead.innerHTML = `
+          <tr class="text-slate-600 text-[11px] select-none">
+            <th class="py-2.5 px-3 text-center w-20">날짜</th>
+            <th class="py-2.5 px-3 text-center w-20">운전자</th>
+            <th class="py-2.5 px-3 text-center w-12">순번</th>
+            <th class="py-2.5 px-3 text-center w-20">구분</th>
+            <th class="py-2.5 px-3 w-40">방문지명(고객사)</th>
+            <th class="py-2.5 px-3">상세 도로명 주소</th>
+            <th class="py-2.5 px-3 text-right w-24">출발 계기판</th>
+            <th class="py-2.5 px-3 text-right w-24">도착 계기판</th>
+            <th class="py-2.5 px-3 text-right w-20">구간거리</th>
+            <th class="py-2.5 px-3 text-right w-24">주차비</th>
+            <th class="py-2.5 px-3 text-right w-24">주유비</th>
+            <th class="py-2.5 px-3 w-36">비고/품목</th>
+            <th class="py-2.5 px-2 text-center w-14 no-print">관리</th>
+          </tr>
+        `;
+
+        var html = '';
+        logs.forEach(function(l) {
+          var dateParts = (l.trip_date || '').split('-');
+          var dateFormatted = dateParts.length >= 3 ? `${Number(dateParts[1])}월 ${Number(dateParts[2])}일` : l.trip_date;
+          var drvStr = l.driver_name || '-';
+
+          if (l.is_unoperated || drvStr === '미운행') {
+            html += `
+              <tr class="bg-slate-50/70 hover:bg-slate-100/50 text-slate-500 border-b border-slate-200/80">
+                <td class="py-2.5 px-3 text-center font-bold">${dateFormatted}</td>
+                <td class="py-2.5 px-3 text-center"><span class="px-2 py-0.5 rounded-full bg-slate-200 text-slate-600 text-[10px] font-bold">미운행</span></td>
+                <td class="py-2.5 px-3 text-center text-slate-400">0</td>
+                <td class="py-2.5 px-3 text-center text-slate-400">미운행</td>
+                <td class="py-2.5 px-3 text-slate-400">-</td>
+                <td class="py-2.5 px-3 text-slate-400">-</td>
+                <td class="py-2.5 px-3 text-right font-mono text-slate-400">${(l.start_km || 0).toLocaleString()} km</td>
+                <td class="py-2.5 px-3 text-right font-mono text-slate-400">${(l.end_km || 0).toLocaleString()} km</td>
+                <td class="py-2.5 px-3 text-right font-mono text-slate-400">0 km</td>
+                <td class="py-2.5 px-3 text-right font-mono text-slate-400">0</td>
+                <td class="py-2.5 px-3 text-right font-mono text-slate-400">0</td>
+                <td class="py-2.5 px-3 text-slate-400">${l.memo || '정기 미운행'}</td>
+                <td class="py-2.5 px-2 text-center no-print">
+                  <button onclick="openEditLogModal('${l.trip_date}')" class="text-indigo-600 hover:text-indigo-800 font-bold p-1" title="수정">
+                    <i class="fa-solid fa-pen"></i>
+                  </button>
+                </td>
+              </tr>
+            `;
+            return;
+          }
+
+          var legs = getResolvedStopLegs(l);
+          if (!legs || legs.length === 0) {
+            var sKm = Number(l.start_km || 0);
+            var eKm = Number(l.end_km || 0);
+            var dKm = Number(l.distance_km || (eKm - sKm) || 0);
+            html += `
+              <tr class="hover:bg-indigo-50/30 border-b border-slate-200/80">
+                <td class="py-2.5 px-3 text-center font-bold text-slate-900">${dateFormatted}</td>
+                <td class="py-2.5 px-3 text-center font-bold text-slate-700">${drvStr}</td>
+                <td class="py-2.5 px-3 text-center">1</td>
+                <td class="py-2.5 px-3 text-center"><span class="px-2 py-0.5 rounded-md bg-indigo-100 text-indigo-700 font-bold text-[10px]">운행</span></td>
+                <td class="py-2.5 px-3 font-bold text-slate-800">${l.destination_name || '회사 본사'}</td>
+                <td class="py-2.5 px-3 text-slate-600">${l.destination_addr || '-'}</td>
+                <td class="py-2.5 px-3 text-right font-mono">${sKm.toLocaleString()} km</td>
+                <td class="py-2.5 px-3 text-right font-mono">${eKm.toLocaleString()} km</td>
+                <td class="py-2.5 px-3 text-right font-mono font-bold text-emerald-700">${dKm} km</td>
+                <td class="py-2.5 px-3 text-right font-mono">${(l.parking_fee || 0).toLocaleString()}</td>
+                <td class="py-2.5 px-3 text-right font-mono">${(l.fuel_fee || 0).toLocaleString()}</td>
+                <td class="py-2.5 px-3 text-slate-600">${l.memo || '-'}</td>
+                <td class="py-2.5 px-2 text-center no-print">
+                  <button onclick="openEditLogModal('${l.trip_date}')" class="text-indigo-600 hover:text-indigo-800 font-bold p-1" title="수정">
+                    <i class="fa-solid fa-pen"></i>
+                  </button>
+                </td>
+              </tr>
+            `;
+            return;
+          }
+
+          legs.forEach(function(leg, idx) {
+            var isReturn = (leg.type === 'return');
+            var badgeClass = isReturn ? 'bg-slate-200 text-slate-700' : 'bg-indigo-100 text-indigo-700';
+            var badgeText = isReturn ? '복귀' : `배송 #${leg.order || (idx + 1)}`;
+            var sKm = Number(leg.start_km || 0);
+            var eKm = Number(leg.end_km || 0);
+            var dKm = Number(leg.distance_km || 0);
+            var pFee = Number(leg.parking_fee || 0);
+            var fFee = Number(leg.fuel_fee || 0);
+
+            html += `
+              <tr class="hover:bg-indigo-50/20 border-b border-slate-100 ${isReturn ? 'bg-slate-50/40' : ''}">
+                <td class="py-2.5 px-3 text-center font-bold text-slate-900">${idx === 0 ? dateFormatted : ''}</td>
+                <td class="py-2.5 px-3 text-center font-bold text-slate-700">${idx === 0 ? drvStr : ''}</td>
+                <td class="py-2.5 px-3 text-center text-slate-500 font-mono">${idx + 1}</td>
+                <td class="py-2.5 px-3 text-center">
+                  <span class="px-2 py-0.5 rounded-md ${badgeClass} font-bold text-[10px] whitespace-nowrap">${badgeText}</span>
+                </td>
+                <td class="py-2.5 px-3 font-bold text-slate-900 flex items-center gap-1.5">
+                  <span>${leg.name || '-'}</span>
+                </td>
+                <td class="py-2.5 px-3 text-slate-600">${leg.addr || '-'}</td>
+                <td class="py-2.5 px-3 text-right font-mono text-slate-600">${sKm.toLocaleString()} km</td>
+                <td class="py-2.5 px-3 text-right font-mono text-slate-900 font-bold">${eKm.toLocaleString()} km</td>
+                <td class="py-2.5 px-3 text-right font-mono font-bold text-emerald-700">${dKm} km</td>
+                <td class="py-2.5 px-3 text-right font-mono ${pFee > 0 ? 'text-amber-700 font-bold' : 'text-slate-400'}">${pFee.toLocaleString()}</td>
+                <td class="py-2.5 px-3 text-right font-mono ${fFee > 0 ? 'text-rose-700 font-bold' : 'text-slate-400'}">${fFee.toLocaleString()}</td>
+                <td class="py-2.5 px-3 text-slate-600 truncate max-w-xs">${leg.memo || (isReturn ? '운행 복귀 및 마감' : '-')}</td>
+                <td class="py-2.5 px-2 text-center no-print">
+                  ${idx === 0 ? `
+                    <button onclick="openEditLogModal('${l.trip_date}')" class="text-indigo-600 hover:text-indigo-800 font-bold p-1" title="수정">
+                      <i class="fa-solid fa-pen"></i>
+                    </button>
+                  ` : ''}
+                </td>
+              </tr>
+            `;
+          });
+        });
+        tbody.innerHTML = html;
+
+      } else {
+        // [Mode B] 일자별 요약 보기 (국세청 표준)
+        thead.innerHTML = `
+          <tr class="text-slate-600 text-[11px] select-none">
+            <th class="py-2.5 px-3 text-center w-24">운행 일자</th>
+            <th class="py-2.5 px-3 text-center w-24">운전자</th>
+            <th class="py-2.5 px-3 text-right w-28">운행 시작 / Km</th>
+            <th class="py-2.5 px-3 text-right w-28">운행 종료 / Km</th>
+            <th class="py-2.5 px-3 text-right w-24">주행거리</th>
+            <th class="py-2.5 px-3">도착지 / 최종 마감지</th>
+            <th class="py-2.5 px-3 text-right w-24">주차비</th>
+            <th class="py-2.5 px-3 text-right w-24">주유 금액</th>
+            <th class="py-2.5 px-3 w-48">비고</th>
+            <th class="py-2.5 px-2 text-center w-14 no-print">관리</th>
+          </tr>
+        `;
+
+        var html = '';
+        logs.forEach(function(l) {
+          var dateParts = (l.trip_date || '').split('-');
+          var dateFormatted = dateParts.length >= 3 ? `${Number(dateParts[1])}월 ${Number(dateParts[2])}일` : l.trip_date;
+          var drvStr = l.driver_name || '-';
+          var isUnop = Boolean(l.is_unoperated) || drvStr === '미운행';
+          var sKm = Number(l.start_km || 0);
+          var eKm = Number(l.end_km || sKm);
+          var dKm = isUnop ? 0 : Number(l.distance_km || (eKm - sKm) || 0);
+          var pFee = Number(l.parking_fee || 0);
+          var fFee = Number(l.fuel_fee || 0);
+          var destStr = isUnop ? '미운행' : (l.destination_name || '회사 본사');
+
+          html += `
+            <tr class="hover:bg-slate-50 border-b border-slate-200/80 ${isUnop ? 'bg-slate-50/70 text-slate-400' : 'text-slate-800'}">
+              <td class="py-2.5 px-3 text-center font-bold text-slate-900">${dateFormatted}</td>
+              <td class="py-2.5 px-3 text-center font-bold">${drvStr}</td>
+              <td class="py-2.5 px-3 text-right font-mono">${sKm.toLocaleString()} km</td>
+              <td class="py-2.5 px-3 text-right font-mono font-bold">${eKm.toLocaleString()} km</td>
+              <td class="py-2.5 px-3 text-right font-mono font-bold ${dKm > 0 ? 'text-emerald-700' : 'text-slate-400'}">${dKm.toLocaleString()} km</td>
+              <td class="py-2.5 px-3 font-medium">${destStr}</td>
+              <td class="py-2.5 px-3 text-right font-mono ${pFee > 0 ? 'text-amber-700 font-bold' : ''}">${pFee > 0 ? '₩' + pFee.toLocaleString() : '-'}</td>
+              <td class="py-2.5 px-3 text-right font-mono ${fFee > 0 ? 'text-rose-700 font-bold' : ''}">${fFee > 0 ? '₩' + fFee.toLocaleString() : '-'}</td>
+              <td class="py-2.5 px-3 text-slate-500">${l.memo || (isUnop ? '정기 미운행' : '-')}</td>
+              <td class="py-2.5 px-2 text-center no-print">
+                <button onclick="openEditLogModal('${l.trip_date}')" class="text-indigo-600 hover:text-indigo-800 font-bold p-1" title="수정">
+                  <i class="fa-solid fa-pen"></i>
+                </button>
+              </td>
+            </tr>
+          `;
+        });
+        tbody.innerHTML = html;
+      }
+    }
+
+    // ------------------------------------------
+    // 6. Leg Resolver Helper
+    // ------------------------------------------
+    function getResolvedStopLegs(log) {
+      if (!log || !Array.isArray(log.stops) || log.stops.length === 0) return [];
+      var stops = log.stops;
+      var hasOrigin = (stops[0] && stops[0].type === 'origin');
+      var startIdx = hasOrigin ? 1 : 0;
+      var totalLegCount = stops.length - (hasOrigin ? 1 : 0);
+
+      if (totalLegCount <= 0) return [];
+
+      var dayTotalDist = Number(log.distance_km || (log.end_km - log.start_km) || 0);
+      var runningOdo = Number(log.start_km || 0);
+
+      // Check if legs already have individual distances
+      var allHaveDist = true;
+      for (var i = startIdx; i < stops.length; i++) {
+        if (stops[i].distance_km === undefined || stops[i].distance_km === null || isNaN(stops[i].distance_km) || stops[i].distance_km <= 0) {
+          allHaveDist = false;
+          break;
+        }
+      }
+
+      if (!allHaveDist && dayTotalDist > 0) {
+        var baseDist = Math.floor(dayTotalDist / totalLegCount);
+        var remDist = dayTotalDist % totalLegCount;
+
+        for (var i = startIdx; i < stops.length; i++) {
+          var legDist = baseDist + ((i - startIdx) < remDist ? 1 : 0);
+          var legStart = runningOdo;
+          var legEnd = runningOdo + legDist;
+          runningOdo = legEnd;
+
+          stops[i].distance_km = legDist;
+          stops[i].start_km = legStart;
+          stops[i].end_km = legEnd;
+        }
+      }
+
+      var legs = [];
+      for (var i = startIdx; i < stops.length; i++) {
+        var s = stops[i];
+        legs.push({
+          type: s.type || 'delivery',
+          order: s.order || (i - startIdx + 1),
+          name: s.name || (s.type === 'return' ? '회사 복귀' : '방문지'),
+          addr: s.addr || '',
+          start_km: Number(s.start_km !== undefined ? s.start_km : log.start_km),
+          end_km: Number(s.end_km !== undefined ? s.end_km : log.end_km),
+          distance_km: Number(s.distance_km !== undefined ? s.distance_km : 0),
+          parking_fee: Number(s.parking_fee || 0),
+          fuel_fee: Number(s.fuel_fee || 0),
+          memo: s.memo || ''
+        });
+      }
+      return legs;
+    }
+
+    // ------------------------------------------
+    // 7. Mileage Auto-Distribute Engine
+    // ------------------------------------------
+    function openAutoDistributeModal() {
+      var currentVeh = vehiclesMaster.find(function(v) { return v.vehicle_no === currentSelectedVehicleNo; }) || {};
+      var vehText = `${currentSelectedVehicleNo} (${currentVeh.model_name || '차량'})`;
+      var monthText = `${currentYear}년 ${String(currentMonth).padStart(2, '0')}월`;
+      var driverText = currentVeh.default_driver || '조경찬';
+
+      document.getElementById('autoDistributeVehicleText').innerText = vehText;
+      document.getElementById('autoDistributeMonthText').innerText = monthText;
+      document.getElementById('autoDistributeDriverText').innerText = driverText;
+
+      var logs = getCurrentMonthLogs();
+      var startKmVal = logs.length > 0 ? logs[0].start_km : (currentVeh.initial_km || 70000);
+      var endKmVal = logs.length > 0 ? logs[logs.length - 1].end_km : '';
+
+      document.getElementById('autoStartKm').value = startKmVal || 0;
+      document.getElementById('autoEndKm').value = endKmVal || '';
+
+      document.getElementById('autoDistributeModal').classList.remove('hidden');
+      calculateAutoDistributePreview();
+    }
+
+    function closeAutoDistributeModal() {
+      document.getElementById('autoDistributeModal').classList.add('hidden');
+    }
+
+    function calculateAutoDistributePreview() {
+      var startKm = Number(document.getElementById('autoStartKm').value || 0);
+      var endKm = Number(document.getElementById('autoEndKm').value || 0);
+      var totalText = document.getElementById('autoTotalDistText');
+      var badge = document.getElementById('autoTotalDistBadge');
+      var btnSave = document.getElementById('btnExecuteAutoDistribute');
+      var tbody = document.getElementById('autoPreviewTableBody');
+      var rowCountEl = document.getElementById('autoPreviewRowCount');
+
+      if (!endKm || endKm <= startKm) {
+        totalText.innerText = '0 km';
+        badge.innerText = '종료 Km를 입력하세요';
+        badge.className = 'text-[10px] font-bold px-2.5 py-1 rounded-full bg-slate-100 text-slate-500';
+        btnSave.disabled = true;
+        if (rowCountEl) rowCountEl.innerText = '';
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="5" class="py-6 text-center text-slate-400">
+              ${endKm && endKm <= startKm ? '⚠️ 종료 Km는 시작 Km보다 커야 합니다.' : '당월 최종 운행종료 Km를 입력해주세요.'}
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      var totalDist = endKm - startKm;
+      totalText.innerText = totalDist.toLocaleString() + ' km';
+      badge.innerText = `총 ${totalDist.toLocaleString()} km 분배 준비완료`;
+      badge.className = 'text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 font-bold';
+      btnSave.disabled = false;
+
+      var logs = getCurrentMonthLogs();
+      if (logs.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="py-6 text-center text-slate-400">분배할 일자별 데이터가 없습니다. 먼저 샘플 데이터나 운행일지를 등록하세요.</td></tr>`;
+        btnSave.disabled = true;
+        return;
+      }
+
+      var operatingLogs = logs.filter(function(l) { return !l.is_unoperated && l.driver_name !== '미운행'; });
+      if (operatingLogs.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="py-6 text-center text-slate-400">모든 날짜가 미운행으로 지정되어 있습니다.</td></tr>`;
+        btnSave.disabled = true;
+        return;
+      }
+
+      // Calculate total weights (number of stop legs per day)
+      var totalLegsCount = 0;
+      operatingLogs.forEach(function(l) {
+        var legs = (l.stops && l.stops.length > 0) ? (l.stops.length - (l.stops[0].type === 'origin' ? 1 : 0)) : 1;
+        totalLegsCount += Math.max(legs, 1);
+      });
+
+      var baseDistPerLeg = Math.floor(totalDist / totalLegsCount);
+      var remainderDist = totalDist % totalLegsCount;
+
+      var simRunningOdo = startKm;
+      var previewHtml = '';
+
+      var currentRem = remainderDist;
+      logs.forEach(function(l) {
+        var dateParts = (l.trip_date || '').split('-');
+        var dateStr = dateParts.length >= 3 ? `${Number(dateParts[1])}/${Number(dateParts[2])}` : l.trip_date;
+
+        if (l.is_unoperated || l.driver_name === '미운행') {
+          previewHtml += `
+            <tr class="bg-slate-50/70 text-slate-400 text-xs">
+              <td class="py-1.5 px-3 font-bold">${dateStr}</td>
+              <td class="py-1.5 px-3">미운행</td>
+              <td class="py-1.5 px-3 text-right">-</td>
+              <td class="py-1.5 px-3 text-right">0 km</td>
+              <td class="py-1.5 px-3 text-right font-mono">${simRunningOdo.toLocaleString()}</td>
+            </tr>
+          `;
+          return;
+        }
+
+        var legsCount = (l.stops && l.stops.length > 0) ? (l.stops.length - (l.stops[0].type === 'origin' ? 1 : 0)) : 1;
+        legsCount = Math.max(legsCount, 1);
+
+        var dayDist = 0;
+        for (var k = 0; k < legsCount; k++) {
+          var legD = baseDistPerLeg + (currentRem > 0 ? 1 : 0);
+          if (currentRem > 0) currentRem--;
+          dayDist += legD;
+        }
+
+        simRunningOdo += dayDist;
+
+        previewHtml += `
+          <tr class="hover:bg-slate-50 text-xs">
+            <td class="py-1.5 px-3 font-bold text-slate-800">${dateStr}</td>
+            <td class="py-1.5 px-3"><span class="px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 font-bold text-[10px]">운행</span></td>
+            <td class="py-1.5 px-3 text-right font-mono text-slate-500">${legsCount}곳</td>
+            <td class="py-1.5 px-3 text-right font-mono font-bold text-emerald-700">${dayDist} km</td>
+            <td class="py-1.5 px-3 text-right font-mono font-bold text-slate-800">${simRunningOdo.toLocaleString()}</td>
+          </tr>
+        `;
+      });
+
+      tbody.innerHTML = previewHtml;
+      if (rowCountEl) rowCountEl.innerText = `(운행 ${operatingLogs.length}일 / 총 ${totalLegsCount}개 경유구간)`;
+    }
+
+    function executeAutoDistribute() {
+      var startKm = Number(document.getElementById('autoStartKm').value || 0);
+      var endKm = Number(document.getElementById('autoEndKm').value || 0);
+      if (!endKm || endKm <= startKm) {
+        showToast('⚠️ 종료 Km를 올바르게 입력해주세요.');
+        return;
+      }
+
+      var totalDist = endKm - startKm;
+      var logs = getCurrentMonthLogs();
+      var operatingLogs = logs.filter(function(l) { return !l.is_unoperated && l.driver_name !== '미운행'; });
+      if (operatingLogs.length === 0) return;
+
+      var totalLegsCount = 0;
+      operatingLogs.forEach(function(l) {
+        var legs = (l.stops && l.stops.length > 0) ? (l.stops.length - (l.stops[0].type === 'origin' ? 1 : 0)) : 1;
+        totalLegsCount += Math.max(legs, 1);
+      });
+
+      var baseDistPerLeg = Math.floor(totalDist / totalLegsCount);
+      var currentRem = totalDist % totalLegsCount;
+
+      var runningOdo = startKm;
+
+      logs.forEach(function(l) {
+        if (l.is_unoperated || l.driver_name === '미운행') {
+          l.start_km = runningOdo;
+          l.end_km = runningOdo;
+          l.distance_km = 0;
+          return;
+        }
+
+        var hasOrigin = (l.stops && l.stops[0] && l.stops[0].type === 'origin');
+        var startIdx = hasOrigin ? 1 : 0;
+        var legsCount = (l.stops && l.stops.length > 0) ? (l.stops.length - startIdx) : 1;
+        legsCount = Math.max(legsCount, 1);
+
+        var dayStart = runningOdo;
+        var dayDist = 0;
+
+        if (l.stops && l.stops.length > 0) {
+          if (hasOrigin) {
+            l.stops[0].start_km = dayStart;
+            l.stops[0].end_km = dayStart;
+            l.stops[0].distance_km = 0;
+          }
+
+          for (var i = startIdx; i < l.stops.length; i++) {
+            var legD = baseDistPerLeg + (currentRem > 0 ? 1 : 0);
+            if (currentRem > 0) currentRem--;
+
+            l.stops[i].start_km = runningOdo;
+            runningOdo += legD;
+            l.stops[i].end_km = runningOdo;
+            l.stops[i].distance_km = legD;
+            dayDist += legD;
+          }
+        } else {
+          var legD = baseDistPerLeg + (currentRem > 0 ? 1 : 0);
+          if (currentRem > 0) currentRem--;
+          runningOdo += legD;
+          dayDist += legD;
+        }
+
+        l.start_km = dayStart;
+        l.end_km = runningOdo;
+        l.distance_km = dayDist;
+      });
+
+      saveLogs();
+      closeAutoDistributeModal();
+      renderAll();
+      showToast('🎉 전 경유지 계기판 Km가 오차 0km로 완벽하게 자동분배되었습니다!');
+    }
+
+    // ------------------------------------------
+    // 8. Log Editor Modal (Manual CRUD & Daum Postcode)
+    // ------------------------------------------
+    var editingTripDate = null;
+    var modalStopsCache = [];
+
+    function openCreateLogModal() {
+      editingTripDate = null;
+      var todayStr = `${currentYear}-${String(currentMonth).padStart(2, '0')}-01`;
+      document.getElementById('modalTripDate').value = todayStr;
+      document.getElementById('modalTripDate').disabled = false;
+
+      var curVeh = vehiclesMaster.find(function(v) { return v.vehicle_no === currentSelectedVehicleNo; }) || {};
+      document.getElementById('modalDriverName').value = curVeh.default_driver || '조경찬';
+      document.getElementById('modalIsUnoperated').checked = false;
+      document.getElementById('modalTripMemo').value = '';
+      document.getElementById('editorModalTitle').innerText = '운행일지 신규 등록';
+      document.getElementById('btnDeleteCurrentLog').classList.add('hidden');
+
+      modalStopsCache = [
+        { id: 'stop_origin', type: 'origin', name: '회사 본사', addr: '서울 금천구 벚꽃로 278 (가산 센터)', memo: '출고 및 배송 출발' },
+        { id: 'stop_deliv_1', type: 'delivery', order: 1, name: '더현대 서울', addr: '서울 영등포구 여의대로 108', memo: '복사기 1대 배송', parking_fee: 0, fuel_fee: 0 },
+        { id: 'stop_return', type: 'return', name: '회사 본사 (최종 복귀)', addr: '서울 금천구 벚꽃로 278 (가산 센터)', memo: '운행 복귀 및 마감' }
+      ];
+
+      renderModalStops();
+      onToggleUnoperated();
+      document.getElementById('logEditorModal').classList.remove('hidden');
+    }
+
+    function openEditLogModal(tripDate) {
+      editingTripDate = tripDate;
+      var log = allTripLogs.find(function(l) { return l.vehicle_no === currentSelectedVehicleNo && l.trip_date === tripDate; });
+      if (!log) return;
+
+      document.getElementById('modalTripDate').value = log.trip_date;
+      document.getElementById('modalTripDate').disabled = true;
+      document.getElementById('modalDriverName').value = log.driver_name || '';
+      document.getElementById('modalIsUnoperated').checked = Boolean(log.is_unoperated || log.driver_name === '미운행');
+      document.getElementById('modalTripMemo').value = log.memo || '';
+      document.getElementById('editorModalTitle').innerText = `${log.trip_date} 운행일지 수정`;
+      document.getElementById('btnDeleteCurrentLog').classList.remove('hidden');
+
+      if (Array.isArray(log.stops) && log.stops.length > 0) {
+        modalStopsCache = JSON.parse(JSON.stringify(log.stops));
+      } else {
+        modalStopsCache = [
+          { id: 'stop_origin', type: 'origin', name: '회사 본사', addr: '서울 금천구 벚꽃로 278 (가산 센터)', memo: '출발' },
+          { id: 'stop_return', type: 'return', name: '회사 본사 (최종 복귀)', addr: '서울 금천구 벚꽃로 278 (가산 센터)', memo: '운행 복귀 및 마감' }
+        ];
+      }
+
+      renderModalStops();
+      onToggleUnoperated();
+      document.getElementById('logEditorModal').classList.remove('hidden');
+    }
+
+    function closeLogEditorModal() {
+      document.getElementById('logEditorModal').classList.add('hidden');
+    }
+
+    function onToggleUnoperated() {
+      var isUnop = document.getElementById('modalIsUnoperated').checked;
+      var wrapper = document.getElementById('stopsSectionWrapper');
+      if (isUnop) {
+        wrapper.classList.add('hidden');
+        document.getElementById('modalDriverName').value = '미운행';
+      } else {
+        wrapper.classList.remove('hidden');
+        if (document.getElementById('modalDriverName').value === '미운행') {
+          var curVeh = vehiclesMaster.find(function(v) { return v.vehicle_no === currentSelectedVehicleNo; }) || {};
+          document.getElementById('modalDriverName').value = curVeh.default_driver || '조경찬';
+        }
+      }
+    }
+
+    function renderModalStops() {
+      var container = document.getElementById('modalStopsList');
+      if (!container) return;
+      container.innerHTML = '';
+
+      modalStopsCache.forEach(function(s, idx) {
+        var isOrigin = (s.type === 'origin');
+        var isReturn = (s.type === 'return');
+        var isDeliv = (!isOrigin && !isReturn);
+
+        var card = document.createElement('div');
+        card.className = 'bg-slate-50 border border-slate-200 rounded-2xl p-3 space-y-2';
+
+        card.innerHTML = `
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="px-2 py-0.5 rounded-md font-bold text-[10px] ${isOrigin ? 'bg-indigo-600 text-white' : (isReturn ? 'bg-slate-700 text-white' : 'bg-indigo-100 text-indigo-700')}">
+                ${isOrigin ? '출발지' : (isReturn ? '최종 복귀지' : `방문지 #${s.order || idx}`)}
+              </span>
+              <span class="font-bold text-slate-700 text-xs">${isOrigin ? '본사/출발지' : (isReturn ? '복귀지' : '경유지 정보')}</span>
+            </div>
+            ${isDeliv ? `
+              <button type="button" onclick="removeStopRow(${idx})" class="text-rose-500 hover:text-rose-700 text-xs font-bold px-1.5 py-0.5 rounded hover:bg-rose-50 transition">
+                <i class="fa-solid fa-trash mr-1"></i>삭제
+              </button>
+            ` : ''}
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div>
+              <label class="text-[10px] font-bold text-slate-500 block mb-0.5">업체명 / 방문지명</label>
+              <input type="text" value="${(s.name || '').replace(/"/g, '&quot;')}" oninput="modalStopsCache[${idx}].name = this.value" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 font-bold outline-none text-xs" placeholder="예: 더현대 서울">
+            </div>
+            <div>
+              <label class="text-[10px] font-bold text-slate-500 block mb-0.5 flex items-center justify-between">
+                <span>상세 도로명 주소</span>
+                <button type="button" onclick="searchAddressDaum(${idx})" class="text-indigo-600 hover:text-indigo-800 font-bold text-[10px] flex items-center gap-1">
+                  <i class="fa-solid fa-magnifying-glass"></i>
+                  <span>주소 검색</span>
+                </button>
+              </label>
+              <div class="relative">
+                <input type="text" id="stopAddrInput_${idx}" value="${(s.addr || '').replace(/"/g, '&quot;')}" oninput="modalStopsCache[${idx}].addr = this.value" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 outline-none text-xs pr-16" placeholder="서울 금천구 벚꽃로 278">
+                <button type="button" onclick="searchAddressDaum(${idx})" class="absolute right-1.5 top-1 px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-[10px] font-bold transition">
+                  검색
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <div>
+              <label class="text-[10px] font-bold text-slate-500 block mb-0.5">비고 / 방문 목적</label>
+              <input type="text" value="${(s.memo || '').replace(/"/g, '&quot;')}" oninput="modalStopsCache[${idx}].memo = this.value" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 outline-none text-xs" placeholder="예: 복사기 1대 배송">
+            </div>
+            <div>
+              <label class="text-[10px] font-bold text-slate-500 block mb-0.5">주차비 (원)</label>
+              <input type="number" step="1" min="0" value="${s.parking_fee || 0}" oninput="modalStopsCache[${idx}].parking_fee = Number(this.value)" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 font-mono outline-none text-xs">
+            </div>
+            <div>
+              <label class="text-[10px] font-bold text-slate-500 block mb-0.5">주유비 (원)</label>
+              <input type="number" step="1" min="0" value="${s.fuel_fee || 0}" oninput="modalStopsCache[${idx}].fuel_fee = Number(this.value)" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 font-mono outline-none text-xs">
+            </div>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function addNewStopRow() {
+      var returnIdx = modalStopsCache.findIndex(function(s) { return s.type === 'return'; });
+      var newStop = {
+        id: 'stop_manual_' + Date.now(),
+        type: 'delivery',
+        order: returnIdx > 0 ? returnIdx : modalStopsCache.length,
+        name: '',
+        addr: '',
+        memo: '',
+        parking_fee: 0,
+        fuel_fee: 0
+      };
+
+      if (returnIdx !== -1) {
+        modalStopsCache.splice(returnIdx, 0, newStop);
+      } else {
+        modalStopsCache.push(newStop);
+      }
+
+      // Re-order
+      var delivOrder = 1;
+      modalStopsCache.forEach(function(s) {
+        if (s.type === 'delivery') {
+          s.order = delivOrder++;
+        }
+      });
+
+      renderModalStops();
+    }
+
+    function removeStopRow(idx) {
+      modalStopsCache.splice(idx, 1);
+      var delivOrder = 1;
+      modalStopsCache.forEach(function(s) {
+        if (s.type === 'delivery') {
+          s.order = delivOrder++;
+        }
+      });
+      renderModalStops();
+    }
+
+    // Daum Postcode API Integration
+    function searchAddressDaum(stopIdx) {
+      if (typeof daum === 'undefined' || !daum.Postcode) {
+        showToast('⚠️ 주소 검색 스크립트를 불러오는 중입니다. 잠시 후 다시 시도해주세요.');
+        return;
+      }
+
+      new daum.Postcode({
+        oncomplete: function(data) {
+          var roadAddr = data.roadAddress || data.jibunAddress;
+          var extraAddr = '';
+          if (data.bname !== '' && /[동|로|가]$/g.test(data.bname)) extraAddr += data.bname;
+          if (data.buildingName !== '' && data.apartment === 'Y') extraAddr += (extraAddr !== '' ? ', ' + data.buildingName : data.buildingName);
+          if (extraAddr !== '') roadAddr += ` (${extraAddr})`;
+
+          modalStopsCache[stopIdx].addr = roadAddr;
+          if (!modalStopsCache[stopIdx].name && data.buildingName) {
+            modalStopsCache[stopIdx].name = data.buildingName;
+          }
+
+          renderModalStops();
+          showToast('📍 주소가 자동 입력되었습니다: ' + roadAddr);
+        }
+      }).open();
+    }
+
+    function saveLogEditorModal() {
+      var tripDate = document.getElementById('modalTripDate').value;
+      if (!tripDate) {
+        showToast('⚠️ 운행 일자를 선택해주세요.');
+        return;
+      }
+
+      var drvName = document.getElementById('modalDriverName').value.trim();
+      var isUnop = document.getElementById('modalIsUnoperated').checked;
+      var memo = document.getElementById('modalTripMemo').value.trim();
+
+      var totalP = 0;
+      var totalF = 0;
+      if (!isUnop) {
+        modalStopsCache.forEach(function(s) {
+          totalP += Number(s.parking_fee || 0);
+          totalF += Number(s.fuel_fee || 0);
+        });
+      }
+
+      var existingIdx = allTripLogs.findIndex(function(l) {
+        return l.vehicle_no === currentSelectedVehicleNo && l.trip_date === tripDate;
+      });
+
+      var targetLog = existingIdx !== -1 ? allTripLogs[existingIdx] : {
+        vehicle_no: currentSelectedVehicleNo,
+        trip_date: tripDate,
+        start_km: 0,
+        end_km: 0,
+        distance_km: 0
+      };
+
+      targetLog.driver_name = isUnop ? '미운행' : drvName;
+      targetLog.is_unoperated = isUnop;
+      targetLog.memo = memo;
+      targetLog.parking_fee = totalP;
+      targetLog.fuel_fee = totalF;
+      targetLog.stops = isUnop ? [] : JSON.parse(JSON.stringify(modalStopsCache));
+
+      if (existingIdx !== -1) {
+        allTripLogs[existingIdx] = targetLog;
+      } else {
+        allTripLogs.push(targetLog);
+      }
+
+      saveLogs();
+      closeLogEditorModal();
+      renderAll();
+      showToast(`💾 [${tripDate}] 운행일지가 성공적으로 저장되었습니다.`);
+    }
+
+    function deleteCurrentLog() {
+      if (!editingTripDate) return;
+      if (!confirm(`정말로 ${editingTripDate} 운행일지를 삭제하시겠습니까?`)) return;
+
+      allTripLogs = allTripLogs.filter(function(l) {
+        return !(l.vehicle_no === currentSelectedVehicleNo && l.trip_date === editingTripDate);
+      });
+
+      saveLogs();
+      closeLogEditorModal();
+      renderAll();
+      showToast('🗑️ 운행일지가 삭제되었습니다.');
+    }
+
+    // ------------------------------------------
+    // 9. Vehicle Fleet Management Modal
+    // ------------------------------------------
+    function openVehicleManageModal() {
+      renderVehicleManageList();
+      document.getElementById('vehicleManageModal').classList.remove('hidden');
+    }
+
+    function closeVehicleManageModal() {
+      document.getElementById('vehicleManageModal').classList.add('hidden');
+    }
+
+    function renderVehicleManageList() {
+      var container = document.getElementById('vehicleListContainer');
+      if (!container) return;
+      container.innerHTML = '';
+
+      vehiclesMaster.forEach(function(v, idx) {
+        var card = document.createElement('div');
+        card.className = 'flex items-center justify-between p-2.5 bg-slate-50 border border-slate-200 rounded-xl';
+        card.innerHTML = `
+          <div>
+            <span class="font-bold text-slate-800">${v.vehicle_no}</span>
+            <span class="text-slate-400 font-normal"> · ${v.model_name || '차종미정'} (${v.default_driver || '-'})</span>
+            <span class="text-[10px] text-slate-400 font-mono block">기초 계기판: ${(v.initial_km || 0).toLocaleString()} km</span>
+          </div>
+          <button onclick="removeVehicle(${idx})" class="text-rose-500 hover:text-rose-700 text-xs font-bold p-1">
+            <i class="fa-solid fa-trash"></i>
+          </button>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function addNewVehicle() {
+      var no = document.getElementById('newVehNo').value.trim();
+      var model = document.getElementById('newVehModel').value.trim();
+      var drv = document.getElementById('newVehDriver').value.trim();
+      var km = Number(document.getElementById('newVehInitialKm').value || 0);
+
+      if (!no) {
+        showToast('⚠️ 차량번호를 입력해주세요.');
+        return;
+      }
+      if (vehiclesMaster.some(function(v) { return v.vehicle_no === no; })) {
+        showToast('⚠️ 이미 등록된 차량번호입니다.');
+        return;
+      }
+
+      vehiclesMaster.push({
+        vehicle_no: no,
+        model_name: model || '법인차량',
+        default_driver: drv || '운전자',
+        initial_km: km || 0
+      });
+
+      saveVehicles();
+      renderVehicleSelector();
+      renderVehicleManageList();
+
+      document.getElementById('newVehNo').value = '';
+      document.getElementById('newVehModel').value = '';
+      document.getElementById('newVehDriver').value = '';
+      document.getElementById('newVehInitialKm').value = '';
+
+      showToast(`🚗 신규 차량 [${no}]이 등록되었습니다.`);
+    }
+
+    function removeVehicle(idx) {
+      if (vehiclesMaster.length <= 1) {
+        showToast('⚠️ 최소 1대 이상의 차량이 등록되어 있어야 합니다.');
+        return;
+      }
+      var target = vehiclesMaster[idx];
+      if (!confirm(`[${target.vehicle_no}] 차량을 삭제하시겠습니까?`)) return;
+
+      vehiclesMaster.splice(idx, 1);
+      saveVehicles();
+      if (currentSelectedVehicleNo === target.vehicle_no) {
+        currentSelectedVehicleNo = vehiclesMaster[0].vehicle_no;
+        localStorage.setItem(STORAGE_KEYS.CURRENT_VEHICLE, currentSelectedVehicleNo);
+      }
+      renderVehicleSelector();
+      renderVehicleManageList();
+      renderAll();
+      showToast('🗑️ 차량이 삭제되었습니다.');
+    }
+
+    // ------------------------------------------
+    // 10. Backup & Restore (JSON)
+    // ------------------------------------------
+    function openBackupModal() {
+      document.getElementById('backupModal').classList.remove('hidden');
+    }
+
+    function closeBackupModal() {
+      document.getElementById('backupModal').classList.add('hidden');
+    }
+
+    function downloadBackupJson() {
+      var backupData = {
+        company_name: localStorage.getItem(STORAGE_KEYS.COMPANY_NAME) || '',
+        vehicles: vehiclesMaster,
+        trip_logs: allTripLogs,
+        exported_at: new Date().toISOString()
+      };
+
+      var blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = `법인차량운행일지_백업_${new Date().toLocaleDateString('sv')}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast('💾 백업 파일(JSON)이 다운로드되었습니다.');
+    }
+
+    function executeRestoreJson() {
+      var fileInput = document.getElementById('restoreFileInput');
+      if (!fileInput.files || fileInput.files.length === 0) {
+        showToast('⚠️ 복원할 JSON 파일을 선택해주세요.');
+        return;
+      }
+
+      var file = fileInput.files[0];
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          var data = JSON.parse(e.target.result);
+          if (data.vehicles && Array.isArray(data.vehicles)) {
+            vehiclesMaster = data.vehicles;
+            saveVehicles();
+          }
+          if (data.trip_logs && Array.isArray(data.trip_logs)) {
+            allTripLogs = data.trip_logs;
+            saveLogs();
+          }
+          if (data.company_name) {
+            localStorage.setItem(STORAGE_KEYS.COMPANY_NAME, data.company_name);
+            initSettings();
+          }
+          closeBackupModal();
+          renderVehicleSelector();
+          renderAll();
+          showToast('🎉 백업 파일로부터 모든 데이터가 성공적으로 복원되었습니다.');
+        } catch(err) {
+          showToast('❌ 올바른 백업 JSON 파일이 아닙니다: ' + err.message);
+        }
+      };
+      reader.readAsText(file, 'UTF-8');
+    }
+
+    function resetAllDataPrompt() {
+      if (!confirm('경고: 저장된 모든 차량 및 운행일지 데이터가 초기화됩니다.\n계속 진행하시겠습니까?')) return;
+      localStorage.removeItem(STORAGE_KEYS.COMPANY_NAME);
+      localStorage.removeItem(STORAGE_KEYS.VEHICLES);
+      localStorage.removeItem(STORAGE_KEYS.TRIP_LOGS);
+      localStorage.removeItem(STORAGE_KEYS.CURRENT_VEHICLE);
+      location.reload();
+    }
+
+    // ------------------------------------------
+    // 11. 1-Click Demo Sample Data Generator
+    // ------------------------------------------
+    function loadDemoSampleData(silent) {
+      if (!silent && !confirm('2026년 9월 한 달 치(스타리아 801라8744) 실제감 넘치는 데모 운행일지 샘플을 로드하시겠습니까?\n(기존 9월 데이터가 실무 샘플로 채워집니다)')) {
+        return;
+      }
+
+      var sampleLogs = [
+        {
+          vehicle_no: '801라8744', trip_date: '2026-09-01', driver_name: '조경찬', start_km: 70548, end_km: 70627, distance_km: 79, parking_fee: 0, fuel_fee: 0,
+          stops: [
+            { type: 'origin', name: '가산 센터', addr: '서울 금천구 벚꽃로 278', start_km: 70548, end_km: 70548, distance_km: 0 },
+            { type: 'delivery', order: 1, name: '더현대 서울', addr: '서울 영등포구 여의대로 108', memo: '복사기 1대 배송', start_km: 70548, end_km: 70564, distance_km: 16, parking_fee: 0, fuel_fee: 0 },
+            { type: 'delivery', order: 2, name: 'Two IFC', addr: '서울 영등포구 국제금융로 10', memo: '공기청정기 점검', start_km: 70564, end_km: 70580, distance_km: 16, parking_fee: 0, fuel_fee: 0 },
+            { type: 'delivery', order: 3, name: '동화빌딩', addr: '서울 마포구 마포대로 130', memo: '정수기 필터 교체', start_km: 70580, end_km: 70596, distance_km: 16, parking_fee: 0, fuel_fee: 0 },
+            { type: 'delivery', order: 4, name: '상암 누리꿈스퀘어', addr: '서울 마포구 월드컵북로 396', memo: '비데 정기 케어', start_km: 70596, end_km: 70612, distance_km: 16, parking_fee: 0, fuel_fee: 0 },
+            { type: 'return', name: '가산 센터', addr: '서울 금천구 벚꽃로 278 (가산 센터)', memo: '운행 복귀 및 마감', start_km: 70612, end_km: 70627, distance_km: 15, parking_fee: 0, fuel_fee: 0 }
+          ]
+        },
+        {
+          vehicle_no: '801라8744', trip_date: '2026-09-02', driver_name: '조경찬', start_km: 70642, end_km: 70715, distance_km: 73, parking_fee: 0, fuel_fee: 0,
+          stops: [
+            { type: 'origin', name: '가산 센터', addr: '서울 금천구 벚꽃로 278', start_km: 70642, end_km: 70642, distance_km: 0 },
+            { type: 'delivery', order: 1, name: '마곡테크노벨리', addr: '서울 강서구 마곡중앙6로 45', memo: '복합기 렌탈 설치', start_km: 70642, end_km: 70657, distance_km: 15, parking_fee: 0, fuel_fee: 0 },
+            { type: 'delivery', order: 2, name: '퀸즈파크나인', addr: '서울 강서구 공항대로 247', memo: '정수기 신규 설치', start_km: 70657, end_km: 70672, distance_km: 15, parking_fee: 0, fuel_fee: 0 },
+            { type: 'delivery', order: 3, name: '목동현대하이페리온', addr: '서울 양천구 목동동로 233', memo: '안마의자 점검', start_km: 70672, end_km: 70687, distance_km: 15, parking_fee: 0, fuel_fee: 0 },
+            { type: 'delivery', order: 4, name: '목동트라팰리스', addr: '서울 양천구 오목로 299', memo: '공기청정기 2대', start_km: 70687, end_km: 70701, distance_km: 14, parking_fee: 0, fuel_fee: 0 },
+            { type: 'return', name: '가산 센터', addr: '서울 금천구 벚꽃로 278 (가산 센터)', memo: '운행 복귀 및 마감', start_km: 70701, end_km: 70715, distance_km: 14, parking_fee: 0, fuel_fee: 0 }
+          ]
+        },
+        {
+          vehicle_no: '801라8744', trip_date: '2026-09-03', driver_name: '조경찬', start_km: 70730, end_km: 70819, distance_km: 89, parking_fee: 1000, fuel_fee: 0,
+          stops: [
+            { type: 'origin', name: '가산 센터', addr: '서울 금천구 벚꽃로 278', start_km: 70730, end_km: 70730, distance_km: 0 },
+            { type: 'delivery', order: 1, name: '부띠크모나코', addr: '서울 서초구 서초대로 397', memo: '커피머신 설치', start_km: 70730, end_km: 70745, distance_km: 15, parking_fee: 1000, fuel_fee: 0 },
+            { type: 'delivery', order: 2, name: '서울성모병원', addr: '서울 서초구 반포대로 222', memo: '정수기 4대 점검', start_km: 70745, end_km: 70760, distance_km: 15, parking_fee: 0, fuel_fee: 0 },
+            { type: 'delivery', order: 3, name: '강남파이낸스센터', addr: '서울 강남구 테헤란로 152', memo: '공기청정기 교체', start_km: 70760, end_km: 70775, distance_km: 15, parking_fee: 0, fuel_fee: 0 },
+            { type: 'delivery', order: 4, name: '코엑스 오크우드', addr: '서울 강남구 영동대로 513', memo: '제빙기 렌탈', start_km: 70775, end_km: 70790, distance_km: 15, parking_fee: 0, fuel_fee: 0 },
+            { type: 'delivery', order: 5, name: '롯데월드타워', addr: '서울 송파구 올림픽로 300', memo: '정수기 필터 교환', start_km: 70790, end_km: 70805, distance_km: 15, parking_fee: 0, fuel_fee: 0 },
+            { type: 'return', name: '가산 센터', addr: '서울 금천구 벚꽃로 278 (가산 센터)', memo: '운행 복귀 및 마감', start_km: 70805, end_km: 70819, distance_km: 14, parking_fee: 0, fuel_fee: 0 }
+          ]
+        },
+        {
+          vehicle_no: '801라8744', trip_date: '2026-09-04', driver_name: '조경찬', start_km: 70835, end_km: 70911, distance_km: 76, parking_fee: 9000, fuel_fee: 100000,
+          stops: [
+            { type: 'origin', name: '가산 센터', addr: '서울 금천구 벚꽃로 278', start_km: 70835, end_km: 70835, distance_km: 0 },
+            { type: 'delivery', order: 1, name: '이케아 광명점', addr: '경기 광명시 일직로 17', memo: '대형 공기청정기 점검', start_km: 70835, end_km: 70851, distance_km: 16, parking_fee: 9000, fuel_fee: 100000 },
+            { type: 'delivery', order: 2, name: '안양시청사', addr: '경기 안양시 동안구 시민대로 180', memo: '복사기 정기점검', start_km: 70851, end_km: 70866, distance_km: 15, parking_fee: 0, fuel_fee: 0 },
+            { type: 'delivery', order: 3, name: '안양역 센트럴', addr: '경기 안양시 만안구 안양로 314', memo: '정수기 1대 설치', start_km: 70866, end_km: 70881, distance_km: 15, parking_fee: 0, fuel_fee: 0 },
+            { type: 'delivery', order: 4, name: '지밸리비즈플라자', addr: '서울 구로구 디지털로 300', memo: '식기세척기 설치', start_km: 70881, end_km: 70896, distance_km: 15, parking_fee: 0, fuel_fee: 0 },
+            { type: 'return', name: '가산 센터', addr: '서울 금천구 벚꽃로 278 (가산 센터)', memo: '운행 복귀 및 마감', start_km: 70896, end_km: 70911, distance_km: 15, parking_fee: 0, fuel_fee: 0 }
+          ]
+        },
+        { vehicle_no: '801라8744', trip_date: '2026-09-05', driver_name: '미운행', is_unoperated: true, start_km: 70911, end_km: 70911, distance_km: 0, parking_fee: 0, fuel_fee: 0, memo: '토요일 정기 미운행' },
+        { vehicle_no: '801라8744', trip_date: '2026-09-06', driver_name: '미운행', is_unoperated: true, start_km: 70911, end_km: 70911, distance_km: 0, parking_fee: 0, fuel_fee: 0, memo: '일요일 정기 미운행' },
+        {
+          vehicle_no: '801라8744', trip_date: '2026-09-07', driver_name: '조경찬', start_km: 70928, end_km: 71008, distance_km: 80, parking_fee: 4000, fuel_fee: 0,
+          stops: [
+            { type: 'origin', name: '가산 센터', addr: '서울 금천구 벚꽃로 278', start_km: 70928, end_km: 70928, distance_km: 0 },
+            { type: 'delivery', order: 1, name: '아모레퍼시픽 본사', addr: '서울 용산구 한강대로 100', memo: '얼음정수기 점검', start_km: 70928, end_km: 70944, distance_km: 16, parking_fee: 4000, fuel_fee: 0 },
+            { type: 'delivery', order: 2, name: '전쟁기념관', addr: '서울 용산구 이태원로 29', memo: '공기청정기 3대', start_km: 70944, end_km: 70960, distance_km: 16, parking_fee: 0, fuel_fee: 0 },
+            { type: 'delivery', order: 3, name: '서울파이낸스센터', addr: '서울 중구 세종대로 136', memo: '비데 필터 교체', start_km: 70960, end_km: 70976, distance_km: 16, parking_fee: 0, fuel_fee: 0 },
+            { type: 'delivery', order: 4, name: '교보생명 본사', addr: '서울 종로구 종로 1', memo: '정수기 점검', start_km: 70976, end_km: 70992, distance_km: 16, parking_fee: 0, fuel_fee: 0 },
+            { type: 'return', name: '가산 센터', addr: '서울 금천구 벚꽃로 278 (가산 센터)', memo: '운행 복귀 및 마감', start_km: 70992, end_km: 71008, distance_km: 16, parking_fee: 0, fuel_fee: 0 }
+          ]
+        },
+        {
+          vehicle_no: '801라8744', trip_date: '2026-09-14', driver_name: '조경찬', start_km: 71370, end_km: 71453, distance_km: 83, parking_fee: 16000, fuel_fee: 0,
+          stops: [
+            { type: 'origin', name: '가산 센터', addr: '서울 금천구 벚꽃로 278', start_km: 71370, end_km: 71370, distance_km: 0 },
+            { type: 'delivery', order: 1, name: '주식회사 지티이노비젼', addr: '서울 중구 수표로 34 씨티센터타워', memo: '16ZB90R i5 13세대 (1)', start_km: 71370, end_km: 71382, distance_km: 12, parking_fee: 10000, fuel_fee: 0 },
+            { type: 'delivery', order: 2, name: '주식회사 플리토', addr: '서울 강남구 영동대로106길 23 중앙빌딩 3층', memo: '갤럭시탭 S10 FE PLUS (50)', start_km: 71382, end_km: 71394, distance_km: 12, parking_fee: 0, fuel_fee: 0 },
+            { type: 'delivery', order: 3, name: '주식회사 비엔 솔루션', addr: '서울 강남구 테헤란로 432 DB금융센터 8층', memo: '27" Monitor (2)', start_km: 71394, end_km: 71406, distance_km: 12, parking_fee: 0, fuel_fee: 0 },
+            { type: 'delivery', order: 4, name: '주식회사 파일러', addr: '서울 서초구 서초대로 396 강남빌딩 19층 1902호', memo: 'MacBook Pro 16형 (1)', start_km: 71406, end_km: 71418, distance_km: 12, parking_fee: 6000, fuel_fee: 0 },
+            { type: 'delivery', order: 5, name: '부광약품(스카이알엔텍)', addr: '서울특별시 동작구 상도로 5 부광약품', memo: '데스크탑 1대', start_km: 71418, end_km: 71430, distance_km: 12, parking_fee: 0, fuel_fee: 0 },
+            { type: 'delivery', order: 6, name: '(주)디지털코라스', addr: '서울 영등포구 경인로 775 2동 911호', memo: '15U55T Ultra 5 225U (1)', start_km: 71430, end_km: 71442, distance_km: 12, parking_fee: 0, fuel_fee: 0 },
+            { type: 'return', name: '가산 센터', addr: '서울 금천구 벚꽃로 278 (가산 센터)', memo: '운행 복귀 및 마감 완료', start_km: 71442, end_km: 71453, distance_km: 11, parking_fee: 0, fuel_fee: 0 }
+          ]
+        },
+        {
+          vehicle_no: '801라8744', trip_date: '2026-09-17', driver_name: '조경찬', start_km: 71584, end_km: 71701, distance_km: 117, parking_fee: 9900, fuel_fee: 0,
+          stops: [
+            { type: 'origin', name: '가산 센터', addr: '서울특별시 금천구 벚꽃로 278', start_km: 71584, end_km: 71584, distance_km: 0 },
+            { type: 'delivery', order: 1, name: '주식회사 업사이드포텐셜앤컴퍼니', addr: '서울 마포구 독막로 306 4층(염리동, 참앤참)', memo: '노트북 1대', start_km: 71584, end_km: 71603, distance_km: 19, parking_fee: 0, fuel_fee: 0 },
+            { type: 'delivery', order: 2, name: '유네스코 한국위원회', addr: '서울 중구 명동길 26 유네스코한국위원회', memo: '15U50R i5 13세대 (5)', start_km: 71603, end_km: 71623, distance_km: 20, parking_fee: 0, fuel_fee: 0 },
+            { type: 'delivery', order: 3, name: '스카이알앤텍(주)', addr: '서울 강남구 언주로 711 건설회관 3층', memo: 'NT551XED i5 12th (1)', start_km: 71623, end_km: 71643, distance_km: 20, parking_fee: 9900, fuel_fee: 0 },
+            { type: 'delivery', order: 4, name: '주식회사 현대렌탈서비스', addr: '서울특별시 강남구 언주로 709 송암빌딩 6층', memo: '노트북 1대', start_km: 71643, end_km: 71662, distance_km: 19, parking_fee: 0, fuel_fee: 0 },
+            { type: 'delivery', order: 5, name: '주식회사 아이브원', addr: '경기 하남시 하남대로198번길 29 2층', memo: 'Lenovo E16 Ultra5 (19)', start_km: 71662, end_km: 71682, distance_km: 20, parking_fee: 0, fuel_fee: 0 },
+            { type: 'return', name: '가산 센터', addr: '서울특별시 금천구 벚꽃로 278', memo: '운행 복귀 및 마감', start_km: 71682, end_km: 71701, distance_km: 19, parking_fee: 0, fuel_fee: 0 }
+          ]
+        },
+        {
+          vehicle_no: '801라8744', trip_date: '2026-09-18', driver_name: '조경찬', start_km: 71701, end_km: 71771, distance_km: 70, parking_fee: 0, fuel_fee: 0,
+          stops: [
+            { type: 'origin', name: '가산 센터', addr: '서울특별시 금천구 벚꽃로 278', start_km: 71701, end_km: 71701, distance_km: 0 },
+            { type: 'delivery', order: 1, name: '도이치모터스(주)', addr: '서울 성동구 동일로 111 도이치모터스빌딩 택배보관함', memo: '16Z90T Ultra 5 225H (1)', start_km: 71701, end_km: 71715, distance_km: 14, parking_fee: 0, fuel_fee: 0 },
+            { type: 'delivery', order: 2, name: '브리타니아오토 주식회사', addr: '서울 성동구 광나루로 310 1F 애스턴마틴', memo: '15Z90T Ultra5 (1)', start_km: 71715, end_km: 71729, distance_km: 14, parking_fee: 0, fuel_fee: 0 },
+            { type: 'delivery', order: 3, name: '브리타니아오토 주식회사', addr: '서울 성동구 광나루로 310 1F 애스턴마틴', memo: '24" Monitor (2)', start_km: 71729, end_km: 71743, distance_km: 14, parking_fee: 0, fuel_fee: 0 },
+            { type: 'delivery', order: 4, name: '인천대학교 산학협력단', addr: '인천 연수구 갯벌로 27 INU이노베이션센터 210호', memo: 'NT551XED i5 12th (10)', start_km: 71743, end_km: 71757, distance_km: 14, parking_fee: 0, fuel_fee: 0 },
+            { type: 'return', name: '가산 센터', addr: '서울특별시 금천구 벚꽃로 278', memo: '운행 복귀 및 마감', start_km: 71757, end_km: 71771, distance_km: 14, parking_fee: 0, fuel_fee: 0 }
+          ]
+        }
+      ];
+
+      // Merge or replace 2026-09 logs for 801라8744
+      allTripLogs = allTripLogs.filter(function(l) {
+        return !(l.vehicle_no === '801라8744' && (l.trip_date || '').startsWith('2026-09'));
+      }).concat(sampleLogs);
+
+      currentSelectedVehicleNo = '801라8744';
+      currentYear = 2026;
+      currentMonth = 9;
+
+      saveLogs();
+      renderVehicleSelector();
+      renderAll();
+
+      if (!silent) {
+        showToast('🎯 1달치 실전 운행일지 샘플 데이터가 성공적으로 로드되었습니다!');
+      }
+    }
+
+    // ------------------------------------------
+    // 12. CSV Export Engine (Exact Match to User Specs)
+    // ------------------------------------------
+    function toggleExportMenu() {
+      var menu = document.getElementById('exportDropdownMenu');
+      if (menu) menu.classList.toggle('hidden');
+    }
+
+    function exportVehicleLogCsv(mode) {
+      document.getElementById('exportDropdownMenu').classList.add('hidden');
+      var logs = getCurrentMonthLogs();
+      if (!logs || logs.length === 0) {
+        showToast('⚠️ 다운로드할 운행일지 데이터가 없습니다.');
+        return;
+      }
+
+      var currentVeh = vehiclesMaster.find(function(v) { return v.vehicle_no === currentSelectedVehicleNo; }) || {};
+      var vehNo = currentSelectedVehicleNo;
+      var modelName = currentVeh.model_name || '스타리아';
+
+      var prevKm = Number(logs[0].start_km || 0);
+      var currKm = Number(logs[logs.length - 1].end_km || prevKm);
+      var totalDist = currKm - prevKm;
+      var totalParking = logs.reduce(function(sum, l) { return sum + (Number(l.parking_fee) || 0); }, 0);
+      var totalFuel = logs.reduce(function(sum, l) { return sum + (Number(l.fuel_fee) || 0); }, 0);
+
+      var lines = [];
+
+      if (mode === 'detail') {
+        // [배송지별 상세 모드] 사용자 실무 12열 표준 서식 (Row 1~3 우측 정렬, 빈 줄 제거)
+        lines.push(`법인차량 운행일지 (배송지별 상세 서식),,,,,,차종,,${modelName},차량번호,${vehNo},`);
+        lines.push(',,,,,,전월말 계기판,당월말 계기판,총 주행거리,총 주차비,총 주유비,');
+        lines.push(`,,,,,,"${prevKm.toLocaleString()}","${currKm.toLocaleString()}","${totalDist.toLocaleString()}","₩${totalParking.toLocaleString()}","₩${totalFuel.toLocaleString()}",`);
+        lines.push('날짜,운전자,순번,구분,방문지명(고객사),상세 도로명 주소,출발 계기판(km),도착 계기판(km),구간거리(km),해당 배송지 주차비(원),해당 배송지 주유비(원),비고/품목');
+
+        logs.forEach(function(l) {
+          var dateParts = (l.trip_date || '').split('-');
+          var dateFormatted = dateParts.length >= 3 ? `${Number(dateParts[1])}월 ${Number(dateParts[2])}일` : l.trip_date;
+          var drvStr = (l.driver_name || '').indexOf(',') !== -1 ? `"${l.driver_name}"` : (l.driver_name || '-');
+
+          if (l.is_unoperated || drvStr === '미운행') {
+            lines.push(`${dateFormatted},미운행,0,미운행,-,-,"${(l.start_km || 0).toLocaleString()}","${(l.end_km || 0).toLocaleString()}",0,0,0,"미운행"`);
+            return;
+          }
+
+          var legs = getResolvedStopLegs(l);
+          if (!legs || legs.length === 0) {
+            var destStr = `"${(l.destination_name || '회사 본사')}"`;
+            var sKm = Number(l.start_km || 0);
+            var eKm = Number(l.end_km || 0);
+            var dKm = Number(l.distance_km || (eKm - sKm) || 0);
+            lines.push(`${dateFormatted},${drvStr},1,운행,${destStr},-, "${sKm.toLocaleString()}","${eKm.toLocaleString()}",${dKm},${l.parking_fee || 0},${l.fuel_fee || 0},"${(l.memo || '').replace(/"/g, '""')}"`);
+            return;
+          }
+
+          legs.forEach(function(leg, idx) {
+            var badge = (leg.type === 'origin' ? '출발' : (leg.type === 'return' ? '복귀' : `배송 #${leg.order || (idx + 1)}`));
+            var nameStr = `"${(leg.name || '').replace(/"/g, '""')}"`;
+            var addrStr = `"${(leg.addr || '').replace(/"/g, '""')}"`;
+            var sKm = Number(leg.start_km || 0);
+            var eKm = Number(leg.end_km || 0);
+            var dKm = Number(leg.distance_km || 0);
+            var pVal = Number(leg.parking_fee || 0);
+            var fVal = Number(leg.fuel_fee || 0);
+            var memoStr = leg.memo ? `"${leg.memo.replace(/"/g, '""')}"` : (leg.type === 'return' ? '"운행 복귀 및 마감"' : '""');
+
+            lines.push(`${dateFormatted},${drvStr},${idx + 1},${badge},${nameStr},${addrStr},"${sKm.toLocaleString()}","${eKm.toLocaleString()}",${dKm},${pVal},${fVal},${memoStr}`);
+          });
+        });
+
+      } else {
+        // [일자별 요약 모드] 국세청 표준 호환 서식
+        lines.push('법인차량 운행일지 (일자별 요약),,,,,');
+        lines.push(`차종,,${modelName},차량번호,${vehNo},`);
+        lines.push(',전월말,당월말,주행 거리,주차비,주유비');
+        lines.push(`Km,"${prevKm.toLocaleString()}","${currKm.toLocaleString()}","${totalDist.toLocaleString()}","₩${totalParking.toLocaleString()}","₩${totalFuel.toLocaleString()}"`);
+        lines.push(',,,,,');
+        lines.push('날짜,운전자,운행 시작/ Km,운행 종료/ Km,주행거리,도착지/마감,주차비,주유 금액,비고');
+
+        logs.forEach(function(l) {
+          var dateParts = (l.trip_date || '').split('-');
+          var dateFormatted = dateParts.length >= 3 ? `${Number(dateParts[1])}월 ${Number(dateParts[2])}일` : l.trip_date;
+          var pStr = l.parking_fee > 0 ? `"₩${Number(l.parking_fee).toLocaleString()}"` : '';
+          var fStr = l.fuel_fee > 0 ? `"₩${Number(l.fuel_fee).toLocaleString()}"` : '';
+          var drvStr = (l.driver_name || '').indexOf(',') !== -1 ? `"${l.driver_name}"` : (l.driver_name || '-');
+          var destStr = l.is_unoperated ? '미운행' : `"${(l.destination_name || '회사 본사')}"`;
+          var memoStr = l.memo ? `"${(l.memo || '').replace(/"/g, '""')}"` : '';
+
+          lines.push(`${dateFormatted},${drvStr},"${(l.start_km || 0).toLocaleString()} ","${(l.end_km || 0).toLocaleString()} ","${(l.distance_km || 0).toLocaleString()} ",${destStr},${pStr},${fStr},${memoStr}`);
+        });
+      }
+
+      var csvContent = '\uFEFF' + lines.join('\r\n');
+      var blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      var fileSuffix = mode === 'detail' ? '배송지별상세' : '일자별요약';
+      a.download = `법인차량_운행일지_${fileSuffix}_${vehNo}_${currentYear}년${currentMonth}월.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      showToast(`📥 [${fileSuffix}] CSV 파일이 성공적으로 다운로드되었습니다.`);
+    }
+
+    // ------------------------------------------
+    // 13. Toast Notification Utility
+    // ------------------------------------------
+    function showToast(message) {
+      var container = document.getElementById('toastContainer');
+      if (!container) return;
+
+      var toast = document.createElement('div');
+      toast.className = 'bg-slate-900/90 backdrop-blur-xs text-white text-xs font-bold px-4 py-2.5 rounded-2xl shadow-xl flex items-center gap-2 animate-in fade-in slide-in-from-bottom-2 duration-150 pointer-events-auto border border-white/10';
+      toast.innerHTML = `
+        <i class="fa-solid fa-bell text-indigo-400"></i>
+        <span>${message}</span>
+      `;
+      container.appendChild(toast);
+
+      setTimeout(function() {
+        toast.style.opacity = '0';
+        toast.style.transition = 'opacity 0.3s';
+        setTimeout(function() {
+          if (toast.parentNode) toast.parentNode.removeChild(toast);
+        }, 300);
+      }, 3000);
+    }
+  </script>
+</body>
+</html>
