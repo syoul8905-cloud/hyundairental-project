@@ -1459,6 +1459,13 @@
         var isMidReturn = (s.type === 'mid_return' || (s.name && s.name.indexOf('(중간 복귀)') !== -1));
         var badgeText = s.badgeText || (isReturn ? '복귀' : (isMidReturn ? '중간 복귀' : (s.type === 'origin' ? '출발' : (s.type === 'team1' || s.type === 'other' ? `기타 #${s.order || (i - startIdx + 1)}` : `배송 #${s.order || (i - startIdx + 1)}`))));
 
+        var legParking = Number(s.parking_fee || 0);
+        var legFuel = Number(s.fuel_fee || 0);
+        if (hasOrigin && i === startIdx) {
+          if (stops[0].parking_fee) legParking += Number(stops[0].parking_fee);
+          if (stops[0].fuel_fee) legFuel += Number(stops[0].fuel_fee);
+        }
+
         legs.push({
           stopIndex: i,
           type: isMidReturn ? 'mid_return' : (s.type || 'delivery'),
@@ -1475,8 +1482,8 @@
           start_km: Number(s.start_km !== undefined ? s.start_km : log.start_km),
           end_km: Number(s.end_km !== undefined ? s.end_km : log.end_km),
           distance_km: Number(s.distance_km !== undefined ? s.distance_km : 0),
-          parking_fee: Number(s.parking_fee || 0),
-          fuel_fee: Number(s.fuel_fee || 0),
+          parking_fee: legParking,
+          fuel_fee: legFuel,
           memo: s.memo || (isMidReturn ? '중간 복귀 및 상차/대기' : '')
         });
       }
