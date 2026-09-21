@@ -1363,12 +1363,16 @@
           sStatus = '도착완료';
         }
 
+        var isMidReturn = (s.type === 'mid_return' || (s.name && s.name.indexOf('(중간 복귀)') !== -1));
+        var badgeText = s.badgeText || (isReturn ? '복귀' : (isMidReturn ? '중간 복귀' : (s.type === 'origin' ? '출발' : (s.type === 'team1' || s.type === 'other' ? `기타 #${s.order || (i - startIdx + 1)}` : `배송 #${s.order || (i - startIdx + 1)}`))));
+
         legs.push({
           stopIndex: i,
-          type: s.type || 'delivery',
-          order: s.order || (i - startIdx + 1),
+          type: isMidReturn ? 'mid_return' : (s.type || 'delivery'),
+          badgeText: badgeText,
+          order: isMidReturn ? null : (s.order || (i - startIdx + 1)),
           fromName: fromName,
-          name: s.name || (isReturn ? '가산 센터' : '배송지'),
+          name: s.name || (isReturn ? '가산 센터' : (isMidReturn ? '가산 센터 (중간 복귀)' : '배송지')),
           addr: s.addr || '',
           time: s.time || '',
           depart: sDepart,
@@ -1380,7 +1384,7 @@
           distance_km: Number(s.distance_km !== undefined ? s.distance_km : 0),
           parking_fee: Number(s.parking_fee || 0),
           fuel_fee: Number(s.fuel_fee || 0),
-          memo: s.memo || ''
+          memo: s.memo || (isMidReturn ? '중간 복귀 및 상차/대기' : '')
         });
       }
 
@@ -1511,8 +1515,11 @@
           // 2. Granular Leg Rows (배송지별 상세 행)
           var legRows = legs.map(function(leg, legIdx) {
             var isReturn = (leg.type === 'return');
+            var isMidReturn = (leg.type === 'mid_return' || (leg.name && leg.name.indexOf('(중간 복귀)') !== -1));
             var typeBadge = isReturn
               ? '<span class="inline-flex items-center gap-1 whitespace-nowrap px-2 py-0.5 rounded-full text-[10px] font-black bg-teal-50 text-teal-700 border border-teal-200 shadow-2xs"><i class="fa-solid fa-flag-checkered text-[9px]"></i> 복귀</span>'
+              : isMidReturn
+              ? '<span class="inline-flex items-center gap-1 whitespace-nowrap px-2 py-0.5 rounded-full text-[10px] font-black bg-purple-50 text-purple-700 border border-purple-200 shadow-2xs"><i class="fa-solid fa-house-chimney text-[9px]"></i> 중간 복귀</span>'
               : `<span class="inline-flex items-center gap-1 whitespace-nowrap px-2 py-0.5 rounded-full text-[10px] font-black bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-2xs"><i class="fa-solid fa-box text-[9px]"></i> 배송 #${leg.order}</span>`;
 
             var parkingBtn = `
@@ -2017,10 +2024,13 @@
 
         var isCustomDest = (document.getElementById('modalDestType') && document.getElementById('modalDestType').value === 'custom');
 
+        var isMidReturn = (s.type === 'mid_return' || (s.name && s.name.indexOf('(중간 복귀)') !== -1));
         var badgeHtml = isOrigin
           ? '<span class="px-1.5 py-0.5 rounded text-[9.5px] font-bold bg-indigo-100 text-indigo-700 shrink-0">출발</span>'
           : isReturn
           ? '<span class="px-1.5 py-0.5 rounded text-[9.5px] font-bold bg-teal-600 text-white shrink-0">최종 복귀</span>'
+          : isMidReturn
+          ? '<span class="px-1.5 py-0.5 rounded text-[9.5px] font-black bg-purple-100 text-purple-800 border border-purple-200 shrink-0">🏢 중간 복귀</span>'
           : (s.type === 'team1' || s.type === 'other')
           ? `<span class="px-1.5 py-0.5 rounded text-[9.5px] font-black bg-amber-100 text-amber-900 border border-amber-200 shrink-0">기타 #${s.order || idx}</span>`
           : (s.type === 'gas')
@@ -2174,10 +2184,19 @@
               return true;
             });
 
+            // stop_order 순서로 정렬하여 중간 복귀 위치 보존
+            eligibleRows.sort(function(a, b) {
+              var aOrder = (a.stop_order !== null && a.stop_order !== undefined) ? Number(a.stop_order) : 9999;
+              var bOrder = (b.stop_order !== null && b.stop_order !== undefined) ? Number(b.stop_order) : 9999;
+              if (aOrder !== bOrder) return aOrder - bOrder;
+              return (a.id || 0) - (b.id || 0);
+            });
+
             modalStops = [
               { id: 'stop_origin', type: 'origin', name: '가산 센터', addr: '서울 금천구 벚꽃로 278 (가산 센터)', time: '08:30' }
             ];
 
+            var delivCount = 0;
             eligibleRows.forEach(function(r, idx) {
               var dep = '', arr = '';
               if (r.memo_special) {
@@ -2187,17 +2206,18 @@
                   arr = sp.arrive || '';
                 } catch(e) {}
               }
+              var isMid = (r.category === 'mid_return' || (r.customer_name && r.customer_name.indexOf('(중간 복귀)') !== -1));
               modalStops.push({
                 id: 'stop_deliv_' + (r.id || idx),
-                type: 'delivery',
-                order: idx + 1,
-                name: r.customer_name || '고객사',
+                type: isMid ? 'mid_return' : 'delivery',
+                order: isMid ? null : (++delivCount),
+                name: r.customer_name || (isMid ? '가산 센터 (중간 복귀)' : '고객사'),
                 addr: r.address || r.customer_address || '',
                 time: r.visit_time || r.delivery_time || '',
                 depart: dep,
                 arrive: arr,
                 status: r.status || '',
-                memo: r.items || r.product_name || ''
+                memo: isMid ? '중간 복귀 및 상차/대기' : (r.items || r.product_name || '')
               });
             });
 
@@ -2867,7 +2887,8 @@
             }
 
             legs.forEach(function(leg, idx) {
-              var badge = leg.badgeText || (leg.type === 'origin' ? '출발' : (leg.type === 'return' ? '복귀' : `배송 #${leg.order || (idx + 1)}`));
+              var isMid = (leg.type === 'mid_return' || (leg.name && leg.name.indexOf('(중간 복귀)') !== -1));
+              var badge = leg.badgeText || (leg.type === 'origin' ? '출발' : (leg.type === 'return' ? '복귀' : (isMid ? '중간 복귀' : `배송 #${leg.order || (idx + 1)}`)));
               var nameStr = `"${(leg.name || '').replace(/"/g, '""')}"`;
               var addrStr = `"${(leg.addr || '').replace(/"/g, '""')}"`;
               var sKm = Number(leg.start_km !== undefined ? leg.start_km : (leg.startKm !== undefined ? leg.startKm : (l.start_km || 0)));
@@ -2875,7 +2896,7 @@
               var dKm = Number(leg.distance_km !== undefined ? leg.distance_km : (leg.distKm !== undefined ? leg.distKm : (eKm - sKm)));
               var pVal = Number(leg.parking_fee !== undefined ? leg.parking_fee : (leg.parkingFee || 0));
               var fVal = Number(leg.fuel_fee !== undefined ? leg.fuel_fee : (leg.fuelFee || 0));
-              var memoStr = leg.memo ? `"${leg.memo.replace(/"/g, '""')}"` : (leg.type === 'return' ? '"운행 복귀 및 마감"' : '""');
+              var memoStr = leg.memo ? `"${leg.memo.replace(/"/g, '""')}"` : (leg.type === 'return' ? '"운행 복귀 및 마감"' : (isMid ? '"중간 복귀 및 상차/대기"' : '""'));
 
               lines.push(`${dateFormatted},${drvStr},${idx + 1},${badge},${nameStr},${addrStr},"${sKm.toLocaleString()}","${eKm.toLocaleString()}",${dKm},${pVal},${fVal},${memoStr}`);
             });

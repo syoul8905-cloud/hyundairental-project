@@ -405,12 +405,15 @@
               <i class="fa-solid fa-arrows-up-down"></i> 드래그 또는 ▲▼ 로 순서 변경 (지도 즉시 반영)
             </span>
           </div>
-          <div class="flex items-center gap-1">
+          <div class="flex items-center gap-1 flex-wrap">
+            <button type="button" onclick="openAddMidReturnModal()" title="가산 센터 등 중간 복귀지 추가 (오전 배송 후 센터 복귀 ➔ 오후 재출발)" class="text-[11px] bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white px-2.5 py-1 rounded-lg font-black transition flex items-center gap-1 shadow-xs">
+              <i class="fa-solid fa-house-chimney text-[10px]"></i> 중간 복귀
+            </button>
             <button onclick="saveCurrentStopOrderToCloud()" title="현재 정렬된 순서를 클라우드에 영구 저장 및 모든 기사/관리자에게 실시간 동기화" class="text-[11px] bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white px-2.5 py-1 rounded-lg font-black transition flex items-center gap-1 shadow-xs">
-              <i class="fa-solid fa-cloud-arrow-up"></i> 순서 확정
+              <i class="fa-solid fa-cloud-arrow-up text-[10px]"></i> 순서 확정
             </button>
             <button onclick="resetOrder()" title="원래 시간순으로 복원" class="text-[10px] bg-slate-200 hover:bg-slate-300 text-slate-700 px-2 py-1 rounded font-bold transition flex items-center gap-1">
-              <i class="fa-solid fa-rotate-left"></i> 복원
+              <i class="fa-solid fa-rotate-left text-[10px]"></i> 복원
             </button>
           </div>
         </div>
@@ -1065,6 +1068,150 @@
         </button>
         <button onclick="saveAddStopModal()" class="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs transition flex items-center gap-1.5 shadow-sm">
           <i class="fa-solid fa-plus"></i> 동선에 추가하기
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- Modal: Add Intermediate Return Stop Modal   -->
+  <!-- ========================================== -->
+  <div id="midReturnModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50" onclick="if(event.target===this)closeAddMidReturnModal()">
+    <div class="bg-white rounded-2xl max-w-md w-full p-5 shadow-2xl border border-slate-200 space-y-4 animate-in zoom-in-95 duration-150">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 rounded-xl bg-purple-600 text-white flex items-center justify-center text-sm shadow-xs">
+            <i class="fa-solid fa-house-chimney"></i>
+          </div>
+          <div>
+            <h3 class="font-black text-sm text-slate-900">중간 복귀지 추가 (가산 센터 등)</h3>
+            <p class="text-[11px] text-slate-400">오전 배송 후 센터 복귀 ➔ 오후 재출발 동선 등록</p>
+          </div>
+        </div>
+        <button onclick="closeAddMidReturnModal()" class="text-slate-400 hover:text-slate-600 text-base">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="space-y-3">
+        <div class="p-2.5 bg-purple-50/70 rounded-xl border border-purple-200 flex items-center justify-between text-xs">
+          <span class="font-bold text-purple-900 flex items-center gap-1.5">
+            <i class="fa-solid fa-user-gear text-purple-700"></i> 대상 담당 기사:
+          </span>
+          <span id="midReturnDriverName" class="font-black text-purple-950 bg-white px-2 py-0.5 rounded-lg border border-purple-200">조경찬</span>
+        </div>
+
+        <div>
+          <label class="block text-[11px] font-bold text-slate-700 mb-1">복귀지 명칭 *</label>
+          <input type="text" id="midReturnNameInput" value="🏢 가산 센터 (중간 복귀)" placeholder="예: 🏢 가산 센터 (중간 복귀)" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold focus:outline-none focus:border-purple-500">
+        </div>
+
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <label class="block text-[11px] font-bold text-slate-700">복귀지 주소 (도로명/지번) *</label>
+            <button type="button" onclick="openDaumPostcodeFor('midReturnAddrInput', null, 'midReturnNameInput')" class="text-purple-700 hover:text-purple-900 font-bold text-[11px] flex items-center gap-1 transition">
+              <i class="fa-solid fa-magnifying-glass text-[10px]"></i>
+              <span>주소 검색</span>
+            </button>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <input type="text" id="midReturnAddrInput" value="서울특별시 금천구 벚꽃로 278" placeholder="예: 서울특별시 금천구 벚꽃로 278" class="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-medium focus:outline-none focus:border-purple-500">
+            <button type="button" onclick="openDaumPostcodeFor('midReturnAddrInput', null, 'midReturnNameInput')" class="shrink-0 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition border border-slate-200 flex items-center gap-1">
+              <i class="fa-solid fa-magnifying-glass text-[10px] text-purple-600"></i>
+              <span>검색</span>
+            </button>
+          </div>
+          <div class="pt-1.5 flex items-center justify-between">
+            <button type="button" onclick="resetMidReturnModalToGasan(false)" class="text-[10.5px] font-bold text-purple-700 hover:text-purple-900 flex items-center gap-1 transition">
+              <i class="fa-solid fa-rotate-left text-[10px]"></i>
+              <span>🏢 가산 센터 기본값 복원</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-[11px] font-bold text-slate-700 mb-1">복귀 예정 시각</label>
+            <input type="text" id="midReturnTimeInput" value="12:00" placeholder="예: 12:00" class="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-purple-500 font-bold">
+          </div>
+          <div>
+            <label class="block text-[11px] font-bold text-slate-700 mb-1">삽입 위치</label>
+            <select id="midReturnPositionSelect" class="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-purple-500 font-bold">
+              <option value="after_first" selected>1번 배송지 바로 뒤 (추천)</option>
+              <option value="at_end">맨 마지막 배송지 뒤</option>
+            </select>
+          </div>
+        </div>
+        <p class="text-[10px] text-slate-400 leading-tight">* 추가 후 타임라인에서 언제든 ▲▼ 버튼이나 마우스 드래그로 원하는 순서로 자유롭게 이동하실 수 있습니다.</p>
+      </div>
+
+      <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+        <button type="button" onclick="closeAddMidReturnModal()" class="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-xl text-xs transition">
+          취소
+        </button>
+        <button type="button" onclick="confirmAddMidReturnStop()" class="px-4 py-1.5 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl text-xs transition flex items-center gap-1.5 shadow-sm active:scale-95">
+          <i class="fa-solid fa-plus"></i> 동선에 중간 복귀 추가
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- Modal: Edit Intermediate Return Stop Modal  -->
+  <!-- ========================================== -->
+  <div id="editMidReturnModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50" onclick="if(event.target===this)closeEditMidReturnModal()">
+    <div class="bg-white rounded-2xl max-w-md w-full p-5 shadow-2xl border border-slate-200 space-y-4 animate-in zoom-in-95 duration-150">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 rounded-xl bg-purple-600 text-white flex items-center justify-center text-sm shadow-xs">
+            <i class="fa-solid fa-pen-to-square"></i>
+          </div>
+          <div>
+            <h3 class="font-black text-sm text-slate-900">중간 복귀지 장소/주소 수정</h3>
+            <p class="text-[11px] text-slate-400">복귀할 거점 명칭 및 도로명 주소를 변경합니다.</p>
+          </div>
+        </div>
+        <button onclick="closeEditMidReturnModal()" class="text-slate-400 hover:text-slate-600 text-base">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="space-y-3">
+        <div>
+          <label class="block text-[11px] font-bold text-slate-700 mb-1">복귀지 명칭 *</label>
+          <input type="text" id="editMidReturnNameInput" placeholder="예: 🏢 가산 센터 (중간 복귀), 자택, 본사 등" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold focus:outline-none focus:border-purple-500">
+        </div>
+
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <label class="block text-[11px] font-bold text-slate-700">복귀지 주소 (도로명/지번) *</label>
+            <button type="button" onclick="openDaumPostcodeFor('editMidReturnAddrInput', null, 'editMidReturnNameInput')" class="text-purple-700 hover:text-purple-900 font-bold text-[11px] flex items-center gap-1 transition">
+              <i class="fa-solid fa-magnifying-glass text-[10px]"></i>
+              <span>주소 검색</span>
+            </button>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <input type="text" id="editMidReturnAddrInput" placeholder="예: 서울특별시 금천구 벚꽃로 278" class="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-medium focus:outline-none focus:border-purple-500">
+            <button type="button" onclick="openDaumPostcodeFor('editMidReturnAddrInput', null, 'editMidReturnNameInput')" class="shrink-0 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition border border-slate-200 flex items-center gap-1">
+              <i class="fa-solid fa-magnifying-glass text-[10px] text-purple-600"></i>
+              <span>검색</span>
+            </button>
+          </div>
+          <div class="pt-1.5 flex items-center justify-between">
+            <button type="button" onclick="resetMidReturnModalToGasan(true)" class="text-[10.5px] font-bold text-purple-700 hover:text-purple-900 flex items-center gap-1 transition">
+              <i class="fa-solid fa-rotate-left text-[10px]"></i>
+              <span>🏢 가산 센터 기본값 복원</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+        <button type="button" onclick="closeEditMidReturnModal()" class="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-xl text-xs transition">
+          취소
+        </button>
+        <button type="button" onclick="saveEditMidReturnStop()" class="px-4 py-1.5 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl text-xs transition flex items-center gap-1.5 shadow-sm active:scale-95">
+          <i class="fa-solid fa-check"></i> 수정사항 저장
         </button>
       </div>
     </div>
@@ -3376,9 +3523,12 @@
 
     function updateKPIs() {
       var active = getFilteredRecords();
-      document.getElementById('kpiTotal').innerText = active.length;
-      var delCount = active.filter(function(r) { return (r.구분 || '').indexOf('회수') === -1; }).length;
-      var recCount = active.filter(function(r) { return (r.구분 || '').indexOf('회수') !== -1; }).length;
+      var realDeliveries = active.filter(function(r) {
+        return r.구분 !== 'mid_return' && r.category !== 'mid_return' && (!r.고객사 || r.고객사.indexOf('(중간 복귀)') === -1);
+      });
+      document.getElementById('kpiTotal').innerText = realDeliveries.length;
+      var delCount = realDeliveries.filter(function(r) { return (r.구분 || '').indexOf('회수') === -1; }).length;
+      var recCount = realDeliveries.filter(function(r) { return (r.구분 || '').indexOf('회수') !== -1; }).length;
 
       document.getElementById('kpiDelivery').innerText = delCount;
       document.getElementById('kpiRecovery').innerText = recCount;
@@ -3388,11 +3538,11 @@
       var kpiEl = document.getElementById('kpiDriver');
       if (kpiEl) {
         if (driverVal === 'all' || !driverVal) {
-          kpiEl.innerText = '전체 기사 (' + active.length + '건)';
+          kpiEl.innerText = '전체 기사 (' + realDeliveries.length + '건)';
         } else if (driverVal === '') {
-          kpiEl.innerText = '기사 미지정 (' + active.length + '건)';
+          kpiEl.innerText = '기사 미지정 (' + realDeliveries.length + '건)';
         } else {
-          kpiEl.innerText = driverVal + ' (' + active.length + '건)';
+          kpiEl.innerText = driverVal + ' (' + realDeliveries.length + '건)';
         }
       }
     }
@@ -4554,11 +4704,13 @@
       var bounds = (kakaoMap && window.kakao) ? new kakao.maps.LatLngBounds() : null;
       if (!isAllDrivers && bounds) bounds.extend(new kakao.maps.LatLng(originCoord.lat, originCoord.lng));
 
+      var delivStopCount = 0;
       for (var subIdx = 0; subIdx < activeRecords.length; subIdx++) {
         var r = activeRecords[subIdx];
         var realIdx = records.indexOf(r);
-        var stopNumber = subIdx + 1;
-        var isRecov = (r.구분 && r.구분.indexOf('회수') !== -1);
+        var isMidReturn = (r.구분 === 'mid_return' || r.category === 'mid_return' || (r.고객사 && r.고객사.indexOf('(중간 복귀)') !== -1));
+        var stopNumber = isMidReturn ? '🏢' : (++delivStopCount);
+        var isRecov = !isMidReturn && (r.구분 && r.구분.indexOf('회수') !== -1);
         var coord = coords[subIdx];
 
         // 전화번호 및 현장 담당자 파싱
@@ -4573,10 +4725,11 @@
           linePath.push(stopPos);
           if (bounds) bounds.extend(stopPos);
 
-          var pinBg = isRecov ? 'bg-purple-600' : 'bg-indigo-600';
+          var pinBg = isMidReturn ? 'bg-purple-600 ring-2 ring-purple-300' : (isRecov ? 'bg-purple-600' : 'bg-indigo-600');
+          var markerTitle = isMidReturn ? `[중간 복귀] ${r.고객사}` : `${stopNumber}. ${r.고객사}`;
           var markerContent = `
-            <div class="kakao-pin ${pinBg} w-7 h-7 text-xs border-2 border-white" title="${stopNumber}. ${r.고객사}">
-              ${stopNumber}
+            <div class="kakao-pin ${pinBg} w-7 h-7 text-xs border-2 border-white flex items-center justify-center font-black shadow-md" title="${markerTitle}">
+              ${isMidReturn ? '<i class="fa-solid fa-house-chimney text-[11px]"></i>' : stopNumber}
             </div>
           `;
           var stopOverlay = new kakao.maps.CustomOverlay({
@@ -4595,6 +4748,73 @@
 
         var times = getStopTimes(r);
         var durMin = calculateDurationMinutes(times.depart, times.arrive);
+
+        if (isMidReturn) {
+          timelineBox.innerHTML += `
+            <div class="p-2.5 rounded-xl bg-gradient-to-r from-purple-50/90 via-white to-purple-50/40 border-2 border-purple-300 hover:border-purple-500 transition cursor-pointer space-y-2 shadow-xs group"
+                 draggable="true"
+                 ondragstart="onDragStart(event, ${realIdx})"
+                 ondragover="onDragOver(event)"
+                 ondrop="onDrop(event, ${realIdx})"
+                 ondragend="onDragEnd(event)"
+                 onclick="zoomToStop(${coord.lat}, ${coord.lng})">
+              
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-1.5 font-bold text-purple-950">
+                  <span class="cursor-grab active:cursor-grabbing text-purple-400 group-hover:text-purple-700 px-0.5" title="끌어서 순서 변경">
+                    <i class="fa-solid fa-grip-vertical text-xs"></i>
+                  </span>
+                  <span class="w-5 h-5 rounded-lg bg-purple-600 text-white flex items-center justify-center text-[10px] shadow-xs font-black">
+                    <i class="fa-solid fa-house-chimney text-[9px]"></i>
+                  </span>
+                  <span class="truncate max-w-[130px] font-black text-purple-900">${r.고객사}</span>
+                  <span class="text-[9px] bg-purple-100 text-purple-800 px-1.5 py-0.2 rounded-full font-black border border-purple-200">중간 복귀</span>
+                  ${r.담당기사 ? `<span class="text-[9px] bg-amber-50 text-amber-700 px-1.5 py-0.2 rounded font-semibold border border-amber-200">${r.담당기사}</span>` : ''}
+                </div>
+
+                <div class="flex items-center gap-1">
+                  <span class="text-[10px] text-purple-700 font-bold mr-0.5">${r.방문시간 || '12:00'}</span>
+                  <button onclick="event.stopPropagation(); moveStop(${realIdx}, ${prevRealIdx});" 
+                          class="w-5 h-5 rounded bg-purple-100 hover:bg-purple-200 text-purple-800 flex items-center justify-center text-[9px] font-bold ${isFirst ? 'opacity-30 cursor-not-allowed' : ''}" 
+                          title="위로 이동" ${isFirst ? 'disabled' : ''}>▲</button>
+                  <button onclick="event.stopPropagation(); moveStop(${realIdx}, ${nextRealIdx});" 
+                          class="w-5 h-5 rounded bg-purple-100 hover:bg-purple-200 text-purple-800 flex items-center justify-center text-[9px] font-bold ${isLast ? 'opacity-30 cursor-not-allowed' : ''}" 
+                          title="아래로 이동" ${isLast ? 'disabled' : ''}>▼</button>
+                  <button onclick="event.stopPropagation(); openEditMidReturnModal(${realIdx});" class="w-5 h-5 rounded bg-purple-100 hover:bg-purple-200 text-purple-700 flex items-center justify-center text-[10px]" title="장소/주소 수정">
+                    <i class="fa-solid fa-pen"></i>
+                  </button>
+                  <button onclick="event.stopPropagation(); deleteMidReturnStop(${realIdx});" class="w-5 h-5 rounded bg-rose-100 hover:bg-rose-200 text-rose-700 flex items-center justify-center text-[10px]" title="중간 복귀 삭제">
+                    <i class="fa-solid fa-trash-can"></i>
+                  </button>
+                </div>
+              </div>
+
+              <div class="flex items-center justify-between text-[10px] text-purple-800 pl-6">
+                <span class="truncate hover:underline cursor-pointer" onclick="event.stopPropagation(); openEditMidReturnModal(${realIdx});" title="${r.주소}">
+                  <i class="fa-solid fa-location-dot mr-1 text-purple-600"></i>${r.주소}
+                </span>
+                <button type="button" onclick="event.stopPropagation(); openEditMidReturnModal(${realIdx});" class="shrink-0 text-purple-700 hover:text-purple-900 font-bold underline ml-1">
+                  장소 변경
+                </button>
+              </div>
+
+              <div class="flex items-center flex-wrap gap-1.5 pl-6 pt-0.5">
+                <button onclick="event.stopPropagation(); openTmapNav('${r.고객사}', '${r.주소}', ${realIdx});" class="px-2.5 py-1 ${times.depart ? 'bg-purple-700 text-white' : 'bg-purple-600 hover:bg-purple-700 text-white'} font-bold rounded-lg text-[10px] flex items-center gap-1 shadow-xs transition" title="티맵 복귀 길안내">
+                  <i class="fa-solid fa-location-arrow"></i> ${times.depart ? '출발 ' + times.depart : '🏢 복귀 티맵'}
+                </button>
+                <button onclick="event.stopPropagation(); recordArrivalTime(${realIdx});" class="px-2.5 py-1 ${times.arrive ? 'bg-emerald-600 text-white' : 'bg-white hover:bg-purple-100 text-purple-900 border border-purple-300'} font-bold rounded-lg text-[10px] flex items-center gap-1 transition shadow-2xs" title="센터 도착 기록">
+                  <i class="fa-solid fa-building-circle-check"></i> ${times.arrive ? '센터 도착 ' + times.arrive : '🏢 센터 도착'}
+                </button>
+                ${durMin !== null ? `
+                  <span class="px-1.5 py-0.5 bg-purple-100 text-purple-800 font-bold text-[10px] rounded border border-purple-200">
+                    ⏱️ ${durMin}분 소요
+                  </span>
+                ` : ''}
+              </div>
+            </div>
+          `;
+          continue;
+        }
 
         // Timeline Card with Drag & Drop and Mobile Quick Actions
         timelineBox.innerHTML += `
@@ -5905,9 +6125,12 @@
 
         var isDriverUser = (currentUser && currentUser.role === 'driver');
         var isMyRecord = (!isDriverUser || (r.담당기사 || '').trim() === currentUser.id);
+        var isMidRow = (r.구분 === 'mid_return' || r.category === 'mid_return' || (r.고객사 && r.고객사.indexOf('(중간 복귀)') !== -1));
 
         // 구분 인라인 셀렉트 (배송, 회수, 설치, 수령, A/S)
-        var categorySelectHtml = `
+        var categorySelectHtml = isMidRow
+          ? `<span class="py-1 px-2 rounded-lg text-xs font-black bg-purple-100 text-purple-800 border border-purple-300">🏢 중간 복귀</span>`
+          : `
           <select ${isDriverUser ? 'disabled' : `onchange="onInlineCategoryChange(${realIdx}, this.value)"`} class="py-1 px-2 rounded-lg text-xs font-bold border focus:outline-none ${isDriverUser ? 'cursor-default opacity-90' : 'cursor-pointer'} ${getCategoryBadgeStyle(r.구분)}">
             ${CATEGORY_LIST.map(function(c) {
               return `<option value="${c}" ${(r.구분 || '배송') === c ? 'selected' : ''}>${c}</option>`;
@@ -5933,7 +6156,9 @@
           : isParcelRow
           ? 'bg-amber-50 text-amber-700 border-amber-200'
           : 'bg-blue-50 text-blue-700 border-blue-200';
-        var methodSelectHtml = `
+        var methodSelectHtml = isMidRow
+          ? `<span class="text-xs text-purple-600 font-bold px-1">센터 복귀</span>`
+          : `
           <select ${isDriverUser ? 'disabled' : `onchange="onInlineMethodChange(${realIdx}, this.value)"`} class="py-1 px-2 rounded-lg text-xs font-bold border focus:outline-none ${isDriverUser ? 'cursor-default opacity-90' : 'cursor-pointer'} ${methodStyle}">
             <option value="직배송" ${(!isQuickRow && !isPickupRow && !isParcelRow) ? 'selected' : ''}>🚚 직배송</option>
             <option value="방문수령" ${isPickupRow ? 'selected' : ''}>🏢 방문수령</option>
@@ -6050,7 +6275,21 @@
           </td>
           <td class="py-2.5 px-2.5 text-center">
             <div class="flex flex-col items-center gap-1">
-              ${isQuickRow ? `
+              ${isMidRow ? `
+                <!-- 🏢 중간 복귀: 티맵 & 센터도착 -->
+                <button onclick="openTmapNav('${r.고객사}', '${r.주소}', ${realIdx})" class="px-2 py-0.5 ${times.depart ? 'bg-purple-700 text-white' : 'bg-purple-600 hover:bg-purple-700 text-white'} rounded font-bold text-[10px] inline-flex items-center gap-1 shadow-xs transition" title="스마트폰 티맵 센터 복귀 길안내">
+                  <i class="fa-solid fa-location-arrow"></i> ${times.depart ? times.depart : '복귀티맵'}
+                </button>
+                ${times.arrive ? `
+                  <span class="px-1.5 py-0.5 bg-purple-50 text-purple-800 rounded font-bold text-[9px] border border-purple-200">
+                    🏢 ${times.arrive}
+                  </span>
+                ` : `
+                  <button onclick="recordArrivalTime(${realIdx})" class="px-2 py-0.5 bg-slate-100 hover:bg-purple-50 text-slate-600 hover:text-purple-700 border border-slate-200 hover:border-purple-300 rounded font-bold text-[9px] transition" title="센터 도착 시간 기록">
+                    도착
+                  </button>
+                `}
+              ` : isQuickRow ? `
                 <!-- ⚡ 퀵 배송: 티맵 -> 접수완료, 도착 -> 퀵 출발 -->
                 ${times.depart ? `
                   <span class="px-2 py-0.5 bg-purple-100 text-purple-800 rounded font-bold text-[10px] inline-flex items-center gap-1 border border-purple-200" title="퀵 접수 완료 시각">
@@ -6120,12 +6359,21 @@
               <span class="text-[10px] text-slate-400 font-bold px-1.5 py-0.5 bg-slate-100 rounded">조회전용</span>
             ` : `
               <div class="flex items-center justify-center gap-1">
-                <button onclick="openEditStopModal(${realIdx})" class="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded font-bold text-[10px] inline-flex items-center gap-1 border border-indigo-200" title="수정">
-                  <i class="fa-solid fa-pen"></i>
-                </button>
-                <button onclick="deleteStop(${realIdx})" class="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded font-bold text-[10px] inline-flex items-center gap-1 border border-rose-200" title="삭제">
-                  <i class="fa-solid fa-trash-can"></i>
-                </button>
+                ${isMidRow ? `
+                  <button onclick="openEditMidReturnModal(${realIdx})" class="px-2 py-1 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded font-bold text-[10px] inline-flex items-center gap-1 border border-purple-200" title="장소/주소 수정">
+                    <i class="fa-solid fa-pen"></i>
+                  </button>
+                  <button onclick="deleteMidReturnStop(${realIdx})" class="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded font-bold text-[10px] inline-flex items-center gap-1 border border-rose-200" title="삭제">
+                    <i class="fa-solid fa-trash-can"></i>
+                  </button>
+                ` : `
+                  <button onclick="openEditStopModal(${realIdx})" class="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded font-bold text-[10px] inline-flex items-center gap-1 border border-indigo-200" title="수정">
+                    <i class="fa-solid fa-pen"></i>
+                  </button>
+                  <button onclick="deleteStop(${realIdx})" class="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded font-bold text-[10px] inline-flex items-center gap-1 border border-rose-200" title="삭제">
+                    <i class="fa-solid fa-trash-can"></i>
+                  </button>
+                `}
               </div>
             `}
           </td>
@@ -7098,6 +7346,204 @@
         renderTable();
         showToast('🗑️ [' + target.고객사 + '] 건이 삭제되었습니다.');
       }
+    }
+
+    // ==========================================
+    // Intermediate Center Return Handlers (중간 복귀)
+    // ==========================================
+    var currentEditingMidReturnRealIdx = -1;
+
+    function openAddMidReturnModal() {
+      var drv = getCurrentViewingDriver();
+      if (!drv || drv === 'all') {
+        alert('⚠️ 중간 복귀지를 추가할 담당 기사를 먼저 상단 [담당 기사] 필터에서 선택해주세요.');
+        return;
+      }
+
+      var drvEl = document.getElementById('midReturnDriverName');
+      if (drvEl) drvEl.innerText = drv + ' 기사';
+
+      document.getElementById('midReturnNameInput').value = '🏢 가산 센터 (중간 복귀)';
+      document.getElementById('midReturnAddrInput').value = '서울특별시 금천구 벚꽃로 278';
+      document.getElementById('midReturnTimeInput').value = '12:00';
+
+      var posSelect = document.getElementById('midReturnPositionSelect');
+      if (posSelect) {
+        var active = getFilteredRecords();
+        var html = '<option value="after_first" selected>1번 배송지 바로 뒤 (추천)</option>';
+        if (active.length > 1) {
+          for (var i = 1; i < active.length; i++) {
+            var st = active[i];
+            var stName = st.고객사 || ('배송지 #' + (i + 1));
+            html += `<option value="after_idx_${i}">${i + 1}번 [${stName}] 뒤</option>`;
+          }
+        }
+        html += '<option value="at_end">맨 마지막 배송지 뒤</option>';
+        posSelect.innerHTML = html;
+      }
+
+      document.getElementById('midReturnModal').classList.remove('hidden');
+    }
+
+    function closeAddMidReturnModal() {
+      document.getElementById('midReturnModal').classList.add('hidden');
+    }
+
+    function confirmAddMidReturnStop() {
+      var drv = getCurrentViewingDriver();
+      if (!drv || drv === 'all') {
+        alert('⚠️ 담당 기사를 선택해주세요.');
+        return;
+      }
+
+      var name = (document.getElementById('midReturnNameInput').value || '').trim() || '🏢 가산 센터 (중간 복귀)';
+      var addr = (document.getElementById('midReturnAddrInput').value || '').trim() || '서울특별시 금천구 벚꽃로 278';
+      var time = (document.getElementById('midReturnTimeInput').value || '').trim() || '12:00';
+      var posChoice = document.getElementById('midReturnPositionSelect').value;
+
+      var chosenDate = (document.getElementById('calendarDateInput') && document.getElementById('calendarDateInput').value)
+                        || (document.getElementById('sheetDateSelect') ? document.getElementById('sheetDateSelect').value : new Date().toISOString().split('T')[0]);
+
+      var newRecord = {
+        ID: Date.now(),
+        배송일자: chosenDate,
+        계약번호: 'INTERNAL_RETURN',
+        구분: 'mid_return',
+        category: 'mid_return',
+        담당기사: drv,
+        고객사: name,
+        주소: addr,
+        기본주소: addr,
+        상세주소: '',
+        방문시간: time,
+        담당자_연락처: '',
+        품목_수량: '복귀 및 상차/대기',
+        의뢰상태: '배송대기',
+        배송방법: '직배송',
+        비고_전문: '오전 배송 후 센터 복귀 및 오후 재출발',
+        source_sheet: 'INTERNAL_RETURN',
+        원본시트: 'INTERNAL_RETURN',
+        isManual: true
+      };
+
+      var active = getFilteredRecords();
+      var targetIdx = records.length;
+      if (posChoice === 'after_first') {
+        if (active.length > 0) {
+          targetIdx = records.indexOf(active[0]) + 1;
+        }
+      } else if (posChoice.startsWith('after_idx_')) {
+        var subIdx = parseInt(posChoice.replace('after_idx_', ''), 10);
+        if (!isNaN(subIdx) && active[subIdx]) {
+          targetIdx = records.indexOf(active[subIdx]) + 1;
+        }
+      } else {
+        if (active.length > 0) {
+          targetIdx = records.indexOf(active[active.length - 1]) + 1;
+        }
+      }
+
+      records.splice(targetIdx, 0, newRecord);
+      closeAddMidReturnModal();
+      saveCurrentStopOrderToCloud(true);
+      updateKPIs();
+      renderRouteMap();
+      renderTable();
+      showToast('🏢 [' + name + '] 중간 복귀지가 동선에 추가되었습니다!');
+
+      if (supabaseClient) {
+        supabaseClient.from('delivery_schedules').insert([{
+          delivery_date: newRecord.배송일자,
+          contract_no: newRecord.계약번호,
+          category: 'mid_return',
+          driver_name: newRecord.담당기사,
+          customer_name: newRecord.고객사,
+          address: newRecord.주소,
+          visit_time: newRecord.방문시간,
+          contact: '',
+          items: newRecord.품목_수량,
+          status: '배송대기',
+          delivery_method: '직배송',
+          memo_full: newRecord.비고_전문,
+          source_sheet: 'INTERNAL_RETURN',
+          stop_order: targetIdx + 1
+        }]).then(function(res) {
+          if (res.error) console.error('DB Insert mid_return error:', res.error);
+          else if (res.data && res.data[0]) {
+            newRecord.ID = res.data[0].id;
+          }
+        });
+      }
+    }
+
+    function openEditMidReturnModal(realIdx) {
+      if (realIdx < 0 || realIdx >= records.length) return;
+      currentEditingMidReturnRealIdx = realIdx;
+      var r = records[realIdx];
+      document.getElementById('editMidReturnNameInput').value = r.고객사 || '🏢 가산 센터 (중간 복귀)';
+      document.getElementById('editMidReturnAddrInput').value = r.주소 || r.기본주소 || '서울특별시 금천구 벚꽃로 278';
+      document.getElementById('editMidReturnModal').classList.remove('hidden');
+    }
+
+    function closeEditMidReturnModal() {
+      document.getElementById('editMidReturnModal').classList.add('hidden');
+      currentEditingMidReturnRealIdx = -1;
+    }
+
+    function saveEditMidReturnStop() {
+      if (currentEditingMidReturnRealIdx < 0 || currentEditingMidReturnRealIdx >= records.length) return;
+      var r = records[currentEditingMidReturnRealIdx];
+      var newName = (document.getElementById('editMidReturnNameInput').value || '').trim();
+      var newAddr = (document.getElementById('editMidReturnAddrInput').value || '').trim();
+      if (!newName || !newAddr) {
+        alert('복귀지 명칭과 도로명 주소는 필수 입력 사항입니다.');
+        return;
+      }
+      r.고객사 = newName;
+      r.주소 = newAddr;
+      r.기본주소 = newAddr;
+
+      if (supabaseClient && r.ID) {
+        supabaseClient.from('delivery_schedules').update({
+          customer_name: newName,
+          address: newAddr
+        }).eq('id', r.ID).then(function(res) {
+          if (res.error) console.error('DB Update mid_return error:', res.error);
+        });
+      }
+
+      closeEditMidReturnModal();
+      renderRouteMap();
+      renderTable();
+      showToast('🏢 중간 복귀지 정보가 수정되었습니다.');
+    }
+
+    function resetMidReturnModalToGasan(isEdit) {
+      if (isEdit) {
+        document.getElementById('editMidReturnNameInput').value = '🏢 가산 센터 (중간 복귀)';
+        document.getElementById('editMidReturnAddrInput').value = '서울특별시 금천구 벚꽃로 278';
+      } else {
+        document.getElementById('midReturnNameInput').value = '🏢 가산 센터 (중간 복귀)';
+        document.getElementById('midReturnAddrInput').value = '서울특별시 금천구 벚꽃로 278';
+      }
+    }
+
+    function deleteMidReturnStop(realIdx) {
+      if (realIdx < 0 || realIdx >= records.length) return;
+      var r = records[realIdx];
+      if (!confirm('🏢 [' + r.고객사 + '] 중간 복귀 일정을 동선에서 삭제하시겠습니까?')) return;
+      var deletedId = r.ID;
+      records.splice(realIdx, 1);
+      saveCurrentStopOrderToCloud(true);
+      updateKPIs();
+      renderRouteMap();
+      renderTable();
+      if (supabaseClient && deletedId) {
+        supabaseClient.from('delivery_schedules').delete().eq('id', deletedId).then(function(res) {
+          if (res.error) console.error('DB Delete mid_return error:', res.error);
+        });
+      }
+      showToast('🗑️ 중간 복귀 일정이 삭제되었습니다.');
     }
 
     // ==========================================

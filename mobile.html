@@ -2656,19 +2656,21 @@
             return true;
           });
 
+          var delivStopOrder = 0;
           eligibleRecords.forEach(function(r, idx) {
             var times = getStopTimes(r);
+            var isMid = (r.category === 'mid_return' || r.category === '중간복귀' || (r.customer_name && r.customer_name.indexOf('(중간 복귀)') !== -1));
             cachedClosingStops.push({
               id: 'stop_deliv_' + (r.id || (idx + 1)),
-              type: 'delivery',
-              order: idx + 1,
+              type: isMid ? 'mid_return' : 'delivery',
+              order: isMid ? null : (++delivStopOrder),
               name: r.customer_name || '고객사',
               addr: r.address || r.delivery_address || '',
               time: r.visit_time || r.delivery_time || '',
               depart: times.depart || '',
               arrive: times.arrive || '',
               status: r.status || '',
-              memo: r.items || r.product_name || (r.order_memo ? ` (${r.order_memo})` : ''),
+              memo: isMid ? '중간 복귀 및 상차/대기' : (r.items || r.product_name || (r.order_memo ? ` (${r.order_memo})` : '')),
               parking_fee: 0,
               fuel_fee: 0
             });
@@ -2726,10 +2728,13 @@
       }
 
       container.innerHTML = cachedClosingStops.map(function(s, idx) {
+        var isMid = (s.type === 'mid_return' || (s.name && s.name.indexOf('(중간 복귀)') !== -1));
         var badge = (s.type === 'origin')
           ? '<span class="px-2 py-0.5 rounded text-[10px] font-black bg-indigo-100 text-indigo-700 shrink-0">출발</span>'
           : (s.type === 'return')
           ? '<span class="px-2 py-0.5 rounded text-[10px] font-black bg-teal-100 text-teal-800 shrink-0">도착</span>'
+          : isMid
+          ? '<span class="px-2 py-0.5 rounded text-[10px] font-black bg-purple-100 text-purple-800 border border-purple-200 shrink-0">중간복귀</span>'
           : `<span class="px-2 py-0.5 rounded text-[10px] font-black bg-amber-100 text-amber-900 shrink-0">#${s.order || idx}</span>`;
 
         var curParking = Number(s.parking_fee || 0);
@@ -3425,10 +3430,13 @@
 
       container.innerHTML = '';
 
-      var total = driverRecords.length;
+      var realDeliveries = driverRecords.filter(function(r) {
+        return r.category !== 'mid_return' && (!r.customer_name || r.customer_name.indexOf('(중간 복귀)') === -1);
+      });
+      var total = realDeliveries.length;
       var arrivedCount = 0;
 
-      driverRecords.forEach(function(r) {
+      realDeliveries.forEach(function(r) {
         var times = getStopTimes(r);
         if (times.arrive || r.status === '도착완료') arrivedCount++;
       });
@@ -3438,7 +3446,7 @@
       document.getElementById('progressBar').style.width = pct + '%';
       document.getElementById('remainCount').innerText = '남은 배송: ' + (total - arrivedCount) + '건';
 
-      if (total === 0) {
+      if (driverRecords.length === 0) {
         container.innerHTML = `
           <div class="py-16 text-center text-slate-400 space-y-2 bg-white rounded-3xl p-6 border border-slate-200">
             <i class="fa-regular fa-calendar-check text-4xl text-slate-300"></i>
@@ -3487,11 +3495,80 @@
       `;
       container.appendChild(originCard);
 
+      var delivStopNum = 0;
       driverRecords.forEach(function(r, idx) {
         var isFirst = (idx === 0);
-        var isLast = (idx === total - 1);
+        var isLast = (idx === driverRecords.length - 1);
+        var isMidReturn = (r.category === 'mid_return' || r.category === '중간복귀' || (r.customer_name && r.customer_name.indexOf('(중간 복귀)') !== -1));
         var times = getStopTimes(r);
         var durMin = calculateDurationMinutes(times.depart, times.arrive);
+
+        if (isMidReturn) {
+          var midCard = document.createElement('div');
+          var isArrived = !!times.arrive || r.status === '도착완료' || r.status === '센터도착';
+          var isDriving = !isArrived && (!!times.depart || r.status === '운행중');
+          midCard.className = 'bg-gradient-to-r from-purple-50/80 via-white to-purple-50/30 rounded-2xl p-4 border-2 ' + (isArrived ? 'border-purple-300 bg-purple-50/20' : isDriving ? 'border-purple-500 ring-2 ring-purple-400/30 shadow-md' : 'border-purple-200 shadow-xs') + ' space-y-3 transition';
+
+          midCard.innerHTML = `
+            <div class="flex items-start justify-between gap-2">
+              <div class="flex items-center gap-2">
+                <span class="w-7 h-7 rounded-xl ${isArrived ? 'bg-purple-700' : 'bg-purple-600'} text-white font-black text-xs flex items-center justify-center shadow-xs">
+                  <i class="fa-solid fa-house-chimney text-xs"></i>
+                </span>
+                <div>
+                  <h3 class="font-black text-purple-950 text-base leading-tight">${r.customer_name || '🏢 가산 센터 (중간 복귀)'}</h3>
+                  <div class="flex items-center gap-1.5 pt-0.5 flex-wrap">
+                    <span class="px-2 py-0.5 rounded text-[10px] font-black bg-purple-100 text-purple-800 border border-purple-200">
+                      🏢 중간 복귀
+                    </span>
+                    <span class="text-[10px] text-purple-700 font-bold">${r.visit_time || '12:00'}</span>
+                    ${r.driver_name ? `<span class="text-[9.5px] bg-purple-50 text-purple-800 px-1.5 py-0.2 rounded font-bold">${r.driver_name}</span>` : ''}
+                  </div>
+                </div>
+              </div>
+
+              <div class="flex items-center gap-1 shrink-0">
+                <button onclick="moveMobileStop(${idx}, ${idx - 1})" class="w-7 h-7 rounded-xl bg-purple-100 hover:bg-purple-200 text-purple-800 flex items-center justify-center text-xs font-black transition ${isFirst ? 'opacity-30 cursor-not-allowed' : ''}" ${isFirst ? 'disabled' : ''}>▲</button>
+                <button onclick="moveMobileStop(${idx}, ${idx + 1})" class="w-7 h-7 rounded-xl bg-purple-100 hover:bg-purple-200 text-purple-800 flex items-center justify-center text-xs font-black transition ${isLast ? 'opacity-30 cursor-not-allowed' : ''}" ${isLast ? 'disabled' : ''}>▼</button>
+              </div>
+            </div>
+
+            <!-- Address -->
+            <div class="text-xs text-purple-900 bg-purple-50/60 p-2.5 rounded-xl border border-purple-100 space-y-1">
+              <div class="flex items-center gap-1.5 font-bold">
+                <i class="fa-solid fa-location-dot text-purple-600 text-xs"></i>
+                <span class="break-all">${r.address || '서울특별시 금천구 벚꽃로 278'}</span>
+              </div>
+              <p class="text-[10.5px] text-purple-700 font-medium pl-4">오전 배송 후 센터 복귀 ➔ 물품 상차 및 대기 ➔ 오후 재출발</p>
+            </div>
+
+            <!-- Status & Dur Badge -->
+            <div class="flex items-center justify-between text-xs pt-0.5">
+              <div class="flex items-center gap-1.5 flex-wrap">
+                ${times.depart ? `<span class="px-2 py-0.5 bg-purple-100 text-purple-800 text-[11px] font-bold rounded-md border border-purple-200">🚀 출발 ${times.depart}</span>` : ''}
+                ${times.arrive ? `<span class="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[11px] font-bold rounded-md border border-emerald-200">🏢 도착 ${times.arrive}</span>` : ''}
+                ${durMin !== null ? `<span class="px-2 py-0.5 bg-purple-100 text-purple-900 text-[11px] font-bold rounded-md border border-purple-200">⏱️ ${durMin}분 소요</span>` : ''}
+                ${!times.depart && !times.arrive ? `<span class="text-purple-400 text-[11px] font-medium">복귀 대기중</span>` : ''}
+              </div>
+            </div>
+
+            <!-- Big Touch Action Buttons -->
+            <div class="grid grid-cols-2 gap-2 pt-1">
+              <button onclick="openTmapMobile('${(r.customer_name || '가산 센터').replace(/'/g, "\\'")}', '${(r.address || '').replace(/'/g, "\\'")}', ${idx})" class="btn-touch ${times.depart ? 'bg-purple-800' : 'bg-purple-600 hover:bg-purple-700 active:bg-purple-800'} text-white font-black text-xs rounded-xl shadow-xs transition gap-1.5">
+                <i class="fa-solid fa-location-arrow"></i>
+                <span>${times.depart ? '티맵 재안내' : '🏢 복귀 티맵'}</span>
+              </button>
+              <button onclick="recordArrivalMobile(${idx})" class="btn-touch ${times.arrive ? 'bg-emerald-600' : 'bg-slate-100 hover:bg-purple-50 text-slate-700 hover:text-purple-900 border border-slate-200 hover:border-purple-300'} font-black text-xs rounded-xl transition gap-1.5">
+                <i class="fa-solid fa-building-circle-check ${times.arrive ? 'text-white' : 'text-purple-600'}"></i>
+                <span>${times.arrive ? '도착완료 ' + times.arrive : '🏢 센터 도착'}</span>
+              </button>
+            </div>
+          `;
+          container.appendChild(midCard);
+          return;
+        }
+
+        delivStopNum++;
         var isQuick = (r.delivery_method === '퀵배송' || r.delivery_method === '퀵' || r.driver_name === '퀵' || (r.category && r.category.indexOf('퀵') !== -1));
         var isPickup = (r.delivery_method === '방문수령' || r.driver_name === '방문수령' || r.category === '수령');
         var isParcel = (r.delivery_method === '택배' || r.driver_name === '택배');
@@ -3511,7 +3588,7 @@
           <div class="flex items-start justify-between gap-2">
             <div class="flex items-center gap-2">
               <span class="w-7 h-7 rounded-full ${isArrived ? 'bg-emerald-600' : isMyRecord ? 'bg-indigo-600' : 'bg-slate-600'} text-white font-black text-xs flex items-center justify-center shadow-xs">
-                ${isArrived ? '<i class="fa-solid fa-check"></i>' : (idx + 1)}
+                ${isArrived ? '<i class="fa-solid fa-check"></i>' : delivStopNum}
               </span>
               <div>
                 <h3 class="font-black text-slate-900 text-base leading-tight">${r.customer_name || '고객사 미정'}</h3>
@@ -4514,6 +4591,7 @@
 
       var linePath = [new kakao.maps.LatLng(originCoord.lat, originCoord.lng)];
 
+      var delivMapNum = 0;
       driverRecords.forEach(function(r, idx) {
         var coord = getCoordForAddress(r.address);
         var pos = new kakao.maps.LatLng(coord.lat, coord.lng);
@@ -4521,13 +4599,16 @@
         linePath.push(pos);
 
         var times = getStopTimes(r);
-        var isArrived = !!times.arrive || r.status === '도착완료';
+        var isMidReturn = (r.category === 'mid_return' || r.category === '중간복귀' || (r.customer_name && r.customer_name.indexOf('(중간 복귀)') !== -1));
+        var isArrived = !!times.arrive || r.status === '도착완료' || r.status === '센터도착';
         var isDriving = !isArrived && (!!times.depart || r.status === '운행중');
+        var stopLabel = isMidReturn ? '🏢' : (++delivMapNum);
+        var pinBg = isMidReturn ? 'bg-purple-600 ring-2 ring-purple-300' : (isArrived ? 'bg-emerald-600' : isDriving ? 'bg-indigo-600' : 'bg-slate-700');
 
         var markerDiv = document.createElement('div');
-        markerDiv.className = 'kakao-pin px-2 py-0.5 ' + (isArrived ? 'bg-emerald-600' : isDriving ? 'bg-indigo-600' : 'bg-slate-700') + ' border-2 border-white text-[10px] font-bold rounded-lg flex items-center gap-1 shadow-md text-white cursor-pointer';
-        markerDiv.innerHTML = '<b>' + (idx + 1) + '</b> ' + (r.customer_name || '배송지');
-        markerDiv.title = (idx + 1) + '. ' + (r.customer_name || '');
+        markerDiv.className = 'kakao-pin px-2 py-0.5 ' + pinBg + ' border-2 border-white text-[10px] font-bold rounded-lg flex items-center gap-1 shadow-md text-white cursor-pointer';
+        markerDiv.innerHTML = '<b>' + stopLabel + '</b> ' + (r.customer_name || '배송지');
+        markerDiv.title = (isMidReturn ? '[중간 복귀] ' : (stopLabel + '. ')) + (r.customer_name || '');
         markerDiv.onclick = function() {
           mobileKakaoMap.setLevel(4);
           mobileKakaoMap.panTo(pos);
