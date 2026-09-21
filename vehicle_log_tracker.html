@@ -1063,53 +1063,146 @@
                 var dateSchedules = liveSchedules.filter(function(s) {
                   if (s.delivery_date !== log.trip_date) return false;
                   if (logDrivers.length === 0 || log.driver_name === '미운행') return false;
+                  var isQuick = (s.delivery_method === '퀵배송' || s.delivery_method === '퀵' || s.driver_name === '퀵' || (s.category && s.category.indexOf('퀵') !== -1));
+                  var isPickup = (s.delivery_method === '방문수령' || s.driver_name === '방문수령' || s.category === '수령');
+                  var isParcel = (s.delivery_method === '택배' || s.driver_name === '택배');
+                  if (isQuick || isPickup || isParcel) return false;
                   return logDrivers.indexOf((s.driver_name || '').trim()) !== -1;
                 });
 
+                // stop_order 및 id 순서로 정렬하여 관제 순서와 일치시킴
+                dateSchedules.sort(function(a, b) {
+                  var aOrder = (a.stop_order !== null && a.stop_order !== undefined) ? Number(a.stop_order) : 9999;
+                  var bOrder = (b.stop_order !== null && b.stop_order !== undefined) ? Number(b.stop_order) : 9999;
+                  if (aOrder !== bOrder) return aOrder - bOrder;
+                  return (a.id || 0) - (b.id || 0);
+                });
+
                 if (Array.isArray(log.stops) && log.stops.length > 0) {
-                  log.stops.forEach(function(st, sIdx) {
-                    if (st.type === 'delivery') {
-                      var matched = dateSchedules.find(function(ds) {
-                        return (st.id && (st.id === 'stop_deliv_' + ds.id || st.id === ds.id)) ||
-                               (st.name && ds.customer_name && st.name.trim() === ds.customer_name.trim());
+                  var originStop = log.stops.find(function(s) { return s.type === 'origin'; }) || { id: 'stop_origin', type: 'origin', name: '가산 센터', addr: '서울특별시 금천구 벚꽃로 278', time: '08:30' };
+                  var returnStop = log.stops.find(function(s) { return s.type === 'return'; }) || { id: 'stop_return', type: 'return', name: '가산 센터', addr: log.destination_addr || '서울특별시 금천구 벚꽃로 278', time: '18:00' };
+
+                  var stopsChanged = false;
+                  var mergedStops = [];
+                  var delivOrder = 0;
+
+                  // 1) dateSchedules의 각 건을 순서대로 매핑/삽입
+                  dateSchedules.forEach(function(ds) {
+                    var isMid = (ds.category === 'mid_return' || (ds.customer_name && ds.customer_name.indexOf('(중간 복귀)') !== -1));
+                    var matched = log.stops.find(function(st) {
+                      return (st.id && (st.id === 'stop_deliv_' + ds.id || st.id === ds.id)) ||
+                             (st.name && ds.customer_name && st.name.trim() === ds.customer_name.trim());
+                    });
+
+                    var dep = '', arr = '';
+                    if (ds.memo_special) {
+                      try {
+                        var parsedSp = JSON.parse(ds.memo_special);
+                        if (parsedSp.depart) dep = parsedSp.depart;
+                        if (parsedSp.arrive) arr = parsedSp.arrive;
+                      } catch(e) {
+                        var dM = ds.memo_special.match(/출발[:\s]*(\d{1,2}:\d{2})/);
+                        if (dM) dep = dM[1];
+                        var aM = ds.memo_special.match(/도착[:\s]*(\d{1,2}:\d{2})/);
+                        if (aM) arr = aM[1];
+                      }
+                    }
+
+                    if (matched) {
+                      if (!matched.addr || matched.addr === '' || matched.addr === '-') matched.addr = ds.address || '';
+                      if (!matched.memo || matched.memo === '' || matched.memo === '-') matched.memo = isMid ? '오전 배송 후 센터 복귀 및 오후 재출발' : (ds.items || ds.memo_full || '');
+                      matched.status = ds.status || matched.status || '';
+                      matched.time = ds.visit_time || matched.time || '';
+                      if (dep) matched.depart = dep;
+                      if (arr) matched.arrive = arr;
+                      if (isMid) {
+                        matched.type = 'mid_return';
+                        matched.order = null;
+                        if (!matched.name || matched.name.indexOf('(중간 복귀)') === -1) matched.name = ds.customer_name || '🏢 가산 센터 (중간 복귀)';
+                      } else {
+                        matched.type = 'delivery';
+                        matched.order = ++delivOrder;
+                      }
+                      mergedStops.push(matched);
+                    } else {
+                      // 사후에 추가된 중간 복귀 또는 신규 배송 건 자동 병합!
+                      stopsChanged = true;
+                      mergedStops.push({
+                        id: 'stop_deliv_' + ds.id,
+                        type: isMid ? 'mid_return' : 'delivery',
+                        order: isMid ? null : (++delivOrder),
+                        name: ds.customer_name || (isMid ? '🏢 가산 센터 (중간 복귀)' : '배송지'),
+                        addr: ds.address || '',
+                        time: ds.visit_time || '',
+                        depart: dep,
+                        arrive: arr,
+                        status: ds.status || '',
+                        memo: isMid ? '오전 배송 후 센터 복귀 및 오후 재출발' : (ds.items || ds.memo_full || ''),
+                        contact: ds.contact || '',
+                        parking_fee: 0,
+                        fuel_fee: 0
                       });
-                      if (matched) {
-                        if (!st.addr || st.addr === '' || st.addr === '-') st.addr = matched.address || '';
-                        if (!st.memo || st.memo === '' || st.memo === '-') st.memo = matched.items || matched.memo_full || '';
-                        st.status = matched.status || st.status || '';
-                        st.time = matched.visit_time || st.time || '';
-                        if (matched.memo_special) {
-                          try {
-                            var parsedSp = JSON.parse(matched.memo_special);
-                            if (parsedSp.depart) st.depart = parsedSp.depart;
-                            if (parsedSp.arrive) st.arrive = parsedSp.arrive;
-                          } catch(e) {
-                            var dM = matched.memo_special.match(/출발[:\s]*(\d{1,2}:\d{2})/);
-                            if (dM) st.depart = dM[1];
-                            var aM = matched.memo_special.match(/도착[:\s]*(\d{1,2}:\d{2})/);
-                            if (aM) st.arrive = aM[1];
-                          }
-                        }
-                      }
-                    } else if (st.type === 'return') {
-                      if (!st.arrive) {
-                        if (log.closed_at) st.arrive = log.closed_at;
-                        else if (log.memo_special) {
-                          try {
-                            var sp = JSON.parse(log.memo_special);
-                            if (sp.arrive) st.arrive = sp.arrive;
-                          } catch(e) {}
-                        }
-                      }
-                      if (!st.depart && sIdx > 0 && log.stops[sIdx - 1]) {
-                        st.depart = log.stops[sIdx - 1].arrive || log.stops[sIdx - 1].depart || '';
-                      }
-                      if (log.is_closed) {
-                        st.status = '도착완료';
-                        if (!st.arrive && st.time && st.time !== '18:00') st.arrive = st.time;
+                    }
+                  });
+
+                  // 2) 관제 스케줄 외 사용자가 일지에 수동 추가했던 경유지가 있다면 유지
+                  log.stops.forEach(function(st) {
+                    if (st.type !== 'origin' && st.type !== 'return') {
+                      var alreadyIn = mergedStops.some(function(ms) { return ms.id === st.id; });
+                      if (!alreadyIn) {
+                        mergedStops.push(st);
+                        stopsChanged = true;
                       }
                     }
                   });
+
+                  // 3) 최종 복귀지 상태 및 시간 동기화
+                  if (returnStop) {
+                    if (!returnStop.arrive) {
+                      if (log.closed_at) returnStop.arrive = log.closed_at;
+                      else if (log.memo_special) {
+                        try {
+                          var sp = JSON.parse(log.memo_special);
+                          if (sp.arrive) returnStop.arrive = sp.arrive;
+                        } catch(e) {}
+                      }
+                    }
+                    if (!returnStop.depart && mergedStops.length > 0) {
+                      var lastStop = mergedStops[mergedStops.length - 1];
+                      returnStop.depart = lastStop.arrive || lastStop.depart || '';
+                    }
+                    if (log.is_closed) {
+                      returnStop.status = '도착완료';
+                      if (!returnStop.arrive && returnStop.time && returnStop.time !== '18:00') returnStop.arrive = returnStop.time;
+                    }
+                  }
+
+                  // 4) stops 재구성
+                  if (mergedStops.length > 0) {
+                    log.stops = [originStop].concat(mergedStops).concat([returnStop]);
+                  }
+
+                  // 5) stops 개수 변경 시 구간 거리 및 계기판 연속성 자동 재계산
+                  var dayTotalDist = log.distance_km || (log.end_km - log.start_km) || 0;
+                  var totalLegCount = log.stops.length - 1;
+                  var needsDistRebalance = stopsChanged || log.stops.slice(1).some(function(s) { return s.distance_km === undefined || s.distance_km === null || isNaN(s.distance_km); });
+
+                  if (needsDistRebalance && dayTotalDist > 0 && totalLegCount > 0) {
+                    var baseDist = Math.floor(dayTotalDist / totalLegCount);
+                    var remDist = dayTotalDist % totalLegCount;
+                    var runningOdo = log.start_km;
+
+                    for (var k = 1; k < log.stops.length; k++) {
+                      var legDist = baseDist + ( (k - 1) < remDist ? 1 : 0 );
+                      var legStart = runningOdo;
+                      var legEnd = runningOdo + legDist;
+                      runningOdo = legEnd;
+
+                      log.stops[k].distance_km = legDist;
+                      log.stops[k].start_km = legStart;
+                      log.stops[k].end_km = legEnd;
+                    }
+                  }
                 }
               });
             } catch(syncErr) {
