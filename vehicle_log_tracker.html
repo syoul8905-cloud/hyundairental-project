@@ -12,6 +12,8 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <!-- Kakao Maps Services SDK (정밀 지오코딩 및 네비게이션 경로 거리 연동) -->
   <script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=500cdd195811a28981f211d6641c3aca&libraries=services"></script>
+  <!-- Daum 우편번호 서비스 (도로명 주소 검색) -->
+  <script src="https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700;800;900&display=swap');
     body { font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif; }
@@ -459,8 +461,12 @@
                   <option value="custom">🏠 현지(자택) 퇴근/직접입력</option>
                 </select>
               </div>
-              <div class="col-span-2">
+              <div class="col-span-2 flex items-center gap-1.5">
                 <input type="text" id="modalDestAddr" value="서울 금천구 벚꽃로 278 (가산 센터)" oninput="onModalDestAddrInput(this.value)" placeholder="복귀지 주소 입력 (자택 또는 타 도착지)" class="w-full bg-white text-slate-800 px-3 py-2 rounded-xl border border-teal-200 text-xs focus:ring-2 focus:ring-teal-500 focus:outline-none font-medium">
+                <button type="button" onclick="openTrackerDaumPostcode('modalDestAddr')" class="shrink-0 px-2.5 py-2 bg-teal-100 hover:bg-teal-200 text-teal-800 font-bold rounded-xl text-xs transition border border-teal-200 flex items-center gap-1">
+                  <i class="fa-solid fa-magnifying-glass text-[10px]"></i>
+                  <span>검색</span>
+                </button>
               </div>
             </div>
             <p id="destDescHelp" class="text-[10.5px] text-teal-800/90 leading-tight">
@@ -503,6 +509,10 @@
               </div>
               <div class="flex gap-1.5">
                 <input type="text" id="newStopAddrInput" placeholder="도로명 또는 지번 주소 입력" class="flex-1 px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium focus:outline-none focus:border-indigo-500">
+                <button type="button" onclick="openTrackerDaumPostcode('newStopAddrInput')" class="px-2.5 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-lg text-xs shrink-0 transition flex items-center gap-1">
+                  <i class="fa-solid fa-magnifying-glass text-[10px] text-indigo-600"></i>
+                  <span>검색</span>
+                </button>
                 <button type="button" onclick="confirmAddManualStopToModal()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg text-xs shrink-0 shadow-xs">
                   등록
                 </button>
@@ -3375,6 +3385,57 @@
           btn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> <span>당월 운행일지 일괄 자동 저장</span>';
         }
       }
+    }
+
+    /**
+     * 카카오/Daum 우편번호 서비스 팝업 오픈 (운행일지 트래커 전용)
+     */
+    function openTrackerDaumPostcode(targetInputId) {
+      if (typeof daum === 'undefined' || !daum.Postcode) {
+        alert('주소 검색 서비스를 불러오는 중입니다. 잠시 후 다시 시도해주세요.');
+        return;
+      }
+      new daum.Postcode({
+        oncomplete: function(data) {
+          var roadAddr = data.roadAddress || data.jibunAddress;
+          var extraAddr = '';
+          if (data.bname !== '' && /[동|로|가]$/g.test(data.bname)) {
+            extraAddr += data.bname;
+          }
+          if (data.buildingName !== '' && data.apartment === 'Y') {
+            extraAddr += (extraAddr !== '' ? ', ' + data.buildingName : data.buildingName);
+          }
+          if (extraAddr !== '') {
+            roadAddr += ' (' + extraAddr + ')';
+          }
+          var targetInput = document.getElementById(targetInputId);
+          if (targetInput) {
+            targetInput.value = roadAddr;
+            targetInput.dispatchEvent(new Event('input', { bubbles: true }));
+            targetInput.dispatchEvent(new Event('change', { bubbles: true }));
+          }
+
+          if (targetInputId === 'modalDestAddr') {
+            var sel = document.getElementById('modalDestType');
+            if (sel && sel.value !== 'custom') {
+              sel.value = 'custom';
+              if (typeof onModalDestTypeChange === 'function') {
+                onModalDestTypeChange('custom');
+              }
+            }
+            if (typeof onModalDestAddrInput === 'function') {
+              onModalDestAddrInput(roadAddr);
+            }
+          } else if (targetInputId === 'newStopAddrInput') {
+            var nameInput = document.getElementById('newStopNameInput');
+            if (nameInput && !nameInput.value.trim() && data.buildingName) {
+              nameInput.value = data.buildingName;
+            }
+          }
+
+          showToast('주소가 입력되었습니다.');
+        }
+      }).open();
     }
 
     // ==========================================
