@@ -444,6 +444,36 @@
             </div>
           </div>
 
+          <!-- Row 4.4: Origin / Start Point -->
+          <div class="p-3 bg-indigo-50/70 rounded-xl border border-indigo-200/80 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-[11px] font-black text-indigo-900 flex items-center gap-1.5">
+                <i class="fa-solid fa-flag text-indigo-600"></i> 운행 출발지 (운행 시작 장소)
+              </span>
+              <span id="originHelperBadge" class="text-[10px] font-bold text-indigo-700 bg-indigo-100 px-2 py-0.5 rounded-full">
+                🏢 센터 출발 (기본)
+              </span>
+            </div>
+            <div class="grid grid-cols-3 gap-2">
+              <div>
+                <select id="modalOriginType" onchange="onModalOriginTypeChange(this.value)" class="w-full bg-white font-bold text-slate-800 px-2.5 py-2 rounded-xl border border-indigo-200 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                  <option value="gasan">🏢 가산 센터 출발</option>
+                  <option value="custom">🏠 현지(자택) 출발/직접입력</option>
+                </select>
+              </div>
+              <div class="col-span-2 flex items-center gap-1.5">
+                <input type="text" id="modalOriginAddr" value="서울 금천구 벚꽃로 278 (가산 센터)" oninput="onModalOriginAddrInput(this.value)" placeholder="출발지 주소 입력 (자택 또는 타 출발지)" class="w-full bg-white text-slate-800 px-3 py-2 rounded-xl border border-indigo-200 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none font-medium">
+                <button type="button" onclick="openTrackerDaumPostcode('modalOriginAddr')" class="shrink-0 px-2.5 py-2 bg-indigo-100 hover:bg-indigo-200 text-indigo-800 font-bold rounded-xl text-xs transition border border-indigo-200 flex items-center gap-1">
+                  <i class="fa-solid fa-magnifying-glass text-[10px]"></i>
+                  <span>검색</span>
+                </button>
+              </div>
+            </div>
+            <p id="originDescHelp" class="text-[10.5px] text-indigo-800/90 leading-tight">
+              💡 <b>안내:</b> 가산 센터에서 출발한 경우 <b>'가산 센터 출발'</b>을 그대로 두시면 됩니다. (자택 등 현지에서 직접 첫 배송지로 출발한 경우 주소를 변경하세요.)
+            </p>
+          </div>
+
           <!-- Row 4.5: Destination / Return Point -->
           <div class="p-3 bg-teal-50/70 rounded-xl border border-teal-200/80 space-y-2">
             <div class="flex items-center justify-between">
@@ -534,14 +564,22 @@
         </div>
 
         <!-- Submit & Cancel Buttons (Fixed Bottom Footer) -->
-        <div class="flex items-center justify-end gap-2 px-4 py-3 border-t border-slate-100 shrink-0 bg-slate-50/90 shadow-2xs">
-          <button type="button" onclick="closeTripLogModal()" class="px-4 py-2 bg-white hover:bg-slate-100 text-slate-700 font-bold rounded-xl text-xs border border-slate-200 transition">
-            취소
-          </button>
-          <button type="submit" id="btnSaveTripLog" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl text-xs shadow-md shadow-indigo-600/20 transition flex items-center gap-1.5">
-            <i class="fa-solid fa-floppy-disk"></i>
-            <span>운행일지 저장</span>
-          </button>
+        <div class="flex items-center justify-between px-4 py-3 border-t border-slate-100 shrink-0 bg-slate-50/90 shadow-2xs">
+          <div>
+            <button type="button" id="btnDeleteTripLogInModal" onclick="deleteCurrentModalTripLog()" class="hidden px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold rounded-xl text-xs border border-rose-200 transition flex items-center gap-1.5 shadow-2xs">
+              <i class="fa-solid fa-trash-can text-rose-600"></i>
+              <span>이 운행일지 삭제</span>
+            </button>
+          </div>
+          <div class="flex items-center gap-2">
+            <button type="button" onclick="closeTripLogModal()" class="px-4 py-2 bg-white hover:bg-slate-100 text-slate-700 font-bold rounded-xl text-xs border border-slate-200 transition">
+              취소
+            </button>
+            <button type="submit" id="btnSaveTripLog" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl text-xs shadow-md shadow-indigo-600/20 transition flex items-center gap-1.5">
+              <i class="fa-solid fa-floppy-disk"></i>
+              <span>운행일지 저장</span>
+            </button>
+          </div>
         </div>
       </form>
     </div>
@@ -1623,9 +1661,14 @@
                 <td class="py-2.5 px-3 text-right font-mono text-slate-400">-</td>
                 <td class="py-2.5 px-3 text-slate-400 text-[11px]">-</td>
                 <td class="py-2.5 px-3 text-center">
-                  <button onclick="openEditLogModal(${log.id})" class="p-1 text-slate-400 hover:text-indigo-600 transition" title="수정">
-                    <i class="fa-solid fa-pen-to-square text-xs"></i>
-                  </button>
+                  <div class="flex items-center justify-center gap-1">
+                    <button onclick="openEditLogModal(${log.id})" class="p-1 text-slate-400 hover:text-indigo-600 transition" title="수정">
+                      <i class="fa-solid fa-pen-to-square text-xs"></i>
+                    </button>
+                    <button onclick="deleteTripLog(${log.id})" class="p-1 text-slate-400 hover:text-rose-600 transition" title="삭제">
+                      <i class="fa-solid fa-trash-can text-xs text-rose-400 hover:text-rose-600"></i>
+                    </button>
+                  </div>
                 </td>
               </tr>
             `;
@@ -1660,6 +1703,9 @@
                     <span class="font-mono ${log.fuel_fee > 0 ? 'text-rose-700 font-bold' : 'text-slate-400'}">주유비: ₩${log.fuel_fee.toLocaleString()}</span>
                     <button type="button" onclick="openEditLogModal(${log.id})" class="px-2 py-0.5 rounded bg-white hover:bg-slate-50 text-slate-600 hover:text-indigo-600 border border-slate-300 transition text-[10px] font-bold shadow-2xs">
                       <i class="fa-solid fa-pen-to-square"></i> 당일 일지 수정
+                    </button>
+                    <button type="button" onclick="deleteTripLog(${log.id})" class="px-2 py-0.5 rounded bg-white hover:bg-rose-50 text-slate-500 hover:text-rose-600 border border-slate-300 hover:border-rose-300 transition text-[10px] font-bold shadow-2xs" title="당일 운행일지 삭제">
+                      <i class="fa-solid fa-trash-can text-rose-500"></i> 삭제
                     </button>
                   </div>
                 </div>
@@ -2180,11 +2226,14 @@
         var isReturn = (s.type === 'return');
         var isMovable = !isOrigin && !isReturn;
 
+        var isCustomOrigin = (document.getElementById('modalOriginType') && document.getElementById('modalOriginType').value === 'custom');
         var isCustomDest = (document.getElementById('modalDestType') && document.getElementById('modalDestType').value === 'custom');
 
         var isMidReturn = (s.type === 'mid_return' || (s.name && s.name.indexOf('(중간 복귀)') !== -1));
         var badgeHtml = isOrigin
-          ? '<span class="px-1.5 py-0.5 rounded text-[9.5px] font-bold bg-indigo-100 text-indigo-700 shrink-0">출발</span>'
+          ? (isCustomOrigin
+              ? '<span class="px-1.5 py-0.5 rounded text-[9.5px] font-black bg-indigo-100 text-indigo-700 border border-indigo-300 shrink-0">🏠 현지 출발</span>'
+              : '<span class="px-1.5 py-0.5 rounded text-[9.5px] font-bold bg-indigo-100 text-indigo-700 shrink-0">🏢 출발</span>')
           : isReturn
           ? '<span class="px-1.5 py-0.5 rounded text-[9.5px] font-bold bg-teal-600 text-white shrink-0">최종 복귀</span>'
           : isMidReturn
@@ -2197,8 +2246,8 @@
           ? `<span class="px-1.5 py-0.5 rounded text-[9.5px] font-bold bg-slate-100 text-slate-700 border border-slate-200 shrink-0">경유 #${s.order || idx}</span>`
           : `<span class="px-1.5 py-0.5 rounded text-[9.5px] font-bold bg-amber-100 text-amber-900 shrink-0">배송 #${s.order || idx}</span>`;
 
-        var displayName = s.name || (isReturn ? (isCustomDest ? '최종 도착지' : '가산 센터 (최종 복귀)') : '경유지');
-        var displayAddr = s.addr || (isReturn ? (isCustomDest ? '<span class="text-rose-500 font-bold">주소 미입력 (상단 복귀지 주소를 입력하세요)</span>' : '서울 금천구 벚꽃로 278 (가산 센터)') : '주소 미입력');
+        var displayName = s.name || (isOrigin ? (isCustomOrigin ? '현지(자택) 출발지' : '가산 센터') : (isReturn ? (isCustomDest ? '최종 도착지' : '가산 센터 (최종 복귀)') : '경유지'));
+        var displayAddr = s.addr || (isOrigin ? (isCustomOrigin ? '<span class="text-indigo-600 font-bold">주소 미입력 (상단 출발지 주소를 입력하세요)</span>' : '서울 금천구 벚꽃로 278 (가산 센터)') : (isReturn ? (isCustomDest ? '<span class="text-rose-500 font-bold">주소 미입력 (상단 복귀지 주소를 입력하세요)</span>' : '서울 금천구 벚꽃로 278 (가산 센터)') : '주소 미입력'));
 
         var canMoveUp = isMovable && (idx > 1);
         var canMoveDown = isMovable && (idx < modalStops.length - 2);
@@ -2207,7 +2256,7 @@
         var curFuel = Number(s.fuel_fee || 0);
 
         return `
-          <div class="p-2.5 rounded-xl bg-white border ${isReturn ? 'border-teal-200 bg-teal-50/20' : 'border-slate-200'} shadow-2xs text-xs hover:border-indigo-200 transition space-y-1.5">
+          <div class="p-2.5 rounded-xl bg-white border ${isReturn ? 'border-teal-200 bg-teal-50/20' : (isOrigin && isCustomOrigin ? 'border-indigo-300 bg-indigo-50/20' : 'border-slate-200')} shadow-2xs text-xs hover:border-indigo-200 transition space-y-1.5">
             <div class="flex items-center justify-between gap-2">
               <div class="flex items-center gap-2 min-w-0 flex-1">
                 ${badgeHtml}
@@ -2217,6 +2266,12 @@
                 </div>
               </div>
               <div class="flex items-center gap-1 shrink-0">
+                ${isOrigin && isCustomOrigin ? `
+                  <button type="button" onclick="resetModalOriginToGasan()" class="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-lg text-[10px] font-bold shadow-2xs transition flex items-center gap-1">
+                    <i class="fa-solid fa-building text-[9px]"></i>
+                    <span>가산 센터 출발로 전환</span>
+                  </button>
+                ` : ''}
                 ${isReturn && isCustomDest ? `
                   <button type="button" onclick="resetModalDestToGasan()" class="px-2 py-1 bg-teal-50 hover:bg-teal-100 text-teal-700 border border-teal-200 rounded-lg text-[10px] font-bold shadow-2xs transition flex items-center gap-1">
                     <i class="fa-solid fa-building text-[9px]"></i>
@@ -2412,6 +2467,9 @@
       document.getElementById('editLogId').value = '';
       document.getElementById('modalVehicleNo').value = currentSelectedVehicleNo;
 
+      var btnDelete = document.getElementById('btnDeleteTripLogInModal');
+      if (btnDelete) btnDelete.classList.add('hidden');
+
       var n = new Date();
       var isCurMonth = (currentYear === n.getFullYear() && currentMonth === (n.getMonth() + 1));
       var todayStr = isCurMonth
@@ -2426,6 +2484,23 @@
       document.getElementById('modalEndKm').value = defaultStart;
       document.getElementById('modalDriverName').value = currentVeh.default_driver || '조경찬';
       document.getElementById('modalIsUnoperated').checked = false;
+
+      // Origin Reset
+      var origSel = document.getElementById('modalOriginType');
+      if (origSel) origSel.value = 'gasan';
+      var origAddr = document.getElementById('modalOriginAddr');
+      if (origAddr) origAddr.value = '서울 금천구 벚꽃로 278 (가산 센터)';
+      var origBadge = document.getElementById('originHelperBadge');
+      if (origBadge) {
+        origBadge.className = 'text-[10px] font-bold text-indigo-700 bg-indigo-100 px-2 py-0.5 rounded-full';
+        origBadge.innerText = '🏢 센터 출발 (기본)';
+      }
+      var origHelp = document.getElementById('originDescHelp');
+      if (origHelp) {
+        origHelp.innerHTML = '💡 <b>안내:</b> 가산 센터에서 출발한 경우 <b>\'가산 센터 출발\'</b>을 그대로 두시면 됩니다. (자택 등 현지에서 직접 첫 배송지로 출발한 경우 주소를 변경하세요.)';
+      }
+
+      // Dest Reset
       document.getElementById('modalDestType').value = 'gasan';
       document.getElementById('modalDestAddr').value = '서울 금천구 벚꽃로 278 (가산 센터)';
       var newBadge = document.getElementById('destHelperBadge');
@@ -2465,6 +2540,41 @@
       document.getElementById('modalEndKm').value = log.end_km;
       document.getElementById('modalIsUnoperated').checked = log.is_unoperated;
 
+      // Show delete button in modal
+      var btnDelete = document.getElementById('btnDeleteTripLogInModal');
+      if (btnDelete) btnDelete.classList.remove('hidden');
+
+      // Origin Setup
+      var origStop = (log.stops && log.stops.length > 0 && log.stops[0].type === 'origin') ? log.stops[0] : null;
+      var origAddrVal = log.origin_addr || (origStop ? origStop.addr : '') || '서울 금천구 벚꽃로 278 (가산 센터)';
+      var isCustomOrigin = (origAddrVal && origAddrVal.indexOf('벚꽃로 278') === -1) || Boolean(log.is_local_departure);
+
+      var origSel = document.getElementById('modalOriginType');
+      if (origSel) origSel.value = isCustomOrigin ? 'custom' : 'gasan';
+      var origAddr = document.getElementById('modalOriginAddr');
+      if (origAddr) origAddr.value = isCustomOrigin ? origAddrVal : '서울 금천구 벚꽃로 278 (가산 센터)';
+
+      var origBadge = document.getElementById('originHelperBadge');
+      var origHelp = document.getElementById('originDescHelp');
+      if (isCustomOrigin) {
+        if (origBadge) {
+          origBadge.className = 'text-[10px] font-bold text-indigo-800 bg-indigo-200 px-2 py-0.5 rounded-full';
+          origBadge.innerText = '🏠 현지(자택) 출발';
+        }
+        if (origHelp) {
+          origHelp.innerHTML = '⚠️ <b>현지/자택 출발:</b> 센터를 거치지 않고 자택이나 타 장소에서 직접 첫 배송지로 출발한 경우입니다.';
+        }
+      } else {
+        if (origBadge) {
+          origBadge.className = 'text-[10px] font-bold text-indigo-700 bg-indigo-100 px-2 py-0.5 rounded-full';
+          origBadge.innerText = '🏢 센터 출발 (기본)';
+        }
+        if (origHelp) {
+          origHelp.innerHTML = '💡 <b>안내:</b> 가산 센터에서 출발한 경우 <b>\'가산 센터 출발\'</b>을 그대로 두시면 됩니다. (자택 등 현지에서 직접 첫 배송지로 출발한 경우 주소를 변경하세요.)';
+        }
+      }
+
+      // Dest Setup
       var isCustom = (log.destination_addr && log.destination_addr.indexOf('벚꽃로 278') === -1);
       document.getElementById('modalDestType').value = isCustom ? 'custom' : 'gasan';
       document.getElementById('modalDestAddr').value = log.destination_addr || log.destination_name || '서울 금천구 벚꽃로 278 (가산 센터)';
@@ -2498,9 +2608,13 @@
           if (sName.startsWith('SYSTEM_CONFIG') || sId.includes('HANDOVER') || sId.includes('1356') || sId.includes('1357') || sId.includes('1358') || sId.includes('1359')) return false;
           return true;
         });
+        if (modalStops.length > 0 && modalStops[0].type === 'origin') {
+          modalStops[0].name = isCustomOrigin ? (log.origin_name || '현지(자택) 출발지') : '가산 센터';
+          modalStops[0].addr = isCustomOrigin ? origAddrVal : '서울 금천구 벚꽃로 278 (가산 센터)';
+        }
       } else {
         modalStops = [
-          { id: 'stop_origin', type: 'origin', name: '가산 센터', addr: '서울 금천구 벚꽃로 278 (가산 센터)', time: '08:30' },
+          { id: 'stop_origin', type: 'origin', name: isCustomOrigin ? (log.origin_name || '현지(자택) 출발지') : '가산 센터', addr: isCustomOrigin ? origAddrVal : '서울 금천구 벚꽃로 278 (가산 센터)', time: '08:30' },
           { id: 'stop_return', type: 'return', name: isCustom ? (log.destination_name || '최종 도착지') : '가산 센터 (최종 복귀)', addr: log.destination_addr || '서울 금천구 벚꽃로 278 (가산 센터)', time: '18:00' }
         ];
         loadStopsForDate(log.trip_date);
@@ -2514,6 +2628,83 @@
 
       calcModalMileage();
       document.getElementById('tripLogModal').classList.remove('hidden');
+    }
+
+    function onModalOriginTypeChange(val) {
+      var addrInp = document.getElementById('modalOriginAddr');
+      var badge = document.getElementById('originHelperBadge');
+      var help = document.getElementById('originDescHelp');
+      if (!addrInp) return;
+
+      if (val === 'gasan') {
+        addrInp.value = '서울 금천구 벚꽃로 278 (가산 센터)';
+        if (badge) {
+          badge.className = 'text-[10px] font-bold text-indigo-700 bg-indigo-100 px-2 py-0.5 rounded-full';
+          badge.innerText = '🏢 센터 출발 (기본)';
+        }
+        if (help) {
+          help.innerHTML = '💡 <b>안내:</b> 가산 센터에서 출발한 경우 <b>\'가산 센터 출발\'</b>을 그대로 두시면 됩니다. (자택 등 현지에서 직접 첫 배송지로 출발한 경우 주소를 변경하세요.)';
+        }
+      } else {
+        if (addrInp.value.indexOf('벚꽃로 278') !== -1) addrInp.value = '';
+        if (badge) {
+          badge.className = 'text-[10px] font-bold text-indigo-800 bg-indigo-200 px-2 py-0.5 rounded-full';
+          badge.innerText = '🏠 현지(자택) 출발';
+        }
+        if (help) {
+          help.innerHTML = '⚠️ <b>현지/자택 출발:</b> 센터를 거치지 않고 자택이나 타 장소에서 직접 첫 배송지로 출발한 경우 출발지 주소를 입력해주세요.';
+        }
+        addrInp.focus();
+      }
+
+      if (modalStops.length > 0) {
+        var orig = modalStops[0];
+        if (orig && orig.type === 'origin') {
+          orig.name = (val === 'gasan') ? '가산 센터' : (addrInp.value.trim() ? (addrInp.value.trim().split(' ')[0] + ' (출발)') : '현지(자택) 출발지');
+          orig.addr = addrInp.value.trim();
+          renderModalStops();
+          var recDist = calcRouteDistanceForStops(modalStops);
+          if (recDist > 0) {
+            document.getElementById('modalSuggestedKm').innerText = recDist.toFixed(1) + ' km';
+          }
+        }
+      }
+    }
+
+    function onModalOriginAddrInput(val) {
+      if (modalStops.length > 0) {
+        var orig = modalStops[0];
+        if (orig && orig.type === 'origin') {
+          orig.addr = val.trim();
+          var origType = document.getElementById('modalOriginType') ? document.getElementById('modalOriginType').value : 'gasan';
+          if (origType === 'gasan') {
+            orig.name = '가산 센터';
+          } else {
+            orig.name = val.trim() ? (val.trim().split(' ')[0] + ' (출발)') : '현지(자택) 출발지';
+          }
+          renderModalStops();
+          var recDist = calcRouteDistanceForStops(modalStops);
+          if (recDist > 0) {
+            document.getElementById('modalSuggestedKm').innerText = recDist.toFixed(1) + ' km';
+          }
+        }
+      }
+    }
+
+    function resetModalOriginToGasan() {
+      var sel = document.getElementById('modalOriginType');
+      if (sel) sel.value = 'gasan';
+      onModalOriginTypeChange('gasan');
+      showToast('🏢 출발지가 [가산 센터 출발]로 재설정되었습니다.');
+    }
+
+    async function deleteCurrentModalTripLog() {
+      var logId = document.getElementById('editLogId').value;
+      if (!logId) {
+        alert('신규 등록 중인 일지는 삭제 대상이 아닙니다. 모달 창 하단의 [취소]를 눌러 닫아주세요.');
+        return;
+      }
+      await deleteTripLog(Number(logId));
     }
 
     function onModalDestTypeChange(val) {
@@ -2667,6 +2858,11 @@
       var startKm = Number(document.getElementById('modalStartKm').value);
       var endKm = Number(document.getElementById('modalEndKm').value);
       var isUnoperated = document.getElementById('modalIsUnoperated').checked;
+      var originType = document.getElementById('modalOriginType') ? document.getElementById('modalOriginType').value : 'gasan';
+      var originAddr = document.getElementById('modalOriginAddr') ? document.getElementById('modalOriginAddr').value.trim() : '';
+      var originName = (originType === 'gasan' || !originAddr) ? '가산 센터' : (originAddr.split(' ')[0] || originAddr);
+      var finalOriginAddr = (originType === 'gasan' || !originAddr) ? '서울 금천구 벚꽃로 278 (가산 센터)' : originAddr;
+
       var destType = document.getElementById('modalDestType').value;
       var destAddr = document.getElementById('modalDestAddr').value.trim();
       var destName = (destType === 'gasan' || !destAddr) ? '가산 센터' : (destAddr.split(' ')[0] || destAddr);
@@ -2674,6 +2870,15 @@
       var parkingFee = Number(document.getElementById('modalParkingFee').value || 0);
       var fuelFee = Number(document.getElementById('modalFuelFee').value || 0);
       var memo = document.getElementById('modalMemo').value.trim();
+
+      // Ensure first origin stop has valid addr & name
+      if (modalStops && modalStops.length > 0) {
+        var firstStop = modalStops[0];
+        if (firstStop && firstStop.type === 'origin') {
+          firstStop.addr = finalOriginAddr;
+          firstStop.name = (originType === 'gasan') ? '가산 센터' : (originName + ' (출발)');
+        }
+      }
 
       // Ensure last return stop has valid addr & name
       if (modalStops && modalStops.length > 0) {
@@ -2717,6 +2922,9 @@
         end_km: endKm,
         distance_km: distanceKm,
         suggested_distance_km: distanceKm > 0 ? (distanceKm * 0.98).toFixed(1) : 0,
+        is_local_departure: (originType === 'custom'),
+        origin_addr: finalOriginAddr,
+        origin_name: originName,
         is_local_dismissal: (destType === 'custom'),
         destination_addr: finalDestAddr,
         destination_name: destName,
@@ -2777,15 +2985,41 @@
     }
 
     async function deleteTripLog(logId) {
-      if (!confirm('정말로 이 운행일지 항목을 삭제하시겠습니까?')) return;
+      var targetLog = tripLogs.find(function(l) { return l.id === Number(logId); });
+      var infoText = targetLog
+        ? `\n\n• 운행일자: ${targetLog.trip_date}\n• 차량번호: ${targetLog.vehicle_no}\n• 운전기사: ${targetLog.driver_name}\n• 주행거리: ${targetLog.distance_km} km (${targetLog.start_km.toLocaleString()} → ${targetLog.end_km.toLocaleString()} km)`
+        : '';
+
+      if (!confirm(`⚠️ 정말로 이 운행일지 항목을 영구 삭제하시겠습니까?${infoText}\n\n※ 삭제 후 복구할 수 없으며 차량 누적 주행거리는 남은 기록 기준으로 자동 재계산됩니다.`)) {
+        return;
+      }
+
+      var vehicleNo = targetLog ? targetLog.vehicle_no : currentSelectedVehicleNo;
+
       try {
         if (supabaseClient) {
-          await supabaseClient.from('delivery_schedules').delete().eq('id', logId);
+          var { error } = await supabaseClient.from('delivery_schedules').delete().eq('id', logId);
+          if (error) throw error;
+
+          // 차량 마스터(vehiclesMaster) 최신 계기판 안전 재계산
+          var vIdx = vehiclesMaster.findIndex(function(v) { return v.vehicle_no === vehicleNo; });
+          if (vIdx !== -1) {
+            var remainingLogs = tripLogs.filter(function(l) { return l.vehicle_no === vehicleNo && l.id !== Number(logId); });
+            var maxEnd = vehiclesMaster[vIdx].initial_km || 0;
+            remainingLogs.forEach(function(l) {
+              if (l.end_km > maxEnd) maxEnd = l.end_km;
+            });
+            vehiclesMaster[vIdx].current_km = maxEnd;
+            await saveVehiclesMaster();
+          }
         }
-        showToast('🗑️ 운행일지가 삭제되었습니다.');
+
+        closeTripLogModal();
+        showToast('🗑️ 운행일지가 안전하게 삭제되었으며 차량 계기판이 자동 동기화되었습니다.');
         await loadVehicleData(false);
       } catch(e) {
-        alert('삭제 오류: ' + e.message);
+        console.error('Error deleting trip log:', e);
+        alert('삭제 오류: ' + (e.message || e));
       }
     }
 
@@ -3594,7 +3828,18 @@
             targetInput.dispatchEvent(new Event('change', { bubbles: true }));
           }
 
-          if (targetInputId === 'modalDestAddr') {
+          if (targetInputId === 'modalOriginAddr') {
+            var selOrig = document.getElementById('modalOriginType');
+            if (selOrig && selOrig.value !== 'custom') {
+              selOrig.value = 'custom';
+              if (typeof onModalOriginTypeChange === 'function') {
+                onModalOriginTypeChange('custom');
+              }
+            }
+            if (typeof onModalOriginAddrInput === 'function') {
+              onModalOriginAddrInput(roadAddr);
+            }
+          } else if (targetInputId === 'modalDestAddr') {
             var sel = document.getElementById('modalDestType');
             if (sel && sel.value !== 'custom') {
               sel.value = 'custom';
