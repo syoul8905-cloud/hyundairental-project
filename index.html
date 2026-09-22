@@ -2426,11 +2426,14 @@
 
     // 사전 정밀 검증 GPS 좌표 프리셋 (오차 0m 검증 좌표)
     var PRESET_COORDINATES = {
-      "가산 센터": { lat: 37.476483, lng: 126.883705 },
-      "서울특별시 금천구 벚꽃로 278": { lat: 37.476483, lng: 126.883705 },
-      "금천구 벚꽃로 278": { lat: 37.476483, lng: 126.883705 },
-      "벚꽃로 278": { lat: 37.476483, lng: 126.883705 },
-      "SJ테크노빌": { lat: 37.476483, lng: 126.883705 },
+      "가산 센터": { lat: 37.476484, lng: 126.881453 },
+      "가산 센터 (중간 복귀)": { lat: 37.476484, lng: 126.881453 },
+      "🏢 가산 센터 (중간 복귀)": { lat: 37.476484, lng: 126.881453 },
+      "서울특별시 금천구 벚꽃로 278": { lat: 37.476484, lng: 126.881453 },
+      "서울 금천구 벚꽃로 278": { lat: 37.476484, lng: 126.881453 },
+      "금천구 벚꽃로 278": { lat: 37.476484, lng: 126.881453 },
+      "벚꽃로 278": { lat: 37.476484, lng: 126.881453 },
+      "SJ테크노빌": { lat: 37.476484, lng: 126.881453 },
       "여의도 본사": { lat: 37.5255, lng: 126.9213 },
       "인천 남동구 인주대로 600": { lat: 37.4475, lng: 126.7086 },
       "서울 강남구 테헤란로 432": { lat: 37.50588064, lng: 127.05481058 },
@@ -2692,8 +2695,8 @@
       type: 'gasan',
       name: '가산 센터',
       addr: '서울특별시 금천구 벚꽃로 278',
-      lat: 37.476483,
-      lng: 126.883705
+      lat: 37.476484,
+      lng: 126.881453
     };
 
     // 1. 기사별 등록 거점(자택/고정 거점) 마스터 관리
@@ -3561,7 +3564,7 @@
     function resolveAddressCoord(rawAddr) {
       return new Promise(function(resolve) {
         if (!rawAddr) {
-          resolve({ lat: 37.4809, lng: 126.8826 });
+          resolve({ lat: 37.476484, lng: 126.881453 });
           return;
         }
         var cleanKey = rawAddr.replace(/\r?\n/g, ' ').replace(/\s+/g, ' ').trim();
@@ -3646,7 +3649,7 @@
     }
 
     function getCoordForAddress(addr) {
-      if (!addr) return { lat: 37.4809, lng: 126.8826 };
+      if (!addr) return { lat: 37.476484, lng: 126.881453 };
       var clean = addr.replace(/\r?\n/g, ' ').replace(/\s+/g, ' ').trim();
       if (GEO_CACHE[clean]) return GEO_CACHE[clean];
       var base = extractRoadBaseAddress(clean);
@@ -4725,17 +4728,27 @@
           linePath.push(stopPos);
           if (bounds) bounds.extend(stopPos);
 
-          var pinBg = isMidReturn ? 'bg-purple-600 ring-2 ring-purple-300' : (isRecov ? 'bg-purple-600' : 'bg-indigo-600');
+          var isRecov = !isMidReturn && (r.구분 && r.구분.indexOf('회수') !== -1);
+          var pinBg = isRecov ? 'bg-purple-600' : 'bg-indigo-600';
           var markerTitle = isMidReturn ? `[중간 복귀] ${r.고객사}` : `${stopNumber}. ${r.고객사}`;
-          var markerContent = `
-            <div class="kakao-pin ${pinBg} w-7 h-7 text-xs border-2 border-white flex items-center justify-center font-black shadow-md" title="${markerTitle}">
-              ${isMidReturn ? '<i class="fa-solid fa-house-chimney text-[11px]"></i>' : stopNumber}
-            </div>
-          `;
+          var markerContent = '';
+          if (isMidReturn) {
+            markerContent = `
+              <div class="kakao-pin bg-purple-600 ring-2 ring-purple-300 text-white text-[11px] px-2.5 py-1 rounded-xl shadow-lg border-2 border-white flex items-center gap-1 font-black cursor-pointer hover:scale-110 transition-transform" title="${markerTitle}">
+                <i class="fa-solid fa-house-chimney text-[10px]"></i> ${r.고객사 || '가산 센터 (중간 복귀)'}
+              </div>
+            `;
+          } else {
+            markerContent = `
+              <div class="kakao-pin ${pinBg} w-7 h-7 text-xs border-2 border-white flex items-center justify-center font-black shadow-md rounded-full" title="${markerTitle}">
+                ${stopNumber}
+              </div>
+            `;
+          }
           var stopOverlay = new kakao.maps.CustomOverlay({
             position: stopPos,
             content: markerContent,
-            yAnchor: 0.5
+            yAnchor: isMidReturn ? 1.2 : 0.5
           });
           stopOverlay.setMap(kakaoMap);
           kakaoOverlays.push(stopOverlay);
@@ -5011,8 +5024,27 @@
       var destCoord = {
         lat: dest.lat || DEFAULT_GASAN_ORIGIN.lat,
         lng: dest.lng || DEFAULT_GASAN_ORIGIN.lng,
-        name: dest.name || '가산 센터'
+        name: dest.name || '가산 센터',
+        addr: dest.addr || DEFAULT_GASAN_ORIGIN.addr
       };
+
+      // 도착지 마커 렌더링 (담당 기사 선택 시 지도에 최종 복귀지 핀 명확히 표출)
+      if (!isAllDrivers && kakaoMap && window.kakao && kakao.maps.CustomOverlay && activeRecords.length > 0) {
+        var destPos = new kakao.maps.LatLng(destCoord.lat, destCoord.lng);
+        var isGasanDest = (destCoord.name && destCoord.name.indexOf('가산') !== -1) || (destCoord.addr && destCoord.addr.indexOf('벚꽃로 278') !== -1);
+        var destContent = `
+          <div class="kakao-pin ${isGasanDest ? 'bg-indigo-700 ring-2 ring-indigo-300' : 'bg-rose-600 ring-2 ring-rose-300'} text-white text-[11px] px-2.5 py-1 rounded-xl shadow-lg border-2 border-white flex items-center gap-1 font-bold cursor-pointer hover:scale-110 transition-transform" title="최종 복귀/도착지: ${destCoord.name}">
+            <i class="fa-solid fa-flag-checkered text-[10px]"></i> ${destCoord.name || '가산 센터 (도착)'}
+          </div>
+        `;
+        var destOverlay = new kakao.maps.CustomOverlay({
+          position: destPos,
+          content: destContent,
+          yAnchor: 1.2
+        });
+        destOverlay.setMap(kakaoMap);
+        kakaoOverlays.push(destOverlay);
+      }
 
       if (!isRoadRouteMode) {
         // [기본 모드: 직선거리 배정]

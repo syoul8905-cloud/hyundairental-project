@@ -1963,7 +1963,10 @@
     // ==========================================
     const REGION_COORDS = {
       '금천': { lat: 37.4568, lng: 126.8954 },
-      '가산': { lat: 37.4806, lng: 126.8833 },
+      '가산': { lat: 37.476484, lng: 126.881453 },
+      '가산 센터': { lat: 37.476484, lng: 126.881453 },
+      'SJ테크노빌': { lat: 37.476484, lng: 126.881453 },
+      '벚꽃로 278': { lat: 37.476484, lng: 126.881453 },
       '구로': { lat: 37.4954, lng: 126.8874 },
       '영등포': { lat: 37.5264, lng: 126.8962 },
       '여의도': { lat: 37.5216, lng: 126.9242 },
@@ -2029,13 +2032,13 @@
     };
 
     function getCoordsFromAddress(addr) {
-      if (!addr) return { lat: 37.4806, lng: 126.8833 };
+      if (!addr) return { lat: 37.476484, lng: 126.881453 };
       for (var k in REGION_COORDS) {
         if (addr.indexOf(k) !== -1) {
           return REGION_COORDS[k];
         }
       }
-      return { lat: 37.4806, lng: 126.8833 };
+      return { lat: 37.476484, lng: 126.881453 };
     }
 
     function calcHaversineDistanceKm(lat1, lon1, lat2, lon2) {

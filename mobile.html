@@ -1110,11 +1110,14 @@
 
     // Preset Coordinates (주요 거점 및 9월 15일 배송지 사전 정의)
     const PRESET_COORDINATES = {
-      "가산 센터": { lat: 37.476483, lng: 126.883705 },
-      "서울특별시 금천구 벚꽃로 278": { lat: 37.476483, lng: 126.883705 },
-      "금천구 벚꽃로 278": { lat: 37.476483, lng: 126.883705 },
-      "벚꽃로 278": { lat: 37.476483, lng: 126.883705 },
-      "SJ테크노빌": { lat: 37.476483, lng: 126.883705 },
+      "가산 센터": { lat: 37.476484, lng: 126.881453 },
+      "가산 센터 (중간 복귀)": { lat: 37.476484, lng: 126.881453 },
+      "🏢 가산 센터 (중간 복귀)": { lat: 37.476484, lng: 126.881453 },
+      "서울특별시 금천구 벚꽃로 278": { lat: 37.476484, lng: 126.881453 },
+      "서울 금천구 벚꽃로 278": { lat: 37.476484, lng: 126.881453 },
+      "금천구 벚꽃로 278": { lat: 37.476484, lng: 126.881453 },
+      "벚꽃로 278": { lat: 37.476484, lng: 126.881453 },
+      "SJ테크노빌": { lat: 37.476484, lng: 126.881453 },
       "서울 구로구 디지털로26길 38": { lat: 37.4852, lng: 126.8974 },
       "서울 영등포구 여의대로 108": { lat: 37.5255, lng: 126.9262 },
       "서울 종로구 종로 1": { lat: 37.5704, lng: 126.9768 },
@@ -1158,7 +1161,7 @@
     function resolveMobileAddressCoord(rawAddr) {
       return new Promise(function(resolve) {
         if (!rawAddr) {
-          resolve({ lat: 37.476483, lng: 126.883705 });
+          resolve({ lat: 37.476484, lng: 126.881453 });
           return;
         }
         var cleanKey = rawAddr.replace(/\r?\n/g, ' ').replace(/\s+/g, ' ').trim();
@@ -1179,7 +1182,7 @@
         }
 
         if (!mobileKakaoGeocoder) {
-          resolve({ lat: 37.476483, lng: 126.883705 });
+          resolve({ lat: 37.476484, lng: 126.881453 });
           return;
         }
 
@@ -1206,11 +1209,11 @@
                       try { localStorage.setItem('KAKAO_GEO_CACHE_V2', JSON.stringify(GEO_CACHE)); } catch(e) {}
                       resolve(c3);
                     } else {
-                      resolve({ lat: 37.476483, lng: 126.883705 });
+                      resolve({ lat: 37.476484, lng: 126.881453 });
                     }
                   });
                 } else {
-                  resolve({ lat: 37.476483, lng: 126.883705 });
+                  resolve({ lat: 37.476484, lng: 126.881453 });
                 }
               });
             } else if (mobileKakaoPlaces) {
@@ -1221,11 +1224,11 @@
                   try { localStorage.setItem('KAKAO_GEO_CACHE_V2', JSON.stringify(GEO_CACHE)); } catch(e) {}
                   resolve(c4);
                 } else {
-                  resolve({ lat: 37.476483, lng: 126.883705 });
+                  resolve({ lat: 37.476484, lng: 126.881453 });
                 }
               });
             } else {
-              resolve({ lat: 37.476483, lng: 126.883705 });
+              resolve({ lat: 37.476484, lng: 126.881453 });
             }
           }
         });
@@ -1260,8 +1263,8 @@
         type: 'gasan',
         name: '가산 센터',
         addr: '서울특별시 금천구 벚꽃로 278',
-        lat: 37.476483,
-        lng: 126.883705
+        lat: 37.476484,
+        lng: 126.881453
       };
     }
 
@@ -1345,8 +1348,8 @@
           type: 'gasan',
           name: '가산 센터',
           addr: '서울특별시 금천구 벚꽃로 278',
-          lat: 37.476483,
-          lng: 126.883705
+          lat: 37.476484,
+          lng: 126.881453
         }, false);
       } else if (type === 'base') {
         var regBase = getMobileDriverRegisteredBase();
@@ -1358,8 +1361,8 @@
           type: 'base',
           name: regBase.name || (drvName + ' 자택'),
           addr: regBase.addr,
-          lat: regBase.lat || 37.476483,
-          lng: regBase.lng || 126.883705
+          lat: regBase.lat || 37.476484,
+          lng: regBase.lng || 126.881453
         }, false);
       }
       closeMobileOriginModal();
@@ -1448,7 +1451,7 @@
     }
 
     function getCoordForAddress(addr) {
-      if (!addr) return { lat: 37.476483, lng: 126.883705 };
+      if (!addr) return { lat: 37.476484, lng: 126.881453 };
       var clean = addr.replace(/\r?\n/g, ' ').replace(/\s+/g, ' ').trim();
       if (GEO_CACHE[clean]) return GEO_CACHE[clean];
       var base = extractRoadBaseAddress(clean);
@@ -1456,7 +1459,7 @@
       for (var key in GEO_CACHE) {
         if (clean.indexOf(key) !== -1 || key.indexOf(clean) !== -1) return GEO_CACHE[key];
       }
-      return { lat: 37.476483, lng: 126.883705 };
+      return { lat: 37.476484, lng: 126.881453 };
     }
 
     const DEFAULT_AUTH_USERS = [
@@ -1642,8 +1645,8 @@
       type: 'gasan',
       name: '가산 센터',
       addr: '서울특별시 금천구 벚꽃로 278',
-      lat: 37.476483,
-      lng: 126.883705
+      lat: 37.476484,
+      lng: 126.881453
     };
 
     function getMobileDriverDestination() {
@@ -1828,8 +1831,8 @@
       return {
         name: (drvName ? drvName + ' 거점' : '등록 거점'),
         addr: '서울특별시 금천구 벚꽃로 278 (가산 센터)',
-        lat: 37.476483,
-        lng: 126.883705
+        lat: 37.476484,
+        lng: 126.881453
       };
     }
 
@@ -1880,8 +1883,8 @@
           type: 'gasan',
           name: '가산 센터',
           addr: '서울특별시 금천구 벚꽃로 278',
-          lat: 37.476483,
-          lng: 126.883705
+          lat: 37.476484,
+          lng: 126.881453
         };
       } else {
         var regBase = getMobileDriverRegisteredBase();
@@ -1889,8 +1892,8 @@
           type: 'custom',
           name: regBase.name || (drvName ? drvName + ' 거점' : '등록 거점'),
           addr: regBase.addr || '서울특별시 금천구 벚꽃로 278',
-          lat: regBase.lat || 37.476483,
-          lng: regBase.lng || 126.883705
+          lat: regBase.lat || 37.476484,
+          lng: regBase.lng || 126.881453
         };
       }
 
