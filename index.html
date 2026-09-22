@@ -5328,19 +5328,6 @@
       showToast('🟢 네이버 지도 실시간 교통 길찾기로 연결되었습니다.');
     }
 
-        document.getElementById('routeSummaryBadge').innerHTML = `
-          <i class="fa-solid fa-car text-indigo-600"></i> 총 <b>${points.length - 1}</b>개소 배송 동선 <b>(실제 도로)</b>
-        `;
-
-        if (bounds && fitBounds) {
-          cachedRoadRouteData.roadLatLngs.forEach(function(ll, idx) {
-            if (idx % 8 === 0) bounds.extend(ll);
-          });
-          kakaoMap.setBounds(bounds);
-        }
-      }
-    }
-
     async function toggleRoadRouteCalculation() {
       isRoadRouteMode = true;
       cachedRoadRouteData = null; // 최신 순서로 재계산
