@@ -4661,14 +4661,24 @@
               </button>
             </div>
 
-            <div class="flex items-center justify-between text-[11px] text-slate-600 bg-white/95 px-2.5 py-1.5 rounded-lg border border-emerald-200/60 shadow-xs">
-              <div class="flex items-center gap-1.5 truncate">
+            <div class="flex items-center justify-between text-[11px] text-slate-600 bg-white/95 px-2.5 py-1.5 rounded-lg border border-emerald-200/60 shadow-xs group/origin">
+              <div class="flex items-center gap-1.5 truncate cursor-pointer hover:text-emerald-700 min-w-0" 
+                   onclick="copyToClipboard('${(originCoord.addr || '').replace(/'/g, "\\'")}', '출발지');" 
+                   title="클릭하여 출발지 주소 복사 (길찾기용)">
                 <i class="fa-solid fa-location-dot text-emerald-600 text-xs shrink-0"></i>
-                <span class="truncate font-semibold text-slate-800 text-[11px]" title="${originCoord.addr}">${originCoord.addr}</span>
+                <span class="truncate font-semibold text-slate-800 group-hover/origin:text-emerald-700 hover:underline text-[11px]">${originCoord.addr}</span>
               </div>
-              <button type="button" onclick="zoomToStop(${originCoord.lat}, ${originCoord.lng})" class="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 shrink-0 ml-1">
-                지도 ↗
-              </button>
+              <div class="flex items-center gap-1.5 shrink-0 ml-1">
+                <button type="button" 
+                        onclick="copyToClipboard('${(originCoord.addr || '').replace(/'/g, "\\'")}', '출발지');" 
+                        class="text-[9.5px] font-bold text-slate-500 hover:text-emerald-700 hover:bg-emerald-50 px-1.5 py-0.5 rounded border border-slate-200 transition flex items-center gap-1 shadow-2xs" 
+                        title="출발지 주소 복사">
+                  <i class="fa-regular fa-copy text-[9px]"></i> 복사
+                </button>
+                <button type="button" onclick="zoomToStop(${originCoord.lat}, ${originCoord.lng})" class="text-[10px] font-bold text-indigo-600 hover:text-indigo-800">
+                  지도 ↗
+                </button>
+              </div>
             </div>
 
             <!-- 2 Quick Preset Buttons for Daily Assignment -->
@@ -4821,13 +4831,24 @@
                 </div>
               </div>
 
-              <div class="flex items-center justify-between text-[10px] text-purple-800 pl-6">
-                <span class="truncate hover:underline cursor-pointer" onclick="event.stopPropagation(); openEditMidReturnModal(${realIdx});" title="${r.주소}">
-                  <i class="fa-solid fa-location-dot mr-1 text-purple-600"></i>${r.주소}
+              <div class="flex items-center justify-between text-[10px] text-purple-800 pl-6 group/mid">
+                <span class="truncate hover:underline cursor-pointer flex items-center gap-1 min-w-0" 
+                      onclick="event.stopPropagation(); copyToClipboard('${(r.주소 || '').replace(/'/g, "\\'")}', '중간 복귀지');" 
+                      title="클릭하여 주소 복사 (길찾기용)">
+                  <i class="fa-solid fa-location-dot text-purple-600 shrink-0"></i>
+                  <span class="truncate">${r.주소}</span>
                 </span>
-                <button type="button" onclick="event.stopPropagation(); openEditMidReturnModal(${realIdx});" class="shrink-0 text-purple-700 hover:text-purple-900 font-bold underline ml-1">
-                  장소 변경
-                </button>
+                <div class="flex items-center gap-1 shrink-0 ml-1">
+                  <button type="button" 
+                          onclick="event.stopPropagation(); copyToClipboard('${(r.주소 || '').replace(/'/g, "\\'")}', '중간 복귀지');" 
+                          class="text-[9.5px] font-bold text-purple-600 hover:text-purple-800 hover:bg-purple-100 px-1.5 py-0.5 rounded border border-purple-200 transition flex items-center gap-1 shadow-2xs" 
+                          title="주소 복사">
+                    <i class="fa-regular fa-copy text-[9px]"></i> 복사
+                  </button>
+                  <button type="button" onclick="event.stopPropagation(); openEditMidReturnModal(${realIdx});" class="text-purple-700 hover:text-purple-900 font-bold underline text-[9.5px]">
+                    장소 변경
+                  </button>
+                </div>
               </div>
 
               <div class="flex items-center flex-wrap gap-1.5 pl-6 pt-0.5">
@@ -4882,7 +4903,20 @@
               </div>
             </div>
 
-            <p class="text-[10px] text-slate-500 truncate pl-6 cursor-pointer hover:text-indigo-600 hover:underline" onclick="event.stopPropagation(); openEditStopModal(${realIdx});" title="${r.주소}">${r.주소}</p>
+            <div class="flex items-center justify-between pl-6 group/addr">
+              <p class="text-[10.5px] text-slate-600 font-medium truncate cursor-pointer hover:text-indigo-600 hover:underline flex items-center gap-1 min-w-0" 
+                 onclick="event.stopPropagation(); copyToClipboard('${(r.주소 || '').replace(/'/g, "\\'")}', '${(r.고객사 || '').replace(/'/g, "\\'")}');" 
+                 title="클릭하여 주소 복사 (네이버/카카오 길찾기 붙여넣기용)">
+                <i class="fa-regular fa-copy text-[10px] text-slate-400 group-hover/addr:text-indigo-600 transition shrink-0"></i>
+                <span class="truncate">${r.주소}</span>
+              </p>
+              <button type="button" 
+                      onclick="event.stopPropagation(); copyToClipboard('${(r.주소 || '').replace(/'/g, "\\'")}', '${(r.고객사 || '').replace(/'/g, "\\'")}');" 
+                      class="shrink-0 text-[9.5px] font-bold text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 px-1.5 py-0.5 rounded border border-slate-200 transition flex items-center gap-1 shadow-2xs ml-1" 
+                      title="주소 클립보드 복사">
+                <i class="fa-regular fa-copy text-[9px]"></i> 복사
+              </button>
+            </div>
 
             ${contactDisplay ? `
               <div class="flex items-center gap-1.5 pl-6 text-[10px] text-slate-700 font-semibold cursor-pointer hover:text-indigo-600" onclick="event.stopPropagation(); openEditStopModal(${realIdx});" title="담당자/연락처 수정">
@@ -8121,6 +8155,46 @@
       setTimeout(function() {
         toast.classList.add('translate-y-12', 'opacity-0', 'pointer-events-none');
       }, 2600);
+    }
+
+    function copyToClipboard(text, label) {
+      if (!text) {
+        showToast('⚠️ 복사할 주소가 없습니다.');
+        return;
+      }
+      var cleanText = String(text).trim();
+      var title = label ? (label + ' 주소') : '주소';
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(cleanText).then(function() {
+          showToast('📋 ' + title + ' 복사 완료! (' + cleanText + ')');
+        }).catch(function() {
+          fallbackCopyText(cleanText, title);
+        });
+      } else {
+        fallbackCopyText(cleanText, title);
+      }
+    }
+
+    function fallbackCopyText(text, title) {
+      try {
+        var textArea = document.createElement("textarea");
+        textArea.value = text;
+        textArea.style.position = "fixed";
+        textArea.style.top = "0";
+        textArea.style.left = "-999999px";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        var successful = document.execCommand('copy');
+        textArea.remove();
+        if (successful) {
+          showToast('📋 ' + title + ' 복사 완료! (' + text + ')');
+        } else {
+          prompt(title + '를 복사하세요 (Ctrl+C):', text);
+        }
+      } catch (err) {
+        prompt(title + '를 복사하세요 (Ctrl+C):', text);
+      }
     }
 
     // ==========================================
