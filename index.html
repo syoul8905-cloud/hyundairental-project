@@ -2424,16 +2424,17 @@
     var cachedRoadRouteData = null; // 실제 도로 경로 데이터 캐시
     var isCalculatingRoute = false;
 
-    // 사전 정밀 검증 GPS 좌표 프리셋 (오차 0m 검증 좌표)
+    // 사전 정밀 검증 GPS 좌표 프리셋 (카카오 공식 정밀 검증 좌표: SJ테크노빌 37.479493, 126.884635)
     var PRESET_COORDINATES = {
-      "가산 센터": { lat: 37.476484, lng: 126.881453 },
-      "가산 센터 (중간 복귀)": { lat: 37.476484, lng: 126.881453 },
-      "🏢 가산 센터 (중간 복귀)": { lat: 37.476484, lng: 126.881453 },
-      "서울특별시 금천구 벚꽃로 278": { lat: 37.476484, lng: 126.881453 },
-      "서울 금천구 벚꽃로 278": { lat: 37.476484, lng: 126.881453 },
-      "금천구 벚꽃로 278": { lat: 37.476484, lng: 126.881453 },
-      "벚꽃로 278": { lat: 37.476484, lng: 126.881453 },
-      "SJ테크노빌": { lat: 37.476484, lng: 126.881453 },
+      "가산 센터": { lat: 37.479493, lng: 126.884635 },
+      "가산 센터 (중간 복귀)": { lat: 37.479493, lng: 126.884635 },
+      "🏢 가산 센터 (중간 복귀)": { lat: 37.479493, lng: 126.884635 },
+      "서울특별시 금천구 벚꽃로 278": { lat: 37.479493, lng: 126.884635 },
+      "서울특별시 금천구 벚꽃로 278 (SJ테크노빌)": { lat: 37.479493, lng: 126.884635 },
+      "서울 금천구 벚꽃로 278": { lat: 37.479493, lng: 126.884635 },
+      "금천구 벚꽃로 278": { lat: 37.479493, lng: 126.884635 },
+      "벚꽃로 278": { lat: 37.479493, lng: 126.884635 },
+      "SJ테크노빌": { lat: 37.479493, lng: 126.884635 },
       "여의도 본사": { lat: 37.5255, lng: 126.9213 },
       "인천 남동구 인주대로 600": { lat: 37.4475, lng: 126.7086 },
       "서울 강남구 테헤란로 432": { lat: 37.50588064, lng: 127.05481058 },
@@ -2474,6 +2475,9 @@
     for (var k in PRESET_COORDINATES) {
       GEO_CACHE[k] = PRESET_COORDINATES[k];
     }
+    try {
+      localStorage.setItem('KAKAO_GEO_CACHE_V2', JSON.stringify(GEO_CACHE));
+    } catch(e) {}
 
     // ==========================================
     // Kakao Maps SDK Engine
@@ -2694,9 +2698,9 @@
     var DEFAULT_GASAN_ORIGIN = {
       type: 'gasan',
       name: '가산 센터',
-      addr: '서울특별시 금천구 벚꽃로 278',
-      lat: 37.476484,
-      lng: 126.881453
+      addr: '서울특별시 금천구 벚꽃로 278 (SJ테크노빌)',
+      lat: 37.479493,
+      lng: 126.884635
     };
 
     // 1. 기사별 등록 거점(자택/고정 거점) 마스터 관리
@@ -2779,7 +2783,15 @@
       var key = driverName ? driverName.trim() : '__all__';
 
       if (daily[dateStr] && daily[dateStr][key] && daily[dateStr][key].addr && daily[dateStr][key].lat) {
-        return daily[dateStr][key];
+        var found = daily[dateStr][key];
+        // 가산 센터인 경우 공식 카카오 SJ테크노빌 건물 정밀 좌표로 자동 보정
+        if (found.type === 'gasan' || (found.addr && found.addr.indexOf('벚꽃로 278') !== -1) || (found.name && found.name.indexOf('가산') !== -1)) {
+          found.lat = DEFAULT_GASAN_ORIGIN.lat;
+          found.lng = DEFAULT_GASAN_ORIGIN.lng;
+          found.addr = DEFAULT_GASAN_ORIGIN.addr;
+          found.name = '가산 센터';
+        }
+        return found;
       }
       // 새 일자, 다음 날, 미지정 날짜 -> 무조건 100% 가산 센터로 자동 복귀!
       return Object.assign({}, DEFAULT_GASAN_ORIGIN);
@@ -3564,7 +3576,7 @@
     function resolveAddressCoord(rawAddr) {
       return new Promise(function(resolve) {
         if (!rawAddr) {
-          resolve({ lat: 37.476484, lng: 126.881453 });
+          resolve({ lat: 37.479493, lng: 126.884635 });
           return;
         }
         var cleanKey = rawAddr.replace(/\r?\n/g, ' ').replace(/\s+/g, ' ').trim();
@@ -3588,7 +3600,7 @@
         }
 
         if (!kakaoGeocoder) {
-          resolve({ lat: 37.5050, lng: 127.0400 });
+          resolve({ lat: 37.479493, lng: 126.884635 });
           return;
         }
 
@@ -3619,11 +3631,11 @@
                         try { localStorage.setItem('KAKAO_GEO_CACHE_V2', JSON.stringify(GEO_CACHE)); } catch(e) {}
                         resolve(coord3);
                       } else {
-                        resolve({ lat: 37.5050, lng: 127.0400 });
+                        resolve({ lat: 37.479493, lng: 126.884635 });
                       }
                     });
                   } else {
-                    resolve({ lat: 37.5050, lng: 127.0400 });
+                    resolve({ lat: 37.479493, lng: 126.884635 });
                   }
                 }
               });
@@ -3636,11 +3648,11 @@
                     try { localStorage.setItem('KAKAO_GEO_CACHE_V2', JSON.stringify(GEO_CACHE)); } catch(e) {}
                     resolve(coord4);
                   } else {
-                    resolve({ lat: 37.5050, lng: 127.0400 });
+                    resolve({ lat: 37.479493, lng: 126.884635 });
                   }
                 });
               } else {
-                resolve({ lat: 37.5050, lng: 127.0400 });
+                resolve({ lat: 37.479493, lng: 126.884635 });
               }
             }
           }
@@ -3649,12 +3661,12 @@
     }
 
     function getCoordForAddress(addr) {
-      if (!addr) return { lat: 37.476484, lng: 126.881453 };
+      if (!addr) return { lat: 37.479493, lng: 126.884635 };
       var clean = addr.replace(/\r?\n/g, ' ').replace(/\s+/g, ' ').trim();
       if (GEO_CACHE[clean]) return GEO_CACHE[clean];
       var base = extractRoadBaseAddress(clean);
       if (base && GEO_CACHE[base]) return GEO_CACHE[base];
-      return { lat: 37.5050, lng: 127.0400 };
+      return { lat: 37.479493, lng: 126.884635 };
     }
 
     // ==========================================
