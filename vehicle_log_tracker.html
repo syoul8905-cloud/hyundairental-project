@@ -109,6 +109,28 @@
   </header>
 
   <!-- ========================================== -->
+  <!-- Main Feature Tabs: 운행일지 vs 정비일지     -->
+  <!-- ========================================== -->
+  <div class="flex items-center gap-2 mb-4 bg-slate-200/80 p-1.5 rounded-2xl w-fit shadow-inner">
+    <button id="mainTabTripLogBtn" onclick="switchMainTab('trip')" 
+            class="px-5 py-2.5 rounded-xl font-black text-xs transition-all flex items-center gap-2 shadow-sm bg-white text-indigo-700">
+      <i class="fa-solid fa-route text-indigo-600"></i>
+      <span>🚗 법인차량 운행일지</span>
+      <span class="px-1.5 py-0.5 bg-indigo-100 text-indigo-800 text-[10px] rounded-full font-bold">운행·세무</span>
+    </button>
+    <button id="mainTabMaintenanceBtn" onclick="switchMainTab('maintenance')" 
+            class="px-5 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center gap-2 text-slate-600 hover:text-slate-900 hover:bg-white/60">
+      <i class="fa-solid fa-wrench text-amber-500"></i>
+      <span>🔧 차량 정비일지 & 소모품</span>
+      <span class="px-1.5 py-0.5 bg-amber-100 text-amber-800 text-[10px] rounded-full font-bold">소모품·고장사진</span>
+    </button>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- Tab 1: Trip Log Container                  -->
+  <!-- ========================================== -->
+  <div id="tabTripLogContainer" class="space-y-4">
+  <!-- ========================================== -->
   <!-- Vehicle Selector & Month Navigator Bar     -->
   <!-- ========================================== -->
   <div class="bg-white rounded-2xl px-4 py-3 shadow-xs border border-slate-200 mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -261,6 +283,172 @@
           </tr>
         </tbody>
       </table>
+    </div>
+  </div>
+  </div><!-- end tabTripLogContainer -->
+
+  <!-- ========================================== -->
+  <!-- Tab 2: Maintenance Log Container           -->
+  <!-- ========================================== -->
+  <div id="tabMaintenanceContainer" class="hidden space-y-4">
+    <!-- Action Bar & Maintenance Controls -->
+    <div class="bg-white rounded-2xl px-4 py-3 shadow-xs border border-slate-200 flex flex-wrap items-center justify-between gap-3">
+      <!-- Left: Vehicle & Filter Selector -->
+      <div class="flex items-center gap-2 flex-wrap">
+        <div class="flex items-center gap-1.5" id="maintVehicleTabsContainer">
+          <!-- Injected via JS -->
+        </div>
+        <div class="flex items-center bg-slate-50 rounded-xl border border-slate-200 p-1 shadow-xs ml-1">
+          <button onclick="shiftMaintMonth(-1)" title="이전 달" class="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-white text-slate-600 hover:text-indigo-600 text-xs">
+            <i class="fa-solid fa-chevron-left"></i>
+          </button>
+          <span id="maintCurrentMonthDisplay" class="font-black text-slate-900 text-xs px-3 min-w-[95px] text-center">
+            2026년 9월
+          </span>
+          <button onclick="shiftMaintMonth(1)" title="다음 달" class="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-white text-slate-600 hover:text-indigo-600 text-xs">
+            <i class="fa-solid fa-chevron-right"></i>
+          </button>
+          <button onclick="goToCurrentMaintMonth()" class="ml-1 px-2 py-1 bg-white hover:bg-slate-100 text-slate-700 rounded-lg text-xs font-bold border border-slate-200">
+            당월
+          </button>
+          <button onclick="toggleMaintAllPeriod()" id="btnMaintAllPeriod" class="ml-1 px-2 py-1 bg-white hover:bg-slate-100 text-slate-600 rounded-lg text-xs font-bold border border-slate-200">
+            전체
+          </button>
+        </div>
+      </div>
+
+      <!-- Right: Action Buttons -->
+      <div class="flex items-center gap-2 flex-wrap">
+        <button onclick="openMaintenanceIntervalModal()" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition flex items-center gap-1.5 border border-slate-300 text-xs shadow-xs" title="소모품별 기준 교체 주기(Km) 관리자 설정">
+          <i class="fa-solid fa-sliders text-indigo-600"></i>
+          <span>소모품 주기 설정</span>
+        </button>
+
+        <button onclick="exportMaintenanceCsv()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl transition flex items-center gap-1.5 shadow-xs text-xs" title="국세청/회계팀 월말 결산용 정비일지 CSV 다운로드">
+          <i class="fa-solid fa-file-excel"></i>
+          <span>월말 보고서 CSV</span>
+        </button>
+
+        <button onclick="openDamagePhotoModal()" class="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl transition flex items-center gap-1.5 shadow-xs text-xs" title="차량 고장 및 파손 부위 사진 등록/촬영">
+          <i class="fa-solid fa-camera"></i>
+          <span>고장 부위 사진 등록</span>
+        </button>
+
+        <button onclick="openNewMaintenanceModal()" class="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition flex items-center gap-1.5 shadow-xs text-xs">
+          <i class="fa-solid fa-plus"></i>
+          <span>정비일지 직접 등록</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Top 4 Maintenance KPI Cards -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <!-- 1. 총 정비 건수 -->
+      <div class="bg-white rounded-2xl p-3.5 border border-slate-200 shadow-xs flex items-center justify-between">
+        <div>
+          <p class="text-[11px] font-bold text-slate-400">선택 기간 정비</p>
+          <h3 id="kpiMaintTotalCount" class="text-lg sm:text-xl font-black text-slate-800 mt-0.5 font-mono">0 건</h3>
+          <p class="text-[10px] text-slate-400 mt-0.5">정비 이력 누적</p>
+        </div>
+        <div class="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center text-slate-500 text-base">
+          <i class="fa-solid fa-wrench"></i>
+        </div>
+      </div>
+
+      <!-- 2. 총 정비 비용 -->
+      <div class="bg-white rounded-2xl p-3.5 border border-slate-200 shadow-xs flex items-center justify-between">
+        <div>
+          <p class="text-[11px] font-bold text-slate-400">총 정비 비용</p>
+          <h3 id="kpiMaintTotalCost" class="text-lg sm:text-xl font-black text-rose-600 mt-0.5 font-mono">₩0</h3>
+          <p class="text-[10px] text-rose-500 mt-0.5 font-bold">수리비/공임/부품비 합계</p>
+        </div>
+        <div class="w-9 h-9 rounded-xl bg-rose-50 flex items-center justify-center text-rose-600 text-base">
+          <i class="fa-solid fa-receipt"></i>
+        </div>
+      </div>
+
+      <!-- 3. 고장/파손 부위 보관 건수 -->
+      <div class="bg-white rounded-2xl p-3.5 border border-slate-200 shadow-xs flex items-center justify-between">
+        <div>
+          <p class="text-[11px] font-bold text-slate-400">고장 부위 사진</p>
+          <h3 id="kpiDamagePhotoCount" class="text-lg sm:text-xl font-black text-amber-600 mt-0.5 font-mono">0 장</h3>
+          <p class="text-[10px] text-amber-600 mt-0.5 font-bold" id="kpiDamagePendingCount">수리 대기 0건</p>
+        </div>
+        <div class="w-9 h-9 rounded-xl bg-amber-50 flex items-center justify-center text-amber-600 text-base">
+          <i class="fa-solid fa-image"></i>
+        </div>
+      </div>
+
+      <!-- 4. 타이어 상태 요약 -->
+      <div class="bg-white rounded-2xl p-3.5 border border-slate-200 shadow-xs flex items-center justify-between">
+        <div>
+          <p class="text-[11px] font-bold text-slate-400">현재 장착 타이어</p>
+          <h3 id="kpiTireStatusDisplay" class="text-sm sm:text-base font-black text-indigo-700 mt-0.5">🍂 사계절용</h3>
+          <p class="text-[10px] text-slate-400 mt-0.5" id="kpiTireDateDisplay">최근 교체일: 미등록</p>
+        </div>
+        <div class="w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600 text-base">
+          <i class="fa-solid fa-circle-dot"></i>
+        </div>
+      </div>
+    </div>
+
+    <!-- Vehicles Health & Tire Cards Grid -->
+    <div id="maintenanceVehiclesStatusGrid" class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <!-- Injected via renderMaintenanceVehiclesStatus() -->
+    </div>
+
+    <!-- Vehicle Damage Photos Gallery Section -->
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+      <div class="px-4 py-3 bg-slate-900 text-white flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <i class="fa-solid fa-camera text-rose-400"></i>
+          <h3 class="font-black text-sm">차량 고장 및 외관 손상 부위 사진 보관함</h3>
+          <span id="damagePhotosBadge" class="px-2 py-0.5 rounded-full text-[10px] bg-rose-500/30 text-rose-200 border border-rose-400/30 font-bold">0건</span>
+        </div>
+        <button onclick="openDamagePhotoModal()" class="px-2.5 py-1 bg-rose-600 hover:bg-rose-500 text-white rounded-lg text-xs font-bold transition flex items-center gap-1 shadow-xs">
+          <i class="fa-solid fa-plus text-[10px]"></i>
+          <span>새 사진 등록</span>
+        </button>
+      </div>
+      <div class="p-4" id="damagePhotosContainer">
+        <!-- Injected via renderDamagePhotos() -->
+      </div>
+    </div>
+
+    <!-- Maintenance Records Table (History) -->
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+      <div class="px-4 py-3 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center gap-2">
+          <i class="fa-solid fa-clock-rotate-left text-indigo-600"></i>
+          <h3 class="font-black text-sm text-slate-900">정비 이력 타임라인 및 상세 내역</h3>
+          <span id="maintRecordsCountBadge" class="text-xs bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full font-bold">0건</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <input type="text" id="maintSearchInput" oninput="filterMaintenanceTable()" placeholder="정비소, 항목, 비고 검색..." class="px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs outline-none focus:border-indigo-600 w-48 shadow-2xs">
+        </div>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse text-xs">
+          <thead>
+            <tr class="bg-slate-50/80 text-slate-500 font-bold border-b border-slate-200 text-[11px]">
+              <th class="py-2.5 px-3 text-center w-12">No</th>
+              <th class="py-2.5 px-3">정비일자</th>
+              <th class="py-2.5 px-3">차량번호</th>
+              <th class="py-2.5 px-3">구분</th>
+              <th class="py-2.5 px-3">정비항목 및 상세</th>
+              <th class="py-2.5 px-3">정비업체(카센터)</th>
+              <th class="py-2.5 px-3 text-right">정비 당시 Km</th>
+              <th class="py-2.5 px-3 text-right">총 결제금액</th>
+              <th class="py-2.5 px-3 text-center">결제수단</th>
+              <th class="py-2.5 px-3 text-center">영수증/증빙</th>
+              <th class="py-2.5 px-3 text-center w-20">관리</th>
+            </tr>
+          </thead>
+          <tbody id="maintTableBody" class="divide-y divide-slate-100 text-slate-800">
+            <!-- Injected via renderMaintenanceTable() -->
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
 
@@ -855,6 +1043,432 @@
     </div>
   </div>
 
+  <!-- ========================================== -->
+  <!-- Modal 4: Maintenance Interval Settings      -->
+  <!-- ========================================== -->
+  <div id="maintenanceIntervalModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 hidden flex items-center justify-center p-3 animate-in fade-in duration-150">
+    <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl border border-slate-200 overflow-hidden animate-in zoom-in-95 duration-150">
+      <div class="px-4 py-3.5 bg-slate-900 text-white flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <i class="fa-solid fa-sliders text-indigo-400"></i>
+          <h3 class="font-black text-sm">소모품 기준 교체 주기 설정 (관리자)</h3>
+        </div>
+        <button onclick="closeMaintenanceIntervalModal()" class="w-7 h-7 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <form onsubmit="saveMaintenanceIntervalsSubmit(event)" class="p-4 space-y-3.5">
+        <p class="text-xs text-slate-500">
+          각 소모품의 교체 권장 주기(Km)를 설정합니다. 주행 환경(가혹조건 등)에 따라 원하는 수치로 변경 시 대시보드 잔여거리 계산에 즉시 적용됩니다.
+        </p>
+
+        <!-- Engine Oil -->
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1 flex items-center justify-between">
+            <span class="flex items-center gap-1"><i class="fa-solid fa-oil-can text-amber-500"></i> 엔진오일 세트 권장 주기 (Km)</span>
+            <span class="text-[10px] text-slate-400 font-mono">기본: 10,000 km</span>
+          </label>
+          <div class="relative">
+            <input type="number" id="intervalEngineOil" min="1000" step="500" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold font-mono text-right pr-10 focus:bg-white focus:border-indigo-600 outline-none" required>
+            <span class="absolute right-3 top-2 text-xs font-bold text-slate-400">km</span>
+          </div>
+        </div>
+
+        <!-- Cabin Filter -->
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1 flex items-center justify-between">
+            <span class="flex items-center gap-1"><i class="fa-solid fa-wind text-cyan-500"></i> 에어컨/히터 필터 권장 주기 (Km)</span>
+            <span class="text-[10px] text-slate-400 font-mono">기본: 15,000 km</span>
+          </label>
+          <div class="relative">
+            <input type="number" id="intervalCabinFilter" min="1000" step="500" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold font-mono text-right pr-10 focus:bg-white focus:border-indigo-600 outline-none" required>
+            <span class="absolute right-3 top-2 text-xs font-bold text-slate-400">km</span>
+          </div>
+        </div>
+
+        <!-- Brake Pad -->
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1 flex items-center justify-between">
+            <span class="flex items-center gap-1"><i class="fa-solid fa-compact-disc text-rose-500"></i> 브레이크 패드 권장 주기 (Km)</span>
+            <span class="text-[10px] text-slate-400 font-mono">기본: 40,000 km</span>
+          </label>
+          <div class="relative">
+            <input type="number" id="intervalBrakePad" min="5000" step="1000" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold font-mono text-right pr-10 focus:bg-white focus:border-indigo-600 outline-none" required>
+            <span class="absolute right-3 top-2 text-xs font-bold text-slate-400">km</span>
+          </div>
+        </div>
+
+        <!-- Transmission Oil -->
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1 flex items-center justify-between">
+            <span class="flex items-center gap-1"><i class="fa-solid fa-gears text-purple-500"></i> 미션 오일 권장 주기 (Km)</span>
+            <span class="text-[10px] text-slate-400 font-mono">기본: 50,000 km</span>
+          </label>
+          <div class="relative">
+            <input type="number" id="intervalMissionOil" min="10000" step="5000" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold font-mono text-right pr-10 focus:bg-white focus:border-indigo-600 outline-none" required>
+            <span class="absolute right-3 top-2 text-xs font-bold text-slate-400">km</span>
+          </div>
+        </div>
+
+        <!-- Inspection Period -->
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1 flex items-center justify-between">
+            <span class="flex items-center gap-1"><i class="fa-solid fa-clipboard-check text-emerald-500"></i> 자동차 정기/종합검사 주기</span>
+            <span class="text-[10px] text-slate-400 font-mono">기본: 2년</span>
+          </label>
+          <div class="relative">
+            <input type="number" id="intervalInspectionYears" min="1" max="5" step="1" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold font-mono text-right pr-10 focus:bg-white focus:border-indigo-600 outline-none" required>
+            <span class="absolute right-3 top-2 text-xs font-bold text-slate-400">년</span>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-between pt-2 border-t border-slate-100">
+          <button type="button" onclick="resetMaintenanceIntervalsToDefault()" class="px-3 py-2 rounded-xl text-xs font-bold text-slate-500 hover:text-slate-800 transition">기본값 복원</button>
+          <div class="flex items-center gap-2">
+            <button type="button" onclick="closeMaintenanceIntervalModal()" class="px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-600 transition">취소</button>
+            <button type="submit" class="px-4 py-2 rounded-xl text-xs font-black bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs transition flex items-center gap-1.5">
+              <i class="fa-solid fa-check"></i>
+              <span>주기 설정 저장</span>
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- Modal 5: Create / Edit Maintenance Log      -->
+  <!-- ========================================== -->
+  <div id="maintenanceLogModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 hidden flex items-center justify-center p-2 sm:p-4 animate-in fade-in duration-150">
+    <div class="bg-white rounded-2xl w-full max-w-lg shadow-2xl border border-slate-200 overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
+      <!-- Header -->
+      <div class="px-4 py-3 bg-slate-900 text-white flex items-center justify-between shrink-0">
+        <div class="flex items-center gap-2">
+          <i class="fa-solid fa-wrench text-amber-400"></i>
+          <h3 class="font-black text-sm" id="maintModalTitle">정비일지 등록</h3>
+        </div>
+        <button onclick="closeMaintenanceLogModal()" class="w-7 h-7 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <!-- Form Body -->
+      <form id="maintenanceLogForm" onsubmit="saveMaintenanceLogSubmit(event)" class="p-4 space-y-3.5 overflow-y-auto flex-1">
+        <input type="hidden" id="maintEditId" value="">
+
+        <!-- Row 1: Vehicle & Date -->
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">정비 대상 차량</label>
+            <select id="maintVehicleSelect" onchange="onMaintVehicleChange()" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold focus:bg-white focus:border-indigo-600 outline-none" required>
+              <!-- Injected via JS -->
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">정비 일자</label>
+            <input type="date" id="maintDateInput" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold focus:bg-white focus:border-indigo-600 outline-none" required>
+          </div>
+        </div>
+
+        <!-- Row 2: Odometer & Category -->
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">정비 당시 계기판 (Km)</label>
+            <input type="number" id="maintOdoInput" min="0" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold font-mono text-right focus:bg-white focus:border-indigo-600 outline-none" placeholder="71450" required>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">정비 구분</label>
+            <select id="maintCategorySelect" onchange="onMaintCategoryChange()" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold focus:bg-white focus:border-indigo-600 outline-none" required>
+              <option value="소모품교체">🛢️ 소모품 교체</option>
+              <option value="일반정비">🔧 일반 정비/수리</option>
+              <option value="타이어교체">🛞 타이어 교체</option>
+              <option value="정기검사">📋 정기/종합검사</option>
+              <option value="사고수리">💥 사고 수리/판금</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Quick Preset Chips -->
+        <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200 space-y-1.5">
+          <span class="text-[10.5px] font-bold text-slate-500">빠른 항목 선택 (원클릭 자동완성)</span>
+          <div class="flex items-center gap-1.5 flex-wrap">
+            <button type="button" onclick="applyMaintPreset('엔진오일 세트')" class="px-2 py-1 bg-white hover:bg-amber-50 hover:text-amber-700 text-slate-700 rounded-lg text-[10.5px] font-bold border border-slate-200 transition shadow-2xs">
+              🛢️ 엔진오일 세트
+            </button>
+            <button type="button" onclick="applyMaintPreset('에어컨/히터 필터')" class="px-2 py-1 bg-white hover:bg-cyan-50 hover:text-cyan-700 text-slate-700 rounded-lg text-[10.5px] font-bold border border-slate-200 transition shadow-2xs">
+              ❄️ 에어컨 필터
+            </button>
+            <button type="button" onclick="applyMaintPreset('브레이크 패드')" class="px-2 py-1 bg-white hover:bg-rose-50 hover:text-rose-700 text-slate-700 rounded-lg text-[10.5px] font-bold border border-slate-200 transition shadow-2xs">
+              🛑 브레이크 패드
+            </button>
+            <button type="button" onclick="applyMaintPreset('미션 오일')" class="px-2 py-1 bg-white hover:bg-purple-50 hover:text-purple-700 text-slate-700 rounded-lg text-[10.5px] font-bold border border-slate-200 transition shadow-2xs">
+              ⚙️ 미션 오일
+            </button>
+            <button type="button" onclick="applyMaintPreset('타이어 교체')" class="px-2 py-1 bg-white hover:bg-indigo-50 hover:text-indigo-700 text-slate-700 rounded-lg text-[10.5px] font-bold border border-slate-200 transition shadow-2xs">
+              🛞 타이어 교체
+            </button>
+            <button type="button" onclick="applyMaintPreset('자동차 정기종합검사')" class="px-2 py-1 bg-white hover:bg-emerald-50 hover:text-emerald-700 text-slate-700 rounded-lg text-[10.5px] font-bold border border-slate-200 transition shadow-2xs">
+              🔍 정기검사
+            </button>
+          </div>
+        </div>
+
+        <!-- Tire Options (Visible when Tire selected) -->
+        <div id="maintTireOptionsBox" class="hidden p-3 bg-indigo-50/70 rounded-xl border border-indigo-200 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-black text-indigo-900 flex items-center gap-1.5">
+              <i class="fa-solid fa-circle-dot text-indigo-600"></i> 타이어 세부 종류 선택
+            </span>
+            <span class="text-[10px] text-indigo-700 font-bold">* 차량 마스터에 즉시 반영됩니다</span>
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <label class="flex items-center gap-2 p-2 bg-white rounded-lg border border-slate-200 cursor-pointer hover:border-indigo-400">
+              <input type="radio" name="maintTireType" value="all_season" checked class="text-indigo-600">
+              <span class="text-xs font-bold text-slate-800">🍂 사계절용 타이어</span>
+            </label>
+            <label class="flex items-center gap-2 p-2 bg-white rounded-lg border border-slate-200 cursor-pointer hover:border-indigo-400">
+              <input type="radio" name="maintTireType" value="snow" class="text-indigo-600">
+              <span class="text-xs font-bold text-slate-800">❄️ 스노우(윈터) 타이어</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Item Detail & Shop -->
+        <div class="space-y-3">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">정비 세부 항목 및 내역</label>
+            <input type="text" id="maintItemNameInput" placeholder="예: 엔진오일, 오일필터, 에어크리너 3종 교체" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold focus:bg-white focus:border-indigo-600 outline-none" required>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">정비업체명 (카센터)</label>
+              <input type="text" id="maintShopNameInput" placeholder="예: 현대 블루핸즈 가산점" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white focus:border-indigo-600 outline-none" required>
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">결제 수단</label>
+              <select id="maintPayMethodSelect" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold focus:bg-white focus:border-indigo-600 outline-none">
+                <option value="법인카드">💳 법인카드</option>
+                <option value="세금계산서">📄 세금계산서</option>
+                <option value="현금영수증">🧾 현금영수증</option>
+                <option value="기타">기타</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Total Cost -->
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">총 결제금액 (원, 부가세 포함)</label>
+          <input type="number" id="maintCostInput" min="0" step="100" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-black font-mono text-right text-rose-600 focus:bg-white focus:border-rose-500 outline-none" placeholder="0" required>
+        </div>
+
+        <!-- Receipt / Proof Upload -->
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">정비 영수증 / 정비명세서 사진 첨부</label>
+          <div class="flex items-center gap-2">
+            <label class="cursor-pointer px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition flex items-center gap-1.5 border border-slate-300 shadow-2xs">
+              <i class="fa-solid fa-camera text-indigo-600"></i>
+              <span>카메라/파일 선택</span>
+              <input type="file" id="maintReceiptFileInput" accept="image/*" onchange="handleMaintReceiptUpload(event)" class="hidden">
+            </label>
+            <span id="maintReceiptFileName" class="text-xs text-slate-400 truncate flex-1">선택된 파일 없음</span>
+            <button type="button" id="btnRemoveReceipt" onclick="removeMaintReceipt()" class="hidden text-rose-500 hover:text-rose-700 text-xs">
+              <i class="fa-solid fa-trash"></i> 삭제
+            </button>
+          </div>
+          <!-- Preview -->
+          <div id="maintReceiptPreviewBox" class="hidden mt-2 p-2 bg-slate-50 rounded-xl border border-slate-200 flex items-center gap-3">
+            <img id="maintReceiptPreviewImg" src="" class="w-16 h-16 object-cover rounded-lg border border-slate-200 cursor-pointer shadow-xs" onclick="openImageLightbox(this.src, '영수증/정비명세서')" title="클릭하여 확대">
+            <div class="text-[11px] text-slate-500 space-y-0.5">
+              <p class="font-bold text-slate-700">영수증 첨부 완료</p>
+              <p class="text-[10px] text-slate-400">클릭하면 크게 볼 수 있습니다.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Memo -->
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">비고 및 정비 특이사항</label>
+          <textarea id="maintMemoInput" rows="2" placeholder="정비사 소견, 다음 권장 점검 사항 등" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white focus:border-indigo-600 outline-none"></textarea>
+        </div>
+
+        <!-- Footer -->
+        <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+          <button type="button" onclick="closeMaintenanceLogModal()" class="px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-600 transition">취소</button>
+          <button type="submit" id="btnSaveMaintLog" class="px-5 py-2 rounded-xl text-xs font-black bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs transition flex items-center gap-1.5">
+            <i class="fa-solid fa-check"></i>
+            <span>정비일지 저장</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- Modal 6: Damage / Issue Photo Modal         -->
+  <!-- ========================================== -->
+  <div id="damagePhotoModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 hidden flex items-center justify-center p-3 animate-in fade-in duration-150">
+    <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl border border-slate-200 overflow-hidden animate-in zoom-in-95 duration-150">
+      <div class="px-4 py-3.5 bg-slate-900 text-white flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <i class="fa-solid fa-camera text-rose-400"></i>
+          <h3 class="font-black text-sm" id="damageModalTitle">차량 고장 및 외관 손상 사진 등록</h3>
+        </div>
+        <button onclick="closeDamagePhotoModal()" class="w-7 h-7 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <form onsubmit="saveDamagePhotoSubmit(event)" class="p-4 space-y-3.5">
+        <input type="hidden" id="damageEditId" value="">
+
+        <!-- Vehicle & Date -->
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">대상 차량</label>
+            <select id="damageVehicleSelect" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold focus:bg-white focus:border-indigo-600 outline-none" required>
+              <!-- Injected via JS -->
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">촬영/발견 일자</label>
+            <input type="date" id="damageDateInput" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold focus:bg-white focus:border-indigo-600 outline-none" required>
+          </div>
+        </div>
+
+        <!-- Part Name -->
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">손상/고장 부위 명칭</label>
+          <input type="text" id="damagePartNameInput" placeholder="예: 앞 범퍼 우측 긁힘, 운전석 도어 하단 스크래치" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold focus:bg-white focus:border-indigo-600 outline-none" required>
+        </div>
+
+        <!-- Status -->
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">현재 상태</label>
+          <div class="grid grid-cols-2 gap-2">
+            <label class="flex items-center gap-2 p-2 bg-amber-50/60 rounded-xl border border-amber-200 cursor-pointer">
+              <input type="radio" name="damageStatus" value="pending" checked class="text-amber-600">
+              <span class="text-xs font-bold text-amber-900">⚠️ 수리 필요 (대기)</span>
+            </label>
+            <label class="flex items-center gap-2 p-2 bg-emerald-50/60 rounded-xl border border-emerald-200 cursor-pointer">
+              <input type="radio" name="damageStatus" value="repaired" class="text-emerald-600">
+              <span class="text-xs font-bold text-emerald-900">✅ 수리 완료</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Photo Upload -->
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">손상 부위 사진 첨부 (필수)</label>
+          <label class="cursor-pointer block p-3 border-2 border-dashed border-slate-300 hover:border-indigo-500 rounded-xl text-center bg-slate-50 hover:bg-indigo-50/30 transition">
+            <i class="fa-solid fa-cloud-arrow-up text-2xl text-slate-400 mb-1"></i>
+            <p class="text-xs font-bold text-slate-700">스마트폰 카메라 촬영 또는 이미지 파일 선택</p>
+            <p class="text-[10px] text-slate-400 mt-0.5" id="damagePhotoNotice">JPG, PNG 파일 지원</p>
+            <input type="file" id="damagePhotoFileInput" accept="image/*" onchange="handleDamagePhotoUpload(event)" class="hidden">
+          </label>
+          <!-- Preview Box -->
+          <div id="damagePhotoPreviewBox" class="hidden mt-2 p-2 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+              <img id="damagePhotoPreviewImg" src="" class="w-14 h-14 object-cover rounded-lg border border-slate-200 shadow-xs cursor-pointer" onclick="openImageLightbox(this.src, '손상 부위 사진')" title="클릭하여 확대">
+              <div>
+                <span class="text-xs font-bold text-slate-800">사진 등록 완료</span>
+                <span class="text-[10px] text-slate-400 block" id="damagePhotoSizeText"></span>
+              </div>
+            </div>
+            <button type="button" onclick="removeDamagePhoto()" class="text-rose-500 hover:text-rose-700 text-xs px-2 py-1">
+              <i class="fa-solid fa-trash"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Memo -->
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">상세 설명 / 경위 메모</label>
+          <textarea id="damageMemoInput" rows="2" placeholder="발생 경위, 현장 상황 등" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white focus:border-indigo-600 outline-none"></textarea>
+        </div>
+
+        <!-- Footer -->
+        <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+          <button type="button" onclick="closeDamagePhotoModal()" class="px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-600 transition">취소</button>
+          <button type="submit" class="px-4 py-2 rounded-xl text-xs font-black bg-rose-600 hover:bg-rose-700 text-white shadow-xs transition flex items-center gap-1.5">
+            <i class="fa-solid fa-camera"></i>
+            <span>고장 사진 저장</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- Modal 7: Tire Date & Type Change Modal      -->
+  <!-- ========================================== -->
+  <div id="tireDateModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 hidden flex items-center justify-center p-3 animate-in fade-in duration-150">
+    <div class="bg-white rounded-2xl w-full max-w-sm shadow-2xl border border-slate-200 overflow-hidden animate-in zoom-in-95 duration-150">
+      <div class="px-4 py-3.5 bg-slate-900 text-white flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <i class="fa-solid fa-circle-dot text-indigo-400"></i>
+          <h3 class="font-black text-sm">타이어 교체일자 & 종류 변경</h3>
+        </div>
+        <button onclick="closeTireDateModal()" class="w-7 h-7 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <form onsubmit="saveTireDateSubmit(event)" class="p-4 space-y-3.5">
+        <input type="hidden" id="tireVehicleNo" value="">
+
+        <div>
+          <label class="block text-xs font-bold text-slate-500 mb-1">대상 차량</label>
+          <div id="tireVehicleDisplay" class="font-black text-sm text-slate-900 bg-slate-50 px-3 py-2 rounded-xl border border-slate-200">
+            801라8744 (스타리아)
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">타이어 종류</label>
+          <div class="grid grid-cols-2 gap-2">
+            <label class="flex items-center gap-2 p-2 bg-slate-50 rounded-xl border border-slate-200 cursor-pointer hover:border-indigo-400">
+              <input type="radio" name="modalTireType" value="all_season" id="radioTireAllSeason" class="text-indigo-600">
+              <span class="text-xs font-bold text-slate-800">🍂 사계절용</span>
+            </label>
+            <label class="flex items-center gap-2 p-2 bg-slate-50 rounded-xl border border-slate-200 cursor-pointer hover:border-indigo-400">
+              <input type="radio" name="modalTireType" value="snow" id="radioTireSnow" class="text-indigo-600">
+              <span class="text-xs font-bold text-slate-800">❄️ 스노우(윈터)</span>
+            </label>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">최근 교체 일자 (날짜만 표기)</label>
+          <input type="date" id="tireDateInput" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold focus:bg-white focus:border-indigo-600 outline-none" required>
+        </div>
+
+        <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+          <button type="button" onclick="closeTireDateModal()" class="px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-600 transition">취소</button>
+          <button type="submit" class="px-4 py-2 rounded-xl text-xs font-black bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs transition flex items-center gap-1.5">
+            <i class="fa-solid fa-check"></i>
+            <span>타이어 상태 저장</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- Modal 8: Image Lightbox Viewer (Full Size)  -->
+  <!-- ========================================== -->
+  <div id="imageLightboxModal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-60 hidden flex items-center justify-center p-3 animate-in fade-in duration-150" onclick="closeImageLightbox()">
+    <div class="max-w-3xl max-h-[90vh] bg-white rounded-2xl overflow-hidden shadow-2xl flex flex-col animate-in zoom-in-95 duration-150" onclick="event.stopPropagation()">
+      <div class="px-4 py-3 bg-slate-900 text-white flex items-center justify-between">
+        <h4 id="lightboxTitle" class="font-bold text-xs truncate">고화질 사진 뷰어</h4>
+        <button onclick="closeImageLightbox()" class="w-7 h-7 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div class="p-2 overflow-auto flex items-center justify-center bg-slate-950/20 max-h-[80vh]">
+        <img id="lightboxImg" src="" class="max-w-full max-h-[75vh] object-contain rounded-lg shadow-md">
+      </div>
+    </div>
+  </div>
+
   <!-- Toast Notification -->
   <div id="toast" class="fixed bottom-6 right-6 bg-slate-900 text-white text-xs px-4 py-2.5 rounded-xl shadow-2xl z-50 flex items-center gap-2 transform transition-all duration-200 translate-y-24 opacity-0 pointer-events-none">
     <i class="fa-solid fa-circle-check text-emerald-400" id="toastIcon"></i>
@@ -889,6 +1503,7 @@
 
       await loadVehiclesMaster();
       await loadVehicleData(true);
+      await loadMaintenanceData();
       setupSupabaseRealtime();
     });
 
@@ -908,8 +1523,8 @@
       // Default Seed if empty
       if (vehiclesMaster.length === 0) {
         vehiclesMaster = [
-          { id: "veh_801라8744", vehicle_no: "801라8744", model_name: "스타리아", initial_km: 70532, current_km: 71453, is_active: true, default_driver: "조경찬" },
-          { id: "veh_826라8911", vehicle_no: "826라8911", model_name: "스타리아", initial_km: 32796, current_km: 33484, is_active: true, default_driver: "한민혁" }
+          { id: "veh_801라8744", vehicle_no: "801라8744", model_name: "스타리아", initial_km: 70532, current_km: 71453, is_active: true, default_driver: "조경찬", tire_type: "all_season", tire_changed_date: "2026-04-15" },
+          { id: "veh_826라8911", vehicle_no: "826라8911", model_name: "스타리아", initial_km: 32796, current_km: 33484, is_active: true, default_driver: "한민혁", tire_type: "all_season", tire_changed_date: "2026-05-10" }
         ];
       }
 
@@ -947,6 +1562,9 @@
         if (v.default_driver && v.default_driver.includes('?')) {
           v.default_driver = (v.vehicle_no === '801라8744') ? '조경찬' : '한민혁';
         }
+        // Tire Default Protection
+        v.tire_type = v.tire_type || 'all_season';
+        v.tire_changed_date = v.tire_changed_date || '2026-04-15';
         return v;
       });
       localStorage.setItem('CORPORATE_VEHICLES_MASTER_V1', JSON.stringify(vehiclesMaster));
@@ -3863,8 +4481,1156 @@
     }
 
     // ==========================================
-    // Toast Helper
+    // Maintenance & Tire & Damage Management Module
     // ==========================================
+    var activeMainTab = 'trip'; // 'trip' or 'maintenance'
+    var maintSelectedVehicle = 'ALL';
+    var maintSelectedYear = new Date().getFullYear();
+    var maintSelectedMonth = new Date().getMonth() + 1;
+    var maintIsAllPeriod = false;
+    var maintenanceIntervals = {
+      engine_oil: 10000,
+      cabin_filter: 15000,
+      brake_pad: 40000,
+      mission_oil: 50000,
+      inspection_years: 2
+    };
+    var maintenanceLogs = [];
+    var damagePhotos = [];
+    var maintTempReceiptBase64 = '';
+    var damageTempPhotoBase64 = '';
+
+    // Main Tab Switching
+    function switchMainTab(tab) {
+      activeMainTab = tab;
+      var btnTrip = document.getElementById('mainTabTripLogBtn');
+      var btnMaint = document.getElementById('mainTabMaintenanceBtn');
+      var conTrip = document.getElementById('tabTripLogContainer');
+      var conMaint = document.getElementById('tabMaintenanceContainer');
+
+      if (tab === 'trip') {
+        if (btnTrip) btnTrip.className = 'px-5 py-2.5 rounded-xl font-black text-xs transition-all flex items-center gap-2 shadow-sm bg-white text-indigo-700';
+        if (btnMaint) btnMaint.className = 'px-5 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center gap-2 text-slate-600 hover:text-slate-900 hover:bg-white/60';
+        if (conTrip) conTrip.classList.remove('hidden');
+        if (conMaint) conMaint.classList.add('hidden');
+      } else {
+        if (btnTrip) btnTrip.className = 'px-5 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center gap-2 text-slate-600 hover:text-slate-900 hover:bg-white/60';
+        if (btnMaint) btnMaint.className = 'px-5 py-2.5 rounded-xl font-black text-xs transition-all flex items-center gap-2 shadow-sm bg-white text-indigo-700';
+        if (conTrip) conTrip.classList.add('hidden');
+        if (conMaint) conMaint.classList.remove('hidden');
+
+        renderMaintenanceAll();
+      }
+    }
+
+    // Load Maintenance & Damage Data from Supabase / LocalStorage
+    async function loadMaintenanceData() {
+      // 1. Load Custom Intervals
+      var cachedIntervals = localStorage.getItem('MAINTENANCE_INTERVALS_CONFIG_V1');
+      if (cachedIntervals) {
+        try {
+          var parsedI = JSON.parse(cachedIntervals);
+          if (parsedI && typeof parsedI === 'object') {
+            maintenanceIntervals = Object.assign({}, maintenanceIntervals, parsedI);
+          }
+        } catch(e) {}
+      }
+
+      // 2. Load Logs & Photos from LocalStorage
+      var cachedLogs = localStorage.getItem('VEHICLE_MAINTENANCE_LOGS_V1');
+      if (cachedLogs) {
+        try {
+          var parsedL = JSON.parse(cachedLogs);
+          if (Array.isArray(parsedL)) maintenanceLogs = parsedL;
+        } catch(e) {}
+      }
+
+      var cachedPhotos = localStorage.getItem('VEHICLE_DAMAGE_PHOTOS_V1');
+      if (cachedPhotos) {
+        try {
+          var parsedP = JSON.parse(cachedPhotos);
+          if (Array.isArray(parsedP)) damagePhotos = parsedP;
+        } catch(e) {}
+      }
+
+      // 3. Fetch from Supabase
+      if (supabaseClient) {
+        try {
+          // Intervals Config
+          var resIntervals = await supabaseClient.from('delivery_schedules')
+            .select('memo_full')
+            .eq('source_sheet', 'SYSTEM_CONFIG_MAINTENANCE_INTERVALS')
+            .limit(1);
+
+          if (resIntervals.data && resIntervals.data.length > 0 && resIntervals.data[0].memo_full) {
+            var sIntervals = JSON.parse(resIntervals.data[0].memo_full);
+            if (sIntervals) {
+              maintenanceIntervals = Object.assign({}, maintenanceIntervals, sIntervals);
+              localStorage.setItem('MAINTENANCE_INTERVALS_CONFIG_V1', JSON.stringify(maintenanceIntervals));
+            }
+          }
+
+          // Maintenance Logs
+          var resLogs = await supabaseClient.from('delivery_schedules')
+            .select('id, memo_full, date')
+            .eq('source_sheet', 'VEHICLE_MAINTENANCE_LOGS')
+            .order('date', { ascending: false });
+
+          if (resLogs.data && resLogs.data.length > 0) {
+            maintenanceLogs = resLogs.data.map(function(row) {
+              var obj = {};
+              try { obj = JSON.parse(row.memo_full || '{}'); } catch(e) {}
+              obj.db_id = row.id;
+              obj.date = obj.date || row.date;
+              return obj;
+            });
+            localStorage.setItem('VEHICLE_MAINTENANCE_LOGS_V1', JSON.stringify(maintenanceLogs));
+          }
+
+          // Damage Photos
+          var resPhotos = await supabaseClient.from('delivery_schedules')
+            .select('id, memo_full, date')
+            .eq('source_sheet', 'VEHICLE_DAMAGE_PHOTOS')
+            .order('date', { ascending: false });
+
+          if (resPhotos.data && resPhotos.data.length > 0) {
+            damagePhotos = resPhotos.data.map(function(row) {
+              var obj = {};
+              try { obj = JSON.parse(row.memo_full || '{}'); } catch(e) {}
+              obj.db_id = row.id;
+              obj.date = obj.date || row.date;
+              return obj;
+            });
+            localStorage.setItem('VEHICLE_DAMAGE_PHOTOS_V1', JSON.stringify(damagePhotos));
+          }
+        } catch(err) {
+          console.warn('Failed to load maintenance data from Supabase:', err);
+        }
+      }
+
+      renderMaintenanceAll();
+    }
+
+    // Master Render Function for Maintenance Tab
+    function renderMaintenanceAll() {
+      renderMaintMonthDisplay();
+      renderMaintVehicleTabs();
+      renderMaintenanceKPIs();
+      renderMaintenanceVehiclesStatus();
+      renderDamagePhotos();
+      renderMaintenanceTable();
+    }
+
+    function renderMaintMonthDisplay() {
+      var el = document.getElementById('maintCurrentMonthDisplay');
+      var btnAll = document.getElementById('btnMaintAllPeriod');
+      if (el) {
+        if (maintIsAllPeriod) {
+          el.innerText = '전체 기간';
+          if (btnAll) btnAll.className = 'ml-1 px-2 py-1 bg-indigo-600 text-white rounded-lg text-xs font-black shadow-2xs';
+        } else {
+          el.innerText = maintSelectedYear + '년 ' + maintSelectedMonth + '월';
+          if (btnAll) btnAll.className = 'ml-1 px-2 py-1 bg-white hover:bg-slate-100 text-slate-600 rounded-lg text-xs font-bold border border-slate-200';
+        }
+      }
+    }
+
+    function shiftMaintMonth(delta) {
+      maintIsAllPeriod = false;
+      maintSelectedMonth += delta;
+      if (maintSelectedMonth > 12) {
+        maintSelectedMonth = 1;
+        maintSelectedYear++;
+      } else if (maintSelectedMonth < 1) {
+        maintSelectedMonth = 12;
+        maintSelectedYear--;
+      }
+      renderMaintenanceAll();
+    }
+
+    function goToCurrentMaintMonth() {
+      var now = new Date();
+      maintIsAllPeriod = false;
+      maintSelectedYear = now.getFullYear();
+      maintSelectedMonth = now.getMonth() + 1;
+      renderMaintenanceAll();
+    }
+
+    function toggleMaintAllPeriod() {
+      maintIsAllPeriod = !maintIsAllPeriod;
+      renderMaintenanceAll();
+    }
+
+    function selectMaintVehicleFilter(vNo) {
+      maintSelectedVehicle = vNo;
+      renderMaintVehicleTabs();
+      renderMaintenanceKPIs();
+      renderDamagePhotos();
+      renderMaintenanceTable();
+    }
+
+    function renderMaintVehicleTabs() {
+      var container = document.getElementById('maintVehicleTabsContainer');
+      if (!container) return;
+
+      var html = `
+        <button onclick="selectMaintVehicleFilter('ALL')" 
+                class="px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1 shadow-2xs ${maintSelectedVehicle === 'ALL' ? 'bg-indigo-600 text-white font-black' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'}">
+          <i class="fa-solid fa-list-check"></i>
+          <span>전체 차량</span>
+        </button>
+      `;
+
+      vehiclesMaster.forEach(function(v) {
+        var isSel = (maintSelectedVehicle === v.vehicle_no);
+        var tireIcon = (v.tire_type === 'snow') ? '❄️' : '🍂';
+        html += `
+          <button onclick="selectMaintVehicleFilter('${v.vehicle_no}')" 
+                  class="px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-2xs ${isSel ? 'bg-indigo-600 text-white font-black' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'}">
+            <i class="fa-solid fa-van-shuttle"></i>
+            <span>${v.vehicle_no}</span>
+            <span class="text-[10px] px-1 py-0.2 rounded ${isSel ? 'bg-indigo-700 text-white' : 'bg-slate-200 text-slate-600'}">${tireIcon}</span>
+          </button>
+        `;
+      });
+
+      container.innerHTML = html;
+    }
+
+    // Filtered Maintenance Logs for Table & KPIs
+    function getFilteredMaintenanceLogs() {
+      return maintenanceLogs.filter(function(log) {
+        if (maintSelectedVehicle !== 'ALL' && log.vehicle_no !== maintSelectedVehicle) {
+          return false;
+        }
+        if (!maintIsAllPeriod && log.date) {
+          var parts = log.date.split('-');
+          if (parts.length >= 2) {
+            var y = parseInt(parts[0], 10);
+            var m = parseInt(parts[1], 10);
+            if (y !== maintSelectedYear || m !== maintSelectedMonth) return false;
+          }
+        }
+        return true;
+      });
+    }
+
+    function renderMaintenanceKPIs() {
+      var filtered = getFilteredMaintenanceLogs();
+      var totalCost = 0;
+      filtered.forEach(function(l) {
+        totalCost += parseInt(l.cost || l.total_cost || 0, 10);
+      });
+
+      var countEl = document.getElementById('kpiMaintTotalCount');
+      var costEl = document.getElementById('kpiMaintTotalCost');
+      if (countEl) countEl.innerText = filtered.length + ' 건';
+      if (costEl) costEl.innerText = '₩' + totalCost.toLocaleString();
+
+      // Damage Photos KPI
+      var filteredPhotos = damagePhotos.filter(function(p) {
+        return (maintSelectedVehicle === 'ALL' || p.vehicle_no === maintSelectedVehicle);
+      });
+      var pendingCount = filteredPhotos.filter(function(p) { return p.status === 'pending'; }).length;
+
+      var photoCountEl = document.getElementById('kpiDamagePhotoCount');
+      var pendingEl = document.getElementById('kpiDamagePendingCount');
+      if (photoCountEl) photoCountEl.innerText = filteredPhotos.length + ' 장';
+      if (pendingEl) pendingEl.innerText = '수리 대기 ' + pendingCount + '건';
+
+      // Tire KPI
+      var tireDisplay = document.getElementById('kpiTireStatusDisplay');
+      var tireDateEl = document.getElementById('kpiTireDateDisplay');
+      if (tireDisplay && tireDateEl) {
+        if (maintSelectedVehicle !== 'ALL') {
+          var targetV = vehiclesMaster.find(function(v) { return v.vehicle_no === maintSelectedVehicle; });
+          if (targetV) {
+            var isSnow = (targetV.tire_type === 'snow');
+            tireDisplay.innerHTML = isSnow ? '<span class="text-sky-600">❄️ 스노우(윈터) 타이어</span>' : '<span class="text-amber-700">🍂 사계절용 타이어</span>';
+            tireDateEl.innerText = '최근 교체일: ' + (targetV.tire_changed_date || '미등록');
+          }
+        } else {
+          tireDisplay.innerText = '스타리아 2대 운용';
+          tireDateEl.innerText = '개별 차량 선택 시 상세 표출';
+        }
+      }
+    }
+
+    // Render Vehicles Status & Consumable Health Bars
+    function renderMaintenanceVehiclesStatus() {
+      var grid = document.getElementById('maintenanceVehiclesStatusGrid');
+      if (!grid) return;
+
+      var activeVehicles = vehiclesMaster.filter(function(v) { return v.is_active !== false; });
+      if (activeVehicles.length === 0) {
+        grid.innerHTML = '<div class="col-span-2 py-6 text-center text-slate-400">등록된 법인차량이 없습니다.</div>';
+        return;
+      }
+
+      var html = '';
+      activeVehicles.forEach(function(v) {
+        var currentKm = v.current_km || v.initial_km || 0;
+        var tireType = v.tire_type || 'all_season';
+        var isSnow = (tireType === 'snow');
+        var tireDate = v.tire_changed_date || '미등록';
+
+        // Calculate Consumable Healths
+        var vLogs = maintenanceLogs.filter(function(l) { return l.vehicle_no === v.vehicle_no; });
+
+        // Helper for last changed Km
+        function getLastMaintKm(itemNameKeywords, defaultKmOffset) {
+          var matches = vLogs.filter(function(l) {
+            var name = (l.item_name || '') + ' ' + (l.category || '');
+            return itemNameKeywords.some(function(kw) { return name.indexOf(kw) !== -1; });
+          });
+          if (matches.length > 0) {
+            matches.sort(function(a, b) { return (b.odometer_km || 0) - (a.odometer_km || 0); });
+            return matches[0].odometer_km || currentKm;
+          }
+          return Math.max(0, currentKm - defaultKmOffset);
+        }
+
+        // 1. Engine Oil
+        var engineOilInterval = maintenanceIntervals.engine_oil || 10000;
+        var lastEngineKm = getLastMaintKm(['엔진오일', '오일세트', '엔진'], 3200);
+        var drivenSinceEngine = Math.max(0, currentKm - lastEngineKm);
+        var remainEngineKm = Math.max(0, engineOilInterval - drivenSinceEngine);
+        var enginePct = Math.max(0, Math.min(100, Math.round((remainEngineKm / engineOilInterval) * 100)));
+        var engineColor = enginePct > 40 ? 'bg-emerald-500' : (enginePct > 15 ? 'bg-amber-500' : 'bg-rose-500');
+
+        // 2. Cabin Filter
+        var cabinInterval = maintenanceIntervals.cabin_filter || 15000;
+        var lastCabinKm = getLastMaintKm(['에어컨', '필터', '히터'], 6500);
+        var drivenSinceCabin = Math.max(0, currentKm - lastCabinKm);
+        var remainCabinKm = Math.max(0, cabinInterval - drivenSinceCabin);
+        var cabinPct = Math.max(0, Math.min(100, Math.round((remainCabinKm / cabinInterval) * 100)));
+        var cabinColor = cabinPct > 40 ? 'bg-emerald-500' : (cabinPct > 15 ? 'bg-amber-500' : 'bg-rose-500');
+
+        // 3. Brake Pad
+        var brakeInterval = maintenanceIntervals.brake_pad || 40000;
+        var lastBrakeKm = getLastMaintKm(['브레이크', '패드', '라이닝'], 18000);
+        var drivenSinceBrake = Math.max(0, currentKm - lastBrakeKm);
+        var remainBrakeKm = Math.max(0, brakeInterval - drivenSinceBrake);
+        var brakePct = Math.max(0, Math.min(100, Math.round((remainBrakeKm / brakeInterval) * 100)));
+        var brakeColor = brakePct > 40 ? 'bg-emerald-500' : (brakePct > 15 ? 'bg-amber-500' : 'bg-rose-500');
+
+        // 4. Mission Oil
+        var missionInterval = maintenanceIntervals.mission_oil || 50000;
+        var lastMissionKm = getLastMaintKm(['미션', '변속기', 'ATF'], 22000);
+        var drivenSinceMission = Math.max(0, currentKm - lastMissionKm);
+        var remainMissionKm = Math.max(0, missionInterval - drivenSinceMission);
+        var missionPct = Math.max(0, Math.min(100, Math.round((remainMissionKm / missionInterval) * 100)));
+        var missionColor = missionPct > 40 ? 'bg-emerald-500' : (missionPct > 15 ? 'bg-amber-500' : 'bg-rose-500');
+
+        html += `
+          <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs space-y-3.5 hover:border-indigo-300 transition">
+            <!-- Card Header -->
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div class="flex items-center gap-2">
+                <div class="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-700 flex items-center justify-center text-sm font-black shadow-2xs">
+                  <i class="fa-solid fa-van-shuttle"></i>
+                </div>
+                <div>
+                  <div class="flex items-center gap-1.5">
+                    <h4 class="font-black text-slate-900 text-sm">${v.vehicle_no}</h4>
+                    <span class="text-[10.5px] text-slate-500 font-bold">(${v.model_name || '스타리아'})</span>
+                    <span class="text-[9.5px] bg-slate-100 text-slate-600 px-1.5 py-0.2 rounded font-semibold border border-slate-200">
+                      ${v.default_driver || '전담'}
+                    </span>
+                  </div>
+                  <p class="text-[11px] text-slate-400 font-mono mt-0.5">
+                    현재 누적: <b class="text-indigo-600 font-black">${currentKm.toLocaleString()} km</b> (운행일지 실시간 연동)
+                  </p>
+                </div>
+              </div>
+
+              <!-- Quick Maint Add Button -->
+              <button onclick="openNewMaintenanceModalForVehicle('${v.vehicle_no}')" class="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-xs font-bold transition flex items-center gap-1">
+                <i class="fa-solid fa-plus text-[10px]"></i>
+                <span>정비 등록</span>
+              </button>
+            </div>
+
+            <!-- TIRE SECTION (User Specific Customization: Date Only + Type Toggle) -->
+            <div class="p-3 bg-gradient-to-r ${isSnow ? 'from-sky-50 to-indigo-50 border-sky-200' : 'from-amber-50/70 to-slate-50 border-amber-200/80'} rounded-xl border space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-black text-slate-800 flex items-center gap-1.5">
+                  <i class="fa-solid fa-circle-dot ${isSnow ? 'text-sky-600' : 'text-amber-600'}"></i>
+                  <span>타이어 관리</span>
+                  <span class="text-[9.5px] px-1.5 py-0.2 rounded-full font-bold ${isSnow ? 'bg-sky-100 text-sky-800 border border-sky-300' : 'bg-amber-100 text-amber-800 border border-amber-300'}">
+                    ${isSnow ? '❄️ 스노우(윈터) 타이어' : '🍂 사계절용 타이어'}
+                  </span>
+                </span>
+                
+                <!-- Toggle Button -->
+                <button type="button" onclick="toggleTireType('${v.vehicle_no}')" class="px-2.5 py-1 rounded-lg text-[10.5px] font-black transition flex items-center gap-1 shadow-2xs ${isSnow ? 'bg-sky-600 text-white hover:bg-sky-700' : 'bg-amber-600 text-white hover:bg-amber-700'}" title="타이어 종류 즉시 전환">
+                  <i class="fa-solid fa-arrows-rotate"></i>
+                  <span>${isSnow ? '사계절로 전환' : '스노우로 전환'}</span>
+                </button>
+              </div>
+
+              <!-- Tire Changed Date Display (DATE ONLY, NO KM) -->
+              <div class="flex items-center justify-between text-xs bg-white/90 px-2.5 py-1.5 rounded-lg border border-slate-200/80">
+                <div class="flex items-center gap-1.5 text-slate-600">
+                  <i class="fa-regular fa-calendar-check text-slate-400"></i>
+                  <span>최근 교체일:</span>
+                  <b class="text-slate-900 font-bold">${tireDate}</b>
+                </div>
+                <button type="button" onclick="openTireDateModal('${v.vehicle_no}')" class="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 underline">
+                  날짜/종류 변경 ✏️
+                </button>
+              </div>
+            </div>
+
+            <!-- CONSUMABLE HEALTH BARS (4 Items + Inspection) -->
+            <div class="space-y-2.5 pt-0.5">
+              <div class="flex items-center justify-between text-[11px] font-bold text-slate-700">
+                <span class="flex items-center gap-1"><i class="fa-solid fa-gauge-simple-high text-indigo-500"></i> 소모품 잔여 수명 (기준 주기 연동)</span>
+                <button onclick="openMaintenanceIntervalModal()" class="text-[10px] text-slate-400 hover:text-indigo-600 flex items-center gap-0.5">
+                  <i class="fa-solid fa-gear"></i> 기준 주기 수정
+                </button>
+              </div>
+
+              <!-- 1. Engine Oil -->
+              <div class="space-y-1">
+                <div class="flex items-center justify-between text-[10.5px]">
+                  <span class="font-bold text-slate-700 flex items-center gap-1">
+                    <i class="fa-solid fa-oil-can text-amber-500 text-[10px]"></i> 엔진오일 세트
+                    <span class="text-slate-400 font-normal">(${engineOilInterval.toLocaleString()}km 주기)</span>
+                  </span>
+                  <span class="font-mono font-bold ${enginePct < 20 ? 'text-rose-600 animate-pulse' : 'text-slate-700'}">
+                    잔여 ${remainEngineKm.toLocaleString()} km (${enginePct}%)
+                  </span>
+                </div>
+                <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden shadow-inner">
+                  <div class="${engineColor} h-2 rounded-full transition-all duration-500" style="width: ${enginePct}%"></div>
+                </div>
+              </div>
+
+              <!-- 2. Cabin Filter -->
+              <div class="space-y-1">
+                <div class="flex items-center justify-between text-[10.5px]">
+                  <span class="font-bold text-slate-700 flex items-center gap-1">
+                    <i class="fa-solid fa-wind text-cyan-500 text-[10px]"></i> 에어컨/히터 필터
+                    <span class="text-slate-400 font-normal">(${cabinInterval.toLocaleString()}km 주기)</span>
+                  </span>
+                  <span class="font-mono font-bold ${cabinPct < 20 ? 'text-rose-600' : 'text-slate-700'}">
+                    잔여 ${remainCabinKm.toLocaleString()} km (${cabinPct}%)
+                  </span>
+                </div>
+                <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden shadow-inner">
+                  <div class="${cabinColor} h-2 rounded-full transition-all duration-500" style="width: ${cabinPct}%"></div>
+                </div>
+              </div>
+
+              <!-- 3. Brake Pad -->
+              <div class="space-y-1">
+                <div class="flex items-center justify-between text-[10.5px]">
+                  <span class="font-bold text-slate-700 flex items-center gap-1">
+                    <i class="fa-solid fa-compact-disc text-rose-500 text-[10px]"></i> 브레이크 패드
+                    <span class="text-slate-400 font-normal">(${brakeInterval.toLocaleString()}km 주기)</span>
+                  </span>
+                  <span class="font-mono font-bold text-slate-700">
+                    잔여 ${remainBrakeKm.toLocaleString()} km (${brakePct}%)
+                  </span>
+                </div>
+                <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden shadow-inner">
+                  <div class="${brakeColor} h-2 rounded-full transition-all duration-500" style="width: ${brakePct}%"></div>
+                </div>
+              </div>
+
+              <!-- 4. Mission Oil -->
+              <div class="space-y-1">
+                <div class="flex items-center justify-between text-[10.5px]">
+                  <span class="font-bold text-slate-700 flex items-center gap-1">
+                    <i class="fa-solid fa-gears text-purple-500 text-[10px]"></i> 미션 오일
+                    <span class="text-slate-400 font-normal">(${missionInterval.toLocaleString()}km 주기)</span>
+                  </span>
+                  <span class="font-mono font-bold text-slate-700">
+                    잔여 ${remainMissionKm.toLocaleString()} km (${missionPct}%)
+                  </span>
+                </div>
+                <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden shadow-inner">
+                  <div class="${missionColor} h-2 rounded-full transition-all duration-500" style="width: ${missionPct}%"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Inspection Notice Box -->
+            <div class="p-2.5 bg-emerald-50/70 rounded-xl border border-emerald-200/80 flex items-center justify-between text-xs">
+              <div class="flex items-center gap-1.5 text-emerald-950 font-bold">
+                <i class="fa-solid fa-clipboard-check text-emerald-600"></i>
+                <span>자동차 종합정기검사:</span>
+                <span class="text-emerald-700 font-black">2027-02-18 예정 (D-512일)</span>
+              </div>
+              <span class="text-[9px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold">검사 유효</span>
+            </div>
+          </div>
+        `;
+      });
+
+      grid.innerHTML = html;
+    }
+
+    // ==========================================
+    // Damage Photos Gallery Functions
+    // ==========================================
+    function renderDamagePhotos() {
+      var container = document.getElementById('damagePhotosContainer');
+      var badge = document.getElementById('damagePhotosBadge');
+      if (!container) return;
+
+      var filtered = damagePhotos.filter(function(p) {
+        return (maintSelectedVehicle === 'ALL' || p.vehicle_no === maintSelectedVehicle);
+      });
+
+      if (badge) badge.innerText = filtered.length + '건';
+
+      if (filtered.length === 0) {
+        container.innerHTML = `
+          <div class="py-8 text-center text-slate-400 space-y-2">
+            <i class="fa-solid fa-camera-retro text-2xl text-slate-300"></i>
+            <p class="text-xs font-bold">보관된 차량 고장 및 손상 부위 사진이 없습니다.</p>
+            <p class="text-[11px] text-slate-400">외관 스크래치, 부품 파손 발생 시 [새 사진 등록]으로 촬영하여 안전하게 보관하세요.</p>
+          </div>
+        `;
+        return;
+      }
+
+      var html = '<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">';
+      filtered.forEach(function(item) {
+        var isPending = (item.status === 'pending');
+        html += `
+          <div class="bg-slate-50 rounded-xl border border-slate-200 overflow-hidden shadow-2xs hover:border-indigo-300 transition space-y-2 flex flex-col">
+            <!-- Image with Lightbox Zoom -->
+            <div class="relative h-36 bg-slate-900 group cursor-pointer overflow-hidden" onclick="openImageLightbox('${item.photo_data}', '${item.vehicle_no} - ${item.part_name}')">
+              <img src="${item.photo_data}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" alt="${item.part_name}">
+              <div class="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold gap-1">
+                <i class="fa-solid fa-magnifying-glass-plus"></i> 크게 보기
+              </div>
+              <div class="absolute top-2 left-2">
+                <span class="text-[9.5px] px-2 py-0.5 rounded-full font-bold shadow-xs ${isPending ? 'bg-amber-500 text-white' : 'bg-emerald-600 text-white'}">
+                  ${isPending ? '⚠️ 수리 필요' : '✅ 수리 완료'}
+                </span>
+              </div>
+            </div>
+
+            <!-- Content -->
+            <div class="p-2.5 space-y-1.5 flex-1 flex flex-col justify-between">
+              <div>
+                <div class="flex items-center justify-between text-[10.5px] text-slate-500">
+                  <span class="font-bold text-indigo-700">${item.vehicle_no}</span>
+                  <span class="font-mono">${item.date || item.taken_at || ''}</span>
+                </div>
+                <h5 class="font-black text-xs text-slate-900 truncate mt-0.5" title="${item.part_name}">${item.part_name}</h5>
+                ${item.memo ? `<p class="text-[10px] text-slate-500 line-clamp-2 mt-0.5">${item.memo}</p>` : ''}
+              </div>
+
+              <!-- Actions -->
+              <div class="pt-2 border-t border-slate-200/70 flex items-center justify-between">
+                <button type="button" onclick="toggleDamageStatus('${item.id}')" class="text-[10px] font-bold px-2 py-0.5 rounded-lg border transition ${isPending ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100' : 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'}">
+                  ${isPending ? '수리완료로 변경' : '수리필요로 변경'}
+                </button>
+                <button type="button" onclick="deleteDamagePhoto('${item.id}')" class="text-rose-500 hover:text-rose-700 text-xs px-1" title="사진 삭제">
+                  <i class="fa-solid fa-trash-can"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+      });
+      html += '</div>';
+
+      container.innerHTML = html;
+    }
+
+    function openDamagePhotoModal() {
+      var sel = document.getElementById('damageVehicleSelect');
+      if (sel) {
+        sel.innerHTML = vehiclesMaster.map(function(v) {
+          return '<option value="' + v.vehicle_no + '">' + v.vehicle_no + ' (' + (v.model_name || '스타리아') + ')</option>';
+        }).join('');
+        if (maintSelectedVehicle !== 'ALL') sel.value = maintSelectedVehicle;
+      }
+      document.getElementById('damageDateInput').value = new Date().toISOString().substring(0, 10);
+      document.getElementById('damagePartNameInput').value = '';
+      document.getElementById('damageMemoInput').value = '';
+      damageTempPhotoBase64 = '';
+      document.getElementById('damagePhotoPreviewBox').classList.add('hidden');
+      document.getElementById('damagePhotoFileInput').value = '';
+      document.getElementById('damagePhotoModal').classList.remove('hidden');
+    }
+
+    function closeDamagePhotoModal() {
+      document.getElementById('damagePhotoModal').classList.add('hidden');
+    }
+
+    function handleDamagePhotoUpload(e) {
+      var file = e.target.files && e.target.files[0];
+      if (!file) return;
+
+      compressImage(file, 1024, 1024, 0.75, function(base64) {
+        damageTempPhotoBase64 = base64;
+        var pImg = document.getElementById('damagePhotoPreviewImg');
+        var pBox = document.getElementById('damagePhotoPreviewBox');
+        var sTxt = document.getElementById('damagePhotoSizeText');
+        if (pImg) pImg.src = base64;
+        if (sTxt) sTxt.innerText = (file.size / 1024).toFixed(1) + ' KB (압축 최적화)';
+        if (pBox) pBox.classList.remove('hidden');
+      });
+    }
+
+    function removeDamagePhoto() {
+      damageTempPhotoBase64 = '';
+      document.getElementById('damagePhotoPreviewBox').classList.add('hidden');
+      document.getElementById('damagePhotoFileInput').value = '';
+    }
+
+    async function saveDamagePhotoSubmit(e) {
+      if (e) e.preventDefault();
+      if (!damageTempPhotoBase64) {
+        alert('손상 부위 사진을 카메라로 촬영하거나 파일로 첨부해주세요.');
+        return;
+      }
+
+      var vehicleNo = document.getElementById('damageVehicleSelect').value;
+      var dateVal = document.getElementById('damageDateInput').value;
+      var partName = document.getElementById('damagePartNameInput').value.trim();
+      var statusVal = document.querySelector('input[name="damageStatus"]:checked').value;
+      var memoVal = document.getElementById('damageMemoInput').value.trim();
+
+      var photoObj = {
+        id: 'dmg_' + Date.now(),
+        vehicle_no: vehicleNo,
+        date: dateVal,
+        taken_at: dateVal,
+        part_name: partName,
+        status: statusVal,
+        memo: memoVal,
+        photo_data: damageTempPhotoBase64,
+        created_at: new Date().toISOString()
+      };
+
+      damagePhotos.unshift(photoObj);
+      localStorage.setItem('VEHICLE_DAMAGE_PHOTOS_V1', JSON.stringify(damagePhotos));
+
+      if (supabaseClient) {
+        try {
+          var res = await supabaseClient.from('delivery_schedules').insert([{
+            date: dateVal,
+            customer_name: 'VEHICLE_DAMAGE_PHOTOS',
+            driver_name: vehicleNo,
+            source_sheet: 'VEHICLE_DAMAGE_PHOTOS',
+            memo_full: JSON.stringify(photoObj)
+          }]).select();
+          if (res.data && res.data[0]) {
+            photoObj.db_id = res.data[0].id;
+          }
+        } catch(err) {
+          console.warn('Failed to save damage photo to Supabase:', err);
+        }
+      }
+
+      closeDamagePhotoModal();
+      showToast('📷 고장/손상 부위 사진이 안전하게 보관되었습니다.');
+      renderDamagePhotos();
+      renderMaintenanceKPIs();
+    }
+
+    async function toggleDamageStatus(id) {
+      var item = damagePhotos.find(function(p) { return p.id === id; });
+      if (!item) return;
+
+      item.status = (item.status === 'pending') ? 'repaired' : 'pending';
+      localStorage.setItem('VEHICLE_DAMAGE_PHOTOS_V1', JSON.stringify(damagePhotos));
+
+      if (supabaseClient && item.db_id) {
+        try {
+          await supabaseClient.from('delivery_schedules')
+            .update({ memo_full: JSON.stringify(item) })
+            .eq('id', item.db_id);
+        } catch(err) {}
+      }
+
+      showToast('상태가 [' + (item.status === 'repaired' ? '수리 완료' : '수리 필요') + ']로 변경되었습니다.');
+      renderDamagePhotos();
+      renderMaintenanceKPIs();
+    }
+
+    async function deleteDamagePhoto(id) {
+      if (!confirm('해당 고장/손상 사진을 삭제하시겠습니까?')) return;
+
+      var idx = damagePhotos.findIndex(function(p) { return p.id === id; });
+      if (idx === -1) return;
+      var target = damagePhotos[idx];
+      damagePhotos.splice(idx, 1);
+      localStorage.setItem('VEHICLE_DAMAGE_PHOTOS_V1', JSON.stringify(damagePhotos));
+
+      if (supabaseClient && target.db_id) {
+        try {
+          await supabaseClient.from('delivery_schedules').delete().eq('id', target.db_id);
+        } catch(err) {}
+      }
+
+      showToast('고장 사진이 삭제되었습니다.');
+      renderDamagePhotos();
+      renderMaintenanceKPIs();
+    }
+
+    // ==========================================
+    // Maintenance Logs CRUD
+    // ==========================================
+    function renderMaintenanceTable() {
+      var tbody = document.getElementById('maintTableBody');
+      var badge = document.getElementById('maintRecordsCountBadge');
+      if (!tbody) return;
+
+      var filtered = getFilteredMaintenanceLogs();
+      var keyword = (document.getElementById('maintSearchInput') ? document.getElementById('maintSearchInput').value.trim().toLowerCase() : '');
+      if (keyword) {
+        filtered = filtered.filter(function(l) {
+          var text = (l.vehicle_no + ' ' + l.shop_name + ' ' + l.item_name + ' ' + l.memo + ' ' + l.category).toLowerCase();
+          return text.indexOf(keyword) !== -1;
+        });
+      }
+
+      if (badge) badge.innerText = filtered.length + '건';
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="11" class="py-12 text-center text-slate-400 font-medium">
+              등록된 정비일지 내역이 없습니다.
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      var html = '';
+      filtered.forEach(function(l, idx) {
+        var costVal = parseInt(l.cost || l.total_cost || 0, 10);
+        var costStr = '₩' + costVal.toLocaleString();
+        var hasReceipt = !!(l.receipt_data || l.receipt_url);
+
+        html += `
+          <tr class="hover:bg-indigo-50/30 transition">
+            <td class="py-2.5 px-3 text-center text-slate-400 font-mono">${idx + 1}</td>
+            <td class="py-2.5 px-3 font-bold font-mono text-slate-900">${l.date || ''}</td>
+            <td class="py-2.5 px-3 font-black text-indigo-700">${l.vehicle_no || ''}</td>
+            <td class="py-2.5 px-3">
+              <span class="px-2 py-0.5 rounded text-[10px] font-bold ${getCategoryBadgeClass(l.category)}">
+                ${l.category || '소모품'}
+              </span>
+            </td>
+            <td class="py-2.5 px-3">
+              <div class="font-bold text-slate-800">${l.item_name || ''}</div>
+              ${l.memo ? `<div class="text-[10px] text-slate-400 truncate max-w-xs">${l.memo}</div>` : ''}
+            </td>
+            <td class="py-2.5 px-3 text-slate-600 font-medium">${l.shop_name || '-'}</td>
+            <td class="py-2.5 px-3 text-right font-mono font-bold text-slate-700">${(l.odometer_km ? l.odometer_km.toLocaleString() + ' km' : '-')}</td>
+            <td class="py-2.5 px-3 text-right font-mono font-black text-rose-600">${costStr}</td>
+            <td class="py-2.5 px-3 text-center font-bold text-slate-600">${l.pay_method || '법인카드'}</td>
+            <td class="py-2.5 px-3 text-center">
+              ${hasReceipt ? `
+                <button type="button" onclick="openImageLightbox('${l.receipt_data || l.receipt_url}', '정비 영수증 (${l.vehicle_no})')" class="px-2 py-0.5 rounded bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold text-[10px] border border-emerald-200 transition">
+                  <i class="fa-solid fa-receipt"></i> 영수증
+                </button>
+              ` : `
+                <span class="text-[10px] text-slate-300">미첨부</span>
+              `}
+            </td>
+            <td class="py-2.5 px-3 text-center">
+              <div class="flex items-center justify-center gap-1">
+                <button type="button" onclick="openEditMaintenanceModal('${l.id}')" class="w-6 h-6 rounded bg-slate-100 hover:bg-indigo-100 text-slate-600 hover:text-indigo-600 flex items-center justify-center text-[10px]" title="수정">
+                  <i class="fa-solid fa-pen"></i>
+                </button>
+                <button type="button" onclick="deleteMaintenanceLog('${l.id}')" class="w-6 h-6 rounded bg-rose-50 hover:bg-rose-100 text-rose-600 flex items-center justify-center text-[10px]" title="삭제">
+                  <i class="fa-solid fa-trash-can"></i>
+                </button>
+              </div>
+            </td>
+          </tr>
+        `;
+      });
+
+      tbody.innerHTML = html;
+    }
+
+    function getCategoryBadgeClass(category) {
+      switch(category) {
+        case '소모품교체': return 'bg-amber-100 text-amber-800 border border-amber-200';
+        case '타이어교체': return 'bg-sky-100 text-sky-800 border border-sky-200';
+        case '정기검사': return 'bg-emerald-100 text-emerald-800 border border-emerald-200';
+        case '사고수리': return 'bg-rose-100 text-rose-800 border border-rose-200';
+        default: return 'bg-indigo-100 text-indigo-800 border border-indigo-200';
+      }
+    }
+
+    function filterMaintenanceTable() {
+      renderMaintenanceTable();
+    }
+
+    function openNewMaintenanceModal() {
+      openNewMaintenanceModalForVehicle(maintSelectedVehicle !== 'ALL' ? maintSelectedVehicle : (vehiclesMaster[0] ? vehiclesMaster[0].vehicle_no : ''));
+    }
+
+    function openNewMaintenanceModalForVehicle(vehicleNo) {
+      document.getElementById('maintEditId').value = '';
+      document.getElementById('maintModalTitle').innerText = '정비일지 직접 등록';
+
+      var sel = document.getElementById('maintVehicleSelect');
+      if (sel) {
+        sel.innerHTML = vehiclesMaster.map(function(v) {
+          return '<option value="' + v.vehicle_no + '">' + v.vehicle_no + ' (' + (v.model_name || '스타리아') + ')</option>';
+        }).join('');
+        if (vehicleNo) sel.value = vehicleNo;
+      }
+
+      document.getElementById('maintDateInput').value = new Date().toISOString().substring(0, 10);
+      onMaintVehicleChange();
+
+      document.getElementById('maintCategorySelect').value = '소모품교체';
+      onMaintCategoryChange();
+
+      document.getElementById('maintItemNameInput').value = '';
+      document.getElementById('maintShopNameInput').value = '현대 블루핸즈';
+      document.getElementById('maintCostInput').value = '';
+      document.getElementById('maintPayMethodSelect').value = '법인카드';
+      document.getElementById('maintMemoInput').value = '';
+
+      maintTempReceiptBase64 = '';
+      document.getElementById('maintReceiptPreviewBox').classList.add('hidden');
+      document.getElementById('maintReceiptFileName').innerText = '선택된 파일 없음';
+      document.getElementById('btnRemoveReceipt').classList.add('hidden');
+      document.getElementById('maintReceiptFileInput').value = '';
+
+      document.getElementById('maintenanceLogModal').classList.remove('hidden');
+    }
+
+    function openEditMaintenanceModal(id) {
+      var item = maintenanceLogs.find(function(l) { return l.id === id; });
+      if (!item) return;
+
+      document.getElementById('maintEditId').value = item.id;
+      document.getElementById('maintModalTitle').innerText = '정비일지 수정';
+
+      var sel = document.getElementById('maintVehicleSelect');
+      if (sel) {
+        sel.innerHTML = vehiclesMaster.map(function(v) {
+          return '<option value="' + v.vehicle_no + '">' + v.vehicle_no + ' (' + (v.model_name || '스타리아') + ')</option>';
+        }).join('');
+        sel.value = item.vehicle_no;
+      }
+
+      document.getElementById('maintDateInput').value = item.date || '';
+      document.getElementById('maintOdoInput').value = item.odometer_km || '';
+      document.getElementById('maintCategorySelect').value = item.category || '소모품교체';
+      onMaintCategoryChange();
+
+      document.getElementById('maintItemNameInput').value = item.item_name || '';
+      document.getElementById('maintShopNameInput').value = item.shop_name || '';
+      document.getElementById('maintCostInput').value = item.cost || item.total_cost || '';
+      document.getElementById('maintPayMethodSelect').value = item.pay_method || '법인카드';
+      document.getElementById('maintMemoInput').value = item.memo || '';
+
+      maintTempReceiptBase64 = item.receipt_data || item.receipt_url || '';
+      var pBox = document.getElementById('maintReceiptPreviewBox');
+      var pImg = document.getElementById('maintReceiptPreviewImg');
+      var fName = document.getElementById('maintReceiptFileName');
+      var btnRem = document.getElementById('btnRemoveReceipt');
+
+      if (maintTempReceiptBase64) {
+        pImg.src = maintTempReceiptBase64;
+        pBox.classList.remove('hidden');
+        fName.innerText = '첨부된 영수증 있음';
+        btnRem.classList.remove('hidden');
+      } else {
+        pBox.classList.add('hidden');
+        fName.innerText = '선택된 파일 없음';
+        btnRem.classList.add('hidden');
+      }
+
+      document.getElementById('maintenanceLogModal').classList.remove('hidden');
+    }
+
+    function closeMaintenanceLogModal() {
+      document.getElementById('maintenanceLogModal').classList.add('hidden');
+    }
+
+    function onMaintVehicleChange() {
+      var sel = document.getElementById('maintVehicleSelect');
+      if (!sel) return;
+      var vNo = sel.value;
+      var targetV = vehiclesMaster.find(function(v) { return v.vehicle_no === vNo; });
+      if (targetV && targetV.current_km) {
+        document.getElementById('maintOdoInput').value = targetV.current_km;
+      }
+    }
+
+    function onMaintCategoryChange() {
+      var cat = document.getElementById('maintCategorySelect').value;
+      var box = document.getElementById('maintTireOptionsBox');
+      if (cat === '타이어교체') {
+        if (box) box.classList.remove('hidden');
+      } else {
+        if (box) box.classList.add('hidden');
+      }
+    }
+
+    function applyMaintPreset(presetName) {
+      var catSelect = document.getElementById('maintCategorySelect');
+      var itemInput = document.getElementById('maintItemNameInput');
+
+      if (presetName.indexOf('엔진오일') !== -1) {
+        catSelect.value = '소모품교체';
+        itemInput.value = '엔진오일, 오일필터, 에어크리너 3종 교체';
+      } else if (presetName.indexOf('에어컨') !== -1) {
+        catSelect.value = '소모품교체';
+        itemInput.value = '에어컨 및 히터 캐빈 필터 교체';
+      } else if (presetName.indexOf('브레이크') !== -1) {
+        catSelect.value = '소모품교체';
+        itemInput.value = '앞/뒤 브레이크 패드 교체 및 라이닝 점검';
+      } else if (presetName.indexOf('미션') !== -1) {
+        catSelect.value = '소모품교체';
+        itemInput.value = '미션 오일(ATF) 순환식 교체';
+      } else if (presetName.indexOf('타이어') !== -1) {
+        catSelect.value = '타이어교체';
+        itemInput.value = '타이어 교체 및 휠 얼라인먼트 점검';
+      } else if (presetName.indexOf('정기') !== -1) {
+        catSelect.value = '정기검사';
+        itemInput.value = 'TS 한국교통안전공단 자동차 정기종합검사';
+      }
+      onMaintCategoryChange();
+    }
+
+    function handleMaintReceiptUpload(e) {
+      var file = e.target.files && e.target.files[0];
+      if (!file) return;
+
+      compressImage(file, 1024, 1024, 0.75, function(base64) {
+        maintTempReceiptBase64 = base64;
+        document.getElementById('maintReceiptPreviewImg').src = base64;
+        document.getElementById('maintReceiptPreviewBox').classList.remove('hidden');
+        document.getElementById('maintReceiptFileName').innerText = file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)';
+        document.getElementById('btnRemoveReceipt').classList.remove('hidden');
+      });
+    }
+
+    function removeMaintReceipt() {
+      maintTempReceiptBase64 = '';
+      document.getElementById('maintReceiptPreviewBox').classList.add('hidden');
+      document.getElementById('maintReceiptFileName').innerText = '선택된 파일 없음';
+      document.getElementById('btnRemoveReceipt').classList.add('hidden');
+      document.getElementById('maintReceiptFileInput').value = '';
+    }
+
+    async function saveMaintenanceLogSubmit(e) {
+      if (e) e.preventDefault();
+
+      var editId = document.getElementById('maintEditId').value;
+      var vehicleNo = document.getElementById('maintVehicleSelect').value;
+      var dateVal = document.getElementById('maintDateInput').value;
+      var odoVal = parseInt(document.getElementById('maintOdoInput').value, 10) || 0;
+      var catVal = document.getElementById('maintCategorySelect').value;
+      var itemVal = document.getElementById('maintItemNameInput').value.trim();
+      var shopVal = document.getElementById('maintShopNameInput').value.trim();
+      var costVal = parseInt(document.getElementById('maintCostInput').value, 10) || 0;
+      var payVal = document.getElementById('maintPayMethodSelect').value;
+      var memoVal = document.getElementById('maintMemoInput').value.trim();
+
+      // Tire Update if Tire category
+      if (catVal === '타이어교체') {
+        var tireTypeRadio = document.querySelector('input[name="maintTireType"]:checked');
+        var selTireType = tireTypeRadio ? tireTypeRadio.value : 'all_season';
+        var veh = vehiclesMaster.find(function(v) { return v.vehicle_no === vehicleNo; });
+        if (veh) {
+          veh.tire_type = selTireType;
+          veh.tire_changed_date = dateVal;
+          await saveVehiclesMasterConfig();
+        }
+      }
+
+      var logObj = {
+        id: editId || ('maint_' + Date.now()),
+        vehicle_no: vehicleNo,
+        date: dateVal,
+        odometer_km: odoVal,
+        category: catVal,
+        item_name: itemVal,
+        shop_name: shopVal,
+        cost: costVal,
+        total_cost: costVal,
+        pay_method: payVal,
+        memo: memoVal,
+        receipt_data: maintTempReceiptBase64,
+        updated_at: new Date().toISOString()
+      };
+
+      if (editId) {
+        var existingIdx = maintenanceLogs.findIndex(function(l) { return l.id === editId; });
+        if (existingIdx !== -1) {
+          logObj.db_id = maintenanceLogs[existingIdx].db_id;
+          maintenanceLogs[existingIdx] = logObj;
+        }
+      } else {
+        maintenanceLogs.unshift(logObj);
+      }
+
+      localStorage.setItem('VEHICLE_MAINTENANCE_LOGS_V1', JSON.stringify(maintenanceLogs));
+
+      if (supabaseClient) {
+        try {
+          if (logObj.db_id) {
+            await supabaseClient.from('delivery_schedules')
+              .update({
+                date: dateVal,
+                driver_name: vehicleNo,
+                memo_full: JSON.stringify(logObj)
+              })
+              .eq('id', logObj.db_id);
+          } else {
+            var res = await supabaseClient.from('delivery_schedules').insert([{
+              date: dateVal,
+              customer_name: 'VEHICLE_MAINTENANCE_LOGS',
+              driver_name: vehicleNo,
+              source_sheet: 'VEHICLE_MAINTENANCE_LOGS',
+              memo_full: JSON.stringify(logObj)
+            }]).select();
+            if (res.data && res.data[0]) {
+              logObj.db_id = res.data[0].id;
+            }
+          }
+        } catch(err) {
+          console.warn('Failed to sync maintenance log to Supabase:', err);
+        }
+      }
+
+      closeMaintenanceLogModal();
+      showToast('🔧 정비일지가 정상적으로 저장되었습니다.');
+      renderMaintenanceAll();
+    }
+
+    async function deleteMaintenanceLog(id) {
+      if (!confirm('해당 정비일지 내역을 삭제하시겠습니까?')) return;
+
+      var idx = maintenanceLogs.findIndex(function(l) { return l.id === id; });
+      if (idx === -1) return;
+      var target = maintenanceLogs[idx];
+      maintenanceLogs.splice(idx, 1);
+      localStorage.setItem('VEHICLE_MAINTENANCE_LOGS_V1', JSON.stringify(maintenanceLogs));
+
+      if (supabaseClient && target.db_id) {
+        try {
+          await supabaseClient.from('delivery_schedules').delete().eq('id', target.db_id);
+        } catch(err) {}
+      }
+
+      showToast('정비일지가 삭제되었습니다.');
+      renderMaintenanceAll();
+    }
+
+    // ==========================================
+    // Monthly Maintenance CSV Export
+    // ==========================================
+    function exportMaintenanceCsv() {
+      var filtered = getFilteredMaintenanceLogs();
+      if (filtered.length === 0) {
+        alert('내보낼 정비일지 데이터가 없습니다.');
+        return;
+      }
+
+      var titlePrefix = maintIsAllPeriod ? '법인차량_정비일지_전체' : (maintSelectedYear + '년' + maintSelectedMonth + '월_법인차량_정비일지');
+      var filename = titlePrefix + (maintSelectedVehicle !== 'ALL' ? '_' + maintSelectedVehicle : '') + '.csv';
+
+      var headers = [
+        "순번", "정비일자", "차량번호", "차종", "정비구분", "정비항목", "정비업체(카센터)", 
+        "정비당시Km", "총결제금액(원)", "결제수단", "영수증증빙여부", "비고"
+      ];
+
+      var rows = [headers];
+      filtered.forEach(function(l, idx) {
+        var v = vehiclesMaster.find(function(veh) { return veh.vehicle_no === l.vehicle_no; });
+        var model = v ? (v.model_name || '스타리아') : '스타리아';
+        var hasReceipt = (l.receipt_data || l.receipt_url) ? '증빙첨부' : '미첨부';
+
+        rows.push([
+          idx + 1,
+          l.date || '',
+          l.vehicle_no || '',
+          model,
+          l.category || '',
+          '"' + (l.item_name || '').replace(/"/g, '""') + '"',
+          '"' + (l.shop_name || '').replace(/"/g, '""') + '"',
+          l.odometer_km || 0,
+          l.cost || l.total_cost || 0,
+          l.pay_method || '법인카드',
+          hasReceipt,
+          '"' + (l.memo || '').replace(/"/g, '""') + '"'
+        ]);
+      });
+
+      var csvContent = "\uFEFF" + rows.map(function(e) { return e.join(","); }).join("\r\n");
+      var blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      var link = document.createElement("a");
+      var url = URL.createObjectURL(blob);
+      link.setAttribute("href", url);
+      link.setAttribute("download", filename);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      showToast('📥 ' + filename + ' 다운로드 완료');
+    }
+
+    // ==========================================
+    // Lightbox & Helper
+    // ==========================================
+    function openImageLightbox(src, title) {
+      var modal = document.getElementById('imageLightboxModal');
+      var img = document.getElementById('lightboxImg');
+      var tEl = document.getElementById('lightboxTitle');
+      if (!modal || !img) return;
+
+      img.src = src;
+      if (tEl) tEl.innerText = title || '고화질 사진 뷰어';
+      modal.classList.remove('hidden');
+    }
+
+    function closeImageLightbox() {
+      var modal = document.getElementById('imageLightboxModal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    // Client-side Image Compression (Safe for Storage & Fast Rendering)
+    function compressImage(file, maxWidth, maxHeight, quality, callback) {
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        var img = new Image();
+        img.onload = function() {
+          var w = img.width;
+          var h = img.height;
+          if (w > maxWidth || h > maxHeight) {
+            if (w > h) {
+              h = Math.round((h * maxWidth) / w);
+              w = maxWidth;
+            } else {
+              w = Math.round((w * maxHeight) / h);
+              h = maxHeight;
+            }
+          }
+          var canvas = document.createElement('canvas');
+          canvas.width = w;
+          canvas.height = h;
+          var ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, w, h);
+          var dataUrl = canvas.toDataURL('image/jpeg', quality || 0.75);
+          callback(dataUrl);
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
     function showToast(msg) {
       var toast = document.getElementById('toast');
       var msgEl = document.getElementById('toastMsg');
