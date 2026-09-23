@@ -4756,6 +4756,115 @@
       }
     }
 
+    // ==========================================
+    // Consumable Intervals Configuration (Admin)
+    // ==========================================
+    function openMaintenanceIntervalModal() {
+      var m = document.getElementById('maintenanceIntervalModal');
+      if (!m) return;
+      document.getElementById('intervalEngineOil').value = maintenanceIntervals.engine_oil || 10000;
+      document.getElementById('intervalCabinFilter').value = maintenanceIntervals.cabin_filter || 15000;
+      document.getElementById('intervalBrakePad').value = maintenanceIntervals.brake_pad || 40000;
+      document.getElementById('intervalMissionOil').value = maintenanceIntervals.mission_oil || 50000;
+      document.getElementById('intervalInspectionYears').value = maintenanceIntervals.inspection_years || 2;
+      m.classList.remove('hidden');
+    }
+
+    function closeMaintenanceIntervalModal() {
+      var m = document.getElementById('maintenanceIntervalModal');
+      if (m) m.classList.add('hidden');
+    }
+
+    function resetMaintenanceIntervalsToDefault() {
+      document.getElementById('intervalEngineOil').value = 10000;
+      document.getElementById('intervalCabinFilter').value = 15000;
+      document.getElementById('intervalBrakePad').value = 40000;
+      document.getElementById('intervalMissionOil').value = 50000;
+      document.getElementById('intervalInspectionYears').value = 2;
+    }
+
+    async function saveMaintenanceIntervalsSubmit(e) {
+      if (e) e.preventDefault();
+      maintenanceIntervals.engine_oil = parseInt(document.getElementById('intervalEngineOil').value, 10) || 10000;
+      maintenanceIntervals.cabin_filter = parseInt(document.getElementById('intervalCabinFilter').value, 10) || 15000;
+      maintenanceIntervals.brake_pad = parseInt(document.getElementById('intervalBrakePad').value, 10) || 40000;
+      maintenanceIntervals.mission_oil = parseInt(document.getElementById('intervalMissionOil').value, 10) || 50000;
+      maintenanceIntervals.inspection_years = parseInt(document.getElementById('intervalInspectionYears').value, 10) || 2;
+
+      localStorage.setItem('MAINTENANCE_INTERVALS_CONFIG_V1', JSON.stringify(maintenanceIntervals));
+
+      if (supabaseClient) {
+        try {
+          await supabaseClient.from('delivery_schedules')
+            .delete()
+            .eq('source_sheet', 'SYSTEM_CONFIG_MAINTENANCE_INTERVALS');
+
+          await supabaseClient.from('delivery_schedules')
+            .insert([{
+              date: '2099-12-31',
+              customer_name: 'SYSTEM_CONFIG_MAINTENANCE_INTERVALS',
+              source_sheet: 'SYSTEM_CONFIG_MAINTENANCE_INTERVALS',
+              memo_full: JSON.stringify(maintenanceIntervals)
+            }]);
+        } catch (err) {
+          console.warn('Failed to sync intervals to Supabase:', err);
+        }
+      }
+
+      closeMaintenanceIntervalModal();
+      showToast('⚙️ 소모품 기준 교체 주기가 저장되었습니다.');
+      renderMaintenanceVehiclesStatus();
+    }
+
+    // ==========================================
+    // Tire Management Functions
+    // ==========================================
+    async function toggleTireType(vehicleNo) {
+      var veh = vehiclesMaster.find(function(v) { return v.vehicle_no === vehicleNo; });
+      if (!veh) return;
+      veh.tire_type = (veh.tire_type === 'snow') ? 'all_season' : 'snow';
+      await saveVehiclesMaster();
+      showToast('🛞 ' + vehicleNo + ' 타이어가 [' + (veh.tire_type === 'snow' ? '❄️ 스노우 타이어' : '🍂 사계절 타이어') + ']로 변경되었습니다.');
+      renderMaintenanceVehiclesStatus();
+      renderMaintenanceKPIs();
+    }
+
+    function openTireDateModal(vehicleNo) {
+      var veh = vehiclesMaster.find(function(v) { return v.vehicle_no === vehicleNo; });
+      if (!veh) return;
+      document.getElementById('tireVehicleNo').value = vehicleNo;
+      document.getElementById('tireVehicleDisplay').innerText = vehicleNo + ' (' + (veh.model_name || '스타리아') + ')';
+      if (veh.tire_type === 'snow') {
+        document.getElementById('radioTireSnow').checked = true;
+      } else {
+        document.getElementById('radioTireAllSeason').checked = true;
+      }
+      document.getElementById('tireDateInput').value = veh.tire_changed_date || new Date().toISOString().substring(0, 10);
+      document.getElementById('tireDateModal').classList.remove('hidden');
+    }
+
+    function closeTireDateModal() {
+      document.getElementById('tireDateModal').classList.add('hidden');
+    }
+
+    async function saveTireDateSubmit(e) {
+      if (e) e.preventDefault();
+      var vehicleNo = document.getElementById('tireVehicleNo').value;
+      var veh = vehiclesMaster.find(function(v) { return v.vehicle_no === vehicleNo; });
+      if (!veh) return;
+      var selectedType = document.querySelector('input[name="modalTireType"]:checked').value;
+      var selectedDate = document.getElementById('tireDateInput').value;
+
+      veh.tire_type = selectedType;
+      veh.tire_changed_date = selectedDate;
+      await saveVehiclesMaster();
+
+      closeTireDateModal();
+      showToast('🛞 ' + vehicleNo + ' 타이어 교체일/종류가 저장되었습니다.');
+      renderMaintenanceVehiclesStatus();
+      renderMaintenanceKPIs();
+    }
+
     // Render Vehicles Status & Consumable Health Bars
     function renderMaintenanceVehiclesStatus() {
       var grid = document.getElementById('maintenanceVehiclesStatusGrid');
@@ -4851,42 +4960,11 @@
               </button>
             </div>
 
-            <!-- TIRE SECTION (User Specific Customization: Date Only + Type Toggle) -->
-            <div class="p-3 bg-gradient-to-r ${isSnow ? 'from-sky-50 to-indigo-50 border-sky-200' : 'from-amber-50/70 to-slate-50 border-amber-200/80'} rounded-xl border space-y-2">
-              <div class="flex items-center justify-between">
-                <span class="text-xs font-black text-slate-800 flex items-center gap-1.5">
-                  <i class="fa-solid fa-circle-dot ${isSnow ? 'text-sky-600' : 'text-amber-600'}"></i>
-                  <span>타이어 관리</span>
-                  <span class="text-[9.5px] px-1.5 py-0.2 rounded-full font-bold ${isSnow ? 'bg-sky-100 text-sky-800 border border-sky-300' : 'bg-amber-100 text-amber-800 border border-amber-300'}">
-                    ${isSnow ? '❄️ 스노우(윈터) 타이어' : '🍂 사계절용 타이어'}
-                  </span>
-                </span>
-                
-                <!-- Toggle Button -->
-                <button type="button" onclick="toggleTireType('${v.vehicle_no}')" class="px-2.5 py-1 rounded-lg text-[10.5px] font-black transition flex items-center gap-1 shadow-2xs ${isSnow ? 'bg-sky-600 text-white hover:bg-sky-700' : 'bg-amber-600 text-white hover:bg-amber-700'}" title="타이어 종류 즉시 전환">
-                  <i class="fa-solid fa-arrows-rotate"></i>
-                  <span>${isSnow ? '사계절로 전환' : '스노우로 전환'}</span>
-                </button>
-              </div>
-
-              <!-- Tire Changed Date Display (DATE ONLY, NO KM) -->
-              <div class="flex items-center justify-between text-xs bg-white/90 px-2.5 py-1.5 rounded-lg border border-slate-200/80">
-                <div class="flex items-center gap-1.5 text-slate-600">
-                  <i class="fa-regular fa-calendar-check text-slate-400"></i>
-                  <span>최근 교체일:</span>
-                  <b class="text-slate-900 font-bold">${tireDate}</b>
-                </div>
-                <button type="button" onclick="openTireDateModal('${v.vehicle_no}')" class="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 underline">
-                  날짜/종류 변경 ✏️
-                </button>
-              </div>
-            </div>
-
-            <!-- CONSUMABLE HEALTH BARS (4 Items + Inspection) -->
+            <!-- CONSUMABLE HEALTH BARS (Engine Oil, Cabin Filter, Brake Pad, Mission Oil) -->
             <div class="space-y-2.5 pt-0.5">
               <div class="flex items-center justify-between text-[11px] font-bold text-slate-700">
                 <span class="flex items-center gap-1"><i class="fa-solid fa-gauge-simple-high text-indigo-500"></i> 소모품 잔여 수명 (기준 주기 연동)</span>
-                <button onclick="openMaintenanceIntervalModal()" class="text-[10px] text-slate-400 hover:text-indigo-600 flex items-center gap-0.5">
+                <button onclick="openMaintenanceIntervalModal()" class="text-[10px] text-slate-500 hover:text-indigo-600 font-bold flex items-center gap-0.5 bg-slate-50 hover:bg-slate-100 px-2 py-0.5 rounded border border-slate-200 transition">
                   <i class="fa-solid fa-gear"></i> 기준 주기 수정
                 </button>
               </div>
@@ -4953,6 +5031,37 @@
                 <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden shadow-inner">
                   <div class="${missionColor} h-2 rounded-full transition-all duration-500" style="width: ${missionPct}%"></div>
                 </div>
+              </div>
+            </div>
+
+            <!-- TIRE SECTION (Moved below Mission Oil as requested) -->
+            <div class="p-3 bg-gradient-to-r ${isSnow ? 'from-sky-50 to-indigo-50 border-sky-200' : 'from-amber-50/70 to-slate-50 border-amber-200/80'} rounded-xl border space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-black text-slate-800 flex items-center gap-1.5">
+                  <i class="fa-solid fa-circle-dot ${isSnow ? 'text-sky-600' : 'text-amber-600'}"></i>
+                  <span>타이어 관리</span>
+                  <span class="text-[9.5px] px-1.5 py-0.2 rounded-full font-bold ${isSnow ? 'bg-sky-100 text-sky-800 border border-sky-300' : 'bg-amber-100 text-amber-800 border border-amber-300'}">
+                    ${isSnow ? '❄️ 스노우(윈터) 타이어' : '🍂 사계절용 타이어'}
+                  </span>
+                </span>
+                
+                <!-- Toggle Button -->
+                <button type="button" onclick="toggleTireType('${v.vehicle_no}')" class="px-2.5 py-1 rounded-lg text-[10.5px] font-black transition flex items-center gap-1 shadow-2xs ${isSnow ? 'bg-sky-600 text-white hover:bg-sky-700' : 'bg-amber-600 text-white hover:bg-amber-700'}" title="타이어 종류 즉시 전환">
+                  <i class="fa-solid fa-arrows-rotate"></i>
+                  <span>${isSnow ? '사계절로 전환' : '스노우로 전환'}</span>
+                </button>
+              </div>
+
+              <!-- Tire Changed Date Display (DATE ONLY, NO KM) -->
+              <div class="flex items-center justify-between text-xs bg-white/90 px-2.5 py-1.5 rounded-lg border border-slate-200/80">
+                <div class="flex items-center gap-1.5 text-slate-600">
+                  <i class="fa-regular fa-calendar-check text-slate-400"></i>
+                  <span>최근 교체일:</span>
+                  <b class="text-slate-900 font-bold">${tireDate}</b>
+                </div>
+                <button type="button" onclick="openTireDateModal('${v.vehicle_no}')" class="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 underline">
+                  날짜/종류 변경 ✏️
+                </button>
               </div>
             </div>
 
@@ -5535,11 +5644,6 @@
     // ==========================================
     function exportMaintenanceCsv() {
       var filtered = getFilteredMaintenanceLogs();
-      if (filtered.length === 0) {
-        alert('내보낼 정비일지 데이터가 없습니다.');
-        return;
-      }
-
       var titlePrefix = maintIsAllPeriod ? '법인차량_정비일지_전체' : (maintSelectedYear + '년' + maintSelectedMonth + '월_법인차량_정비일지');
       var filename = titlePrefix + (maintSelectedVehicle !== 'ALL' ? '_' + maintSelectedVehicle : '') + '.csv';
 
@@ -5549,26 +5653,30 @@
       ];
 
       var rows = [headers];
-      filtered.forEach(function(l, idx) {
-        var v = vehiclesMaster.find(function(veh) { return veh.vehicle_no === l.vehicle_no; });
-        var model = v ? (v.model_name || '스타리아') : '스타리아';
-        var hasReceipt = (l.receipt_data || l.receipt_url) ? '증빙첨부' : '미첨부';
+      if (filtered.length === 0) {
+        showToast('📋 등록된 정비 내역이 없어 기본 서식 템플릿을 다운로드합니다.');
+      } else {
+        filtered.forEach(function(l, idx) {
+          var v = vehiclesMaster.find(function(veh) { return veh.vehicle_no === l.vehicle_no; });
+          var model = v ? (v.model_name || '스타리아') : '스타리아';
+          var hasReceipt = (l.receipt_data || l.receipt_url) ? '증빙첨부' : '미첨부';
 
-        rows.push([
-          idx + 1,
-          l.date || '',
-          l.vehicle_no || '',
-          model,
-          l.category || '',
-          '"' + (l.item_name || '').replace(/"/g, '""') + '"',
-          '"' + (l.shop_name || '').replace(/"/g, '""') + '"',
-          l.odometer_km || 0,
-          l.cost || l.total_cost || 0,
-          l.pay_method || '법인카드',
-          hasReceipt,
-          '"' + (l.memo || '').replace(/"/g, '""') + '"'
-        ]);
-      });
+          rows.push([
+            idx + 1,
+            l.date || '',
+            l.vehicle_no || '',
+            model,
+            l.category || '',
+            '"' + (l.item_name || '').replace(/"/g, '""') + '"',
+            '"' + (l.shop_name || '').replace(/"/g, '""') + '"',
+            l.odometer_km || 0,
+            l.cost || l.total_cost || 0,
+            l.pay_method || '법인카드',
+            hasReceipt,
+            '"' + (l.memo || '').replace(/"/g, '""') + '"'
+          ]);
+        });
+      }
 
       var csvContent = "\uFEFF" + rows.map(function(e) { return e.join(","); }).join("\r\n");
       var blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
@@ -5580,7 +5688,9 @@
       link.click();
       document.body.removeChild(link);
 
-      showToast('📥 ' + filename + ' 다운로드 완료');
+      if (filtered.length > 0) {
+        showToast('📥 ' + filename + ' 다운로드 완료');
+      }
     }
 
     // ==========================================
