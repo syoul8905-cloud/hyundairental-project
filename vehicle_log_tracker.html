@@ -139,7 +139,7 @@
       <!-- Injected via JS -->
       <button class="px-3.5 py-1.5 bg-indigo-600 text-white font-black rounded-xl text-xs shadow-xs flex items-center gap-1.5">
         <i class="fa-solid fa-van-shuttle"></i>
-        <span>801라8744 (스타리아)</span>
+        <span>801부8744 (스타리아)</span>
       </button>
     </div>
 
@@ -1418,7 +1418,7 @@
         <div>
           <label class="block text-xs font-bold text-slate-500 mb-1">대상 차량</label>
           <div id="tireVehicleDisplay" class="font-black text-sm text-slate-900 bg-slate-50 px-3 py-2 rounded-xl border border-slate-200">
-            801라8744 (스타리아)
+            801부8744 (스타리아)
           </div>
         </div>
 
@@ -1485,7 +1485,7 @@
 
     // State Variables
     var _initNow = new Date();
-    var currentSelectedVehicleNo = "801라8744";
+    var currentSelectedVehicleNo = "801부8744";
     var currentYear = _initNow.getFullYear();
     var currentMonth = _initNow.getMonth() + 1; // 1-12
     var vehiclesMaster = [];
@@ -1523,7 +1523,7 @@
       // Default Seed if empty
       if (vehiclesMaster.length === 0) {
         vehiclesMaster = [
-          { id: "veh_801라8744", vehicle_no: "801라8744", model_name: "스타리아", initial_km: 70532, current_km: 71453, is_active: true, default_driver: "조경찬", tire_type: "all_season", tire_changed_date: "2026-03-23" },
+          { id: "veh_801부8744", vehicle_no: "801부8744", model_name: "스타리아", initial_km: 70532, current_km: 71453, is_active: true, default_driver: "조경찬", tire_type: "all_season", tire_changed_date: "2026-03-23" },
           { id: "veh_826라8911", vehicle_no: "826라8911", model_name: "스타리아", initial_km: 32796, current_km: 33484, is_active: true, default_driver: "조경찬", tire_type: "all_season", tire_changed_date: "2026-03-20" }
         ];
       }
@@ -1551,7 +1551,7 @@
       vehiclesMaster = vehiclesMaster.map(function(v) {
         if (v.vehicle_no) {
           if (v.vehicle_no.includes('?') || v.vehicle_no.startsWith('801')) {
-            v.vehicle_no = '801라8744';
+            v.vehicle_no = '801부8744';
           } else if (v.vehicle_no.includes('?') || v.vehicle_no.startsWith('826')) {
             v.vehicle_no = '826라8911';
           }
@@ -1564,7 +1564,7 @@
         }
         // Tire Default Protection based on B2B maintenance log
         v.tire_type = v.tire_type || 'all_season';
-        if (v.vehicle_no === '801라8744') {
+        if (v.vehicle_no === '801부8744') {
           v.tire_changed_date = v.tire_changed_date || '2026-03-23';
         } else if (v.vehicle_no === '826라8911') {
           v.tire_changed_date = v.tire_changed_date || '2026-03-20';
@@ -1575,7 +1575,7 @@
 
       // Ensure currentSelectedVehicleNo matches a valid vehicle
       if (!currentSelectedVehicleNo || currentSelectedVehicleNo.includes('?')) {
-        currentSelectedVehicleNo = "801라8744";
+        currentSelectedVehicleNo = "801부8744";
       }
       if (vehiclesMaster.length > 0) {
         var matchFound = vehiclesMaster.some(function(v) { return v.vehicle_no === currentSelectedVehicleNo; });
@@ -1658,8 +1658,8 @@
           // Fetch trip logs for the current selected vehicle and month
           var monthPrefix = `${currentYear}-${String(currentMonth).padStart(2, '0')}`;
           var vehicleQueryFilter = [currentSelectedVehicleNo];
-          if (currentSelectedVehicleNo === '801라8744') vehicleQueryFilter.push('801부8744');
           if (currentSelectedVehicleNo === '801부8744') vehicleQueryFilter.push('801라8744');
+          if (currentSelectedVehicleNo === '801라8744') vehicleQueryFilter.push('801부8744');
 
           var res = await supabaseClient.from('delivery_schedules')
             .select('*')
@@ -1673,7 +1673,7 @@
             tripLogs = res.data.map(function(row) {
               var parsed = {};
               try { parsed = JSON.parse(row.memo_full || '{}'); } catch(e) {}
-              var normVehNo = (row.customer_name === '801부8744' ? '801라8744' : row.customer_name) || currentSelectedVehicleNo;
+              var normVehNo = (row.customer_name === '801라8744' ? '801부8744' : row.customer_name) || currentSelectedVehicleNo;
               return {
                 id: row.id,
                 vehicle_no: normVehNo,
@@ -4504,7 +4504,7 @@
     var DEFAULT_MAINTENANCE_LOGS = [
       {
         "id": "maint_8744_20260902",
-        "vehicle_no": "801라8744",
+        "vehicle_no": "801부8744",
         "date": "2026-09-02",
         "driver_name": "조경찬",
         "category": "소모품교체",
@@ -4549,7 +4549,7 @@
       },
       {
         "id": "maint_8744_20260522",
-        "vehicle_no": "801라8744",
+        "vehicle_no": "801부8744",
         "date": "2026-05-22",
         "driver_name": "조경찬",
         "category": "소모품교체",
@@ -4564,7 +4564,7 @@
       },
       {
         "id": "maint_8744_20260323",
-        "vehicle_no": "801라8744",
+        "vehicle_no": "801부8744",
         "date": "2026-03-23",
         "driver_name": "김승지",
         "category": "타이어교체",
@@ -4594,7 +4594,7 @@
       },
       {
         "id": "maint_8744_20260204",
-        "vehicle_no": "801라8744",
+        "vehicle_no": "801부8744",
         "date": "2026-02-04",
         "driver_name": "조경찬",
         "category": "정기점검",
@@ -4609,7 +4609,7 @@
       },
       {
         "id": "maint_8744_20260126",
-        "vehicle_no": "801라8744",
+        "vehicle_no": "801부8744",
         "date": "2026-01-26",
         "driver_name": "김승지",
         "category": "소모품교체",
@@ -4654,7 +4654,7 @@
       },
       {
         "id": "maint_8744_20251224",
-        "vehicle_no": "801라8744",
+        "vehicle_no": "801부8744",
         "date": "2025-12-24",
         "driver_name": "현민혁",
         "category": "타이어교체",

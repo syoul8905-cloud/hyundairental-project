@@ -246,7 +246,7 @@
     <div class="px-4 py-3 bg-slate-50/70 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 no-print">
       <div class="flex items-center gap-2">
         <h2 id="tableHeaderTitle" class="font-bold text-slate-800 text-xs">
-          801라8744 · 2026년 9월 운행 및 비용 명세
+          801부8744 · 2026년 9월 운행 및 비용 명세
         </h2>
         <span id="tableRowCount" class="text-[11px] font-bold text-slate-400"></span>
       </div>
@@ -302,7 +302,7 @@
         <div class="grid grid-cols-3 gap-2 bg-slate-50 p-3 rounded-2xl border border-slate-200">
           <div>
             <span class="text-[10px] text-slate-400 font-bold block">대상 차량</span>
-            <span id="autoDistributeVehicleText" class="font-bold text-slate-800">801라8744 (스타리아)</span>
+            <span id="autoDistributeVehicleText" class="font-bold text-slate-800">801부8744 (스타리아)</span>
           </div>
           <div>
             <span class="text-[10px] text-slate-400 font-bold block">분배 대상 월</span>
@@ -503,7 +503,7 @@
           <div class="grid grid-cols-2 gap-2">
             <div>
               <label class="font-bold text-slate-600 text-[10px] block mb-0.5">차량번호</label>
-              <input type="text" id="newVehNo" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 font-bold outline-none" placeholder="예: 801라8744">
+              <input type="text" id="newVehNo" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 font-bold outline-none" placeholder="예: 801부8744">
             </div>
             <div>
               <label class="font-bold text-slate-600 text-[10px] block mb-0.5">차종 / 모델명</label>
@@ -601,7 +601,7 @@
 
     var currentYear = 2026;
     var currentMonth = 9;
-    var currentSelectedVehicleNo = '801라8744';
+    var currentSelectedVehicleNo = '801부8744';
     var currentViewMode = 'detailed'; // 'detailed' | 'summary'
 
     var vehiclesMaster = [];
@@ -655,7 +655,7 @@
       if (!vehiclesMaster || vehiclesMaster.length === 0) {
         // Default Fleet
         vehiclesMaster = [
-          { vehicle_no: '801라8744', model_name: '현대 스타리아', default_driver: '조경찬', initial_km: 70532 },
+          { vehicle_no: '801부8744', model_name: '현대 스타리아', default_driver: '조경찬', initial_km: 70532 },
           { vehicle_no: '826라8911', model_name: '기아 카니발', default_driver: '김승지,현민혁', initial_km: 33785 },
           { vehicle_no: '123가4567', model_name: '현대 아반떼', default_driver: '홍길동', initial_km: 15400 }
         ];
@@ -1742,13 +1742,13 @@
     // 11. 1-Click Demo Sample Data Generator
     // ------------------------------------------
     function loadDemoSampleData(silent) {
-      if (!silent && !confirm('2026년 9월 한 달 치(스타리아 801라8744) 실제감 넘치는 데모 운행일지 샘플을 로드하시겠습니까?\n(기존 9월 데이터가 실무 샘플로 채워집니다)')) {
+      if (!silent && !confirm('2026년 9월 한 달 치(스타리아 801부8744) 실제감 넘치는 데모 운행일지 샘플을 로드하시겠습니까?\n(기존 9월 데이터가 실무 샘플로 채워집니다)')) {
         return;
       }
 
       var sampleLogs = [
         {
-          vehicle_no: '801라8744', trip_date: '2026-09-01', driver_name: '조경찬', start_km: 70548, end_km: 70627, distance_km: 79, parking_fee: 0, fuel_fee: 0,
+          vehicle_no: '801부8744', trip_date: '2026-09-01', driver_name: '조경찬', start_km: 70548, end_km: 70627, distance_km: 79, parking_fee: 0, fuel_fee: 0,
           stops: [
             { type: 'origin', name: '가산 센터', addr: '서울 금천구 벚꽃로 278', start_km: 70548, end_km: 70548, distance_km: 0 },
             { type: 'delivery', order: 1, name: '더현대 서울', addr: '서울 영등포구 여의대로 108', memo: '복사기 1대 배송', start_km: 70548, end_km: 70564, distance_km: 16, parking_fee: 0, fuel_fee: 0 },
@@ -1759,7 +1759,7 @@
           ]
         },
         {
-          vehicle_no: '801라8744', trip_date: '2026-09-02', driver_name: '조경찬', start_km: 70642, end_km: 70715, distance_km: 73, parking_fee: 0, fuel_fee: 0,
+          vehicle_no: '801부8744', trip_date: '2026-09-02', driver_name: '조경찬', start_km: 70642, end_km: 70715, distance_km: 73, parking_fee: 0, fuel_fee: 0,
           stops: [
             { type: 'origin', name: '가산 센터', addr: '서울 금천구 벚꽃로 278', start_km: 70642, end_km: 70642, distance_km: 0 },
             { type: 'delivery', order: 1, name: '마곡테크노벨리', addr: '서울 강서구 마곡중앙6로 45', memo: '복합기 렌탈 설치', start_km: 70642, end_km: 70657, distance_km: 15, parking_fee: 0, fuel_fee: 0 },
@@ -1770,7 +1770,7 @@
           ]
         },
         {
-          vehicle_no: '801라8744', trip_date: '2026-09-03', driver_name: '조경찬', start_km: 70730, end_km: 70819, distance_km: 89, parking_fee: 1000, fuel_fee: 0,
+          vehicle_no: '801부8744', trip_date: '2026-09-03', driver_name: '조경찬', start_km: 70730, end_km: 70819, distance_km: 89, parking_fee: 1000, fuel_fee: 0,
           stops: [
             { type: 'origin', name: '가산 센터', addr: '서울 금천구 벚꽃로 278', start_km: 70730, end_km: 70730, distance_km: 0 },
             { type: 'delivery', order: 1, name: '부띠크모나코', addr: '서울 서초구 서초대로 397', memo: '커피머신 설치', start_km: 70730, end_km: 70745, distance_km: 15, parking_fee: 1000, fuel_fee: 0 },
@@ -1782,7 +1782,7 @@
           ]
         },
         {
-          vehicle_no: '801라8744', trip_date: '2026-09-04', driver_name: '조경찬', start_km: 70835, end_km: 70911, distance_km: 76, parking_fee: 9000, fuel_fee: 100000,
+          vehicle_no: '801부8744', trip_date: '2026-09-04', driver_name: '조경찬', start_km: 70835, end_km: 70911, distance_km: 76, parking_fee: 9000, fuel_fee: 100000,
           stops: [
             { type: 'origin', name: '가산 센터', addr: '서울 금천구 벚꽃로 278', start_km: 70835, end_km: 70835, distance_km: 0 },
             { type: 'delivery', order: 1, name: '이케아 광명점', addr: '경기 광명시 일직로 17', memo: '대형 공기청정기 점검', start_km: 70835, end_km: 70851, distance_km: 16, parking_fee: 9000, fuel_fee: 100000 },
@@ -1792,10 +1792,10 @@
             { type: 'return', name: '가산 센터', addr: '서울 금천구 벚꽃로 278 (가산 센터)', memo: '운행 복귀 및 마감', start_km: 70896, end_km: 70911, distance_km: 15, parking_fee: 0, fuel_fee: 0 }
           ]
         },
-        { vehicle_no: '801라8744', trip_date: '2026-09-05', driver_name: '미운행', is_unoperated: true, start_km: 70911, end_km: 70911, distance_km: 0, parking_fee: 0, fuel_fee: 0, memo: '토요일 정기 미운행' },
-        { vehicle_no: '801라8744', trip_date: '2026-09-06', driver_name: '미운행', is_unoperated: true, start_km: 70911, end_km: 70911, distance_km: 0, parking_fee: 0, fuel_fee: 0, memo: '일요일 정기 미운행' },
+        { vehicle_no: '801부8744', trip_date: '2026-09-05', driver_name: '미운행', is_unoperated: true, start_km: 70911, end_km: 70911, distance_km: 0, parking_fee: 0, fuel_fee: 0, memo: '토요일 정기 미운행' },
+        { vehicle_no: '801부8744', trip_date: '2026-09-06', driver_name: '미운행', is_unoperated: true, start_km: 70911, end_km: 70911, distance_km: 0, parking_fee: 0, fuel_fee: 0, memo: '일요일 정기 미운행' },
         {
-          vehicle_no: '801라8744', trip_date: '2026-09-07', driver_name: '조경찬', start_km: 70928, end_km: 71008, distance_km: 80, parking_fee: 4000, fuel_fee: 0,
+          vehicle_no: '801부8744', trip_date: '2026-09-07', driver_name: '조경찬', start_km: 70928, end_km: 71008, distance_km: 80, parking_fee: 4000, fuel_fee: 0,
           stops: [
             { type: 'origin', name: '가산 센터', addr: '서울 금천구 벚꽃로 278', start_km: 70928, end_km: 70928, distance_km: 0 },
             { type: 'delivery', order: 1, name: '아모레퍼시픽 본사', addr: '서울 용산구 한강대로 100', memo: '얼음정수기 점검', start_km: 70928, end_km: 70944, distance_km: 16, parking_fee: 4000, fuel_fee: 0 },
@@ -1806,7 +1806,7 @@
           ]
         },
         {
-          vehicle_no: '801라8744', trip_date: '2026-09-14', driver_name: '조경찬', start_km: 71370, end_km: 71453, distance_km: 83, parking_fee: 16000, fuel_fee: 0,
+          vehicle_no: '801부8744', trip_date: '2026-09-14', driver_name: '조경찬', start_km: 71370, end_km: 71453, distance_km: 83, parking_fee: 16000, fuel_fee: 0,
           stops: [
             { type: 'origin', name: '가산 센터', addr: '서울 금천구 벚꽃로 278', start_km: 71370, end_km: 71370, distance_km: 0 },
             { type: 'delivery', order: 1, name: '주식회사 지티이노비젼', addr: '서울 중구 수표로 34 씨티센터타워', memo: '16ZB90R i5 13세대 (1)', start_km: 71370, end_km: 71382, distance_km: 12, parking_fee: 10000, fuel_fee: 0 },
@@ -1819,7 +1819,7 @@
           ]
         },
         {
-          vehicle_no: '801라8744', trip_date: '2026-09-17', driver_name: '조경찬', start_km: 71584, end_km: 71701, distance_km: 117, parking_fee: 9900, fuel_fee: 0,
+          vehicle_no: '801부8744', trip_date: '2026-09-17', driver_name: '조경찬', start_km: 71584, end_km: 71701, distance_km: 117, parking_fee: 9900, fuel_fee: 0,
           stops: [
             { type: 'origin', name: '가산 센터', addr: '서울특별시 금천구 벚꽃로 278', start_km: 71584, end_km: 71584, distance_km: 0 },
             { type: 'delivery', order: 1, name: '주식회사 업사이드포텐셜앤컴퍼니', addr: '서울 마포구 독막로 306 4층(염리동, 참앤참)', memo: '노트북 1대', start_km: 71584, end_km: 71603, distance_km: 19, parking_fee: 0, fuel_fee: 0 },
@@ -1831,7 +1831,7 @@
           ]
         },
         {
-          vehicle_no: '801라8744', trip_date: '2026-09-18', driver_name: '조경찬', start_km: 71701, end_km: 71771, distance_km: 70, parking_fee: 0, fuel_fee: 0,
+          vehicle_no: '801부8744', trip_date: '2026-09-18', driver_name: '조경찬', start_km: 71701, end_km: 71771, distance_km: 70, parking_fee: 0, fuel_fee: 0,
           stops: [
             { type: 'origin', name: '가산 센터', addr: '서울특별시 금천구 벚꽃로 278', start_km: 71701, end_km: 71701, distance_km: 0 },
             { type: 'delivery', order: 1, name: '도이치모터스(주)', addr: '서울 성동구 동일로 111 도이치모터스빌딩 택배보관함', memo: '16Z90T Ultra 5 225H (1)', start_km: 71701, end_km: 71715, distance_km: 14, parking_fee: 0, fuel_fee: 0 },
@@ -1843,12 +1843,12 @@
         }
       ];
 
-      // Merge or replace 2026-09 logs for 801라8744
+      // Merge or replace 2026-09 logs for 801부8744
       allTripLogs = allTripLogs.filter(function(l) {
-        return !(l.vehicle_no === '801라8744' && (l.trip_date || '').startsWith('2026-09'));
+        return !(l.vehicle_no === '801부8744' && (l.trip_date || '').startsWith('2026-09'));
       }).concat(sampleLogs);
 
-      currentSelectedVehicleNo = '801라8744';
+      currentSelectedVehicleNo = '801부8744';
       currentYear = 2026;
       currentMonth = 9;
 

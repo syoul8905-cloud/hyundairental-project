@@ -191,7 +191,7 @@
         <div class="truncate">
           <div class="flex items-center gap-1.5 flex-wrap">
             <span id="mobileActiveVehicleBadge" class="text-[9px] bg-indigo-200 text-indigo-900 font-bold px-1.5 py-0.2 rounded">운행차량</span>
-            <span id="mobileActiveVehicleName" class="font-black text-slate-900 text-xs font-mono">801라8744 (스타리아)</span>
+            <span id="mobileActiveVehicleName" class="font-black text-slate-900 text-xs font-mono">801부8744 (스타리아)</span>
           </div>
           <p class="text-[10.5px] text-slate-500 mt-0.5" id="mobileActiveVehicleOdo">
             시작 계기판: <b class="text-indigo-800 font-mono">71,453 km</b>
@@ -509,7 +509,7 @@
         <div class="p-2.5 bg-indigo-50 rounded-xl border border-indigo-100 flex items-center justify-between">
           <div class="flex items-center gap-2">
             <i class="fa-solid fa-van-shuttle text-indigo-600 text-sm"></i>
-            <span id="closingModalVehicleName" class="font-black text-slate-900 text-xs">801라8744 (스타리아)</span>
+            <span id="closingModalVehicleName" class="font-black text-slate-900 text-xs">801부8744 (스타리아)</span>
           </div>
           <span class="text-[10px] bg-indigo-200 text-indigo-900 font-bold px-1.5 py-0.5 rounded">운행 마감</span>
         </div>
@@ -1921,7 +1921,7 @@
     // Mobile Vehicle Master & Trip Closing Engine
     // ==========================================
     var mobileVehiclesMaster = [
-      { id: "veh_801라8744", vehicle_no: "801라8744", model_name: "스타리아", initial_km: 70532, current_km: 71453, is_active: true, default_driver: "조경찬" },
+      { id: "veh_801부8744", vehicle_no: "801부8744", model_name: "스타리아", initial_km: 70532, current_km: 71453, is_active: true, default_driver: "조경찬" },
       { id: "veh_826라8911", vehicle_no: "826라8911", model_name: "스타리아", initial_km: 32796, current_km: 33484, is_active: true, default_driver: "한민혁" }
     ];
     // 항상 초기 진입 시에는 기본 '보기 모드' (차량 미선택)로 안전하게 시작
@@ -1944,7 +1944,7 @@
     // 차량별 운행 중 잠금 정보 (실시간 동기화)
     var vehicleActiveUsage = {}; // { "826라8911": { driver: "김승지", date: "2026-09-14" } }
     // 차량별 당일 운행 마감 정보 (실시간 동기화)
-    var vehicleClosedUsage = {}; // { "801라8744": { driver: "조경찬", end_km: 71453, arrive: "14:45" } }
+    var vehicleClosedUsage = {}; // { "801부8744": { driver: "조경찬", end_km: 71453, arrive: "14:45" } }
 
     async function syncMobileVehiclesFromCloud() {
       var cached = localStorage.getItem('CORPORATE_VEHICLES_MASTER_V1');
@@ -1966,12 +1966,12 @@
             if (config && Array.isArray(config.vehicles) && config.vehicles.length > 0) {
               mobileVehiclesMaster = config.vehicles.map(function(v) {
                 if (v.vehicle_no) {
-                  if (v.vehicle_no.includes('?') || v.vehicle_no.startsWith('801')) v.vehicle_no = '801라8744';
+                  if (v.vehicle_no.includes('?') || v.vehicle_no.startsWith('801')) v.vehicle_no = '801부8744';
                   else if (v.vehicle_no.includes('?') || v.vehicle_no.startsWith('826')) v.vehicle_no = '826라8911';
                 }
                 if (!v.model_name || v.model_name.includes('?')) v.model_name = '스타리아';
                 if (v.default_driver && v.default_driver.includes('?')) {
-                  v.default_driver = (v.vehicle_no === '801라8744') ? '조경찬' : '한민혁';
+                  v.default_driver = (v.vehicle_no === '801부8744') ? '조경찬' : '한민혁';
                 }
                 return v;
               });
