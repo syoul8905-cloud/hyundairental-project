@@ -1523,8 +1523,8 @@
       // Default Seed if empty
       if (vehiclesMaster.length === 0) {
         vehiclesMaster = [
-          { id: "veh_801라8744", vehicle_no: "801라8744", model_name: "스타리아", initial_km: 70532, current_km: 71453, is_active: true, default_driver: "조경찬", tire_type: "all_season", tire_changed_date: "2026-04-15" },
-          { id: "veh_826라8911", vehicle_no: "826라8911", model_name: "스타리아", initial_km: 32796, current_km: 33484, is_active: true, default_driver: "한민혁", tire_type: "all_season", tire_changed_date: "2026-05-10" }
+          { id: "veh_801라8744", vehicle_no: "801라8744", model_name: "스타리아", initial_km: 70532, current_km: 71453, is_active: true, default_driver: "조경찬", tire_type: "all_season", tire_changed_date: "2026-03-23" },
+          { id: "veh_826라8911", vehicle_no: "826라8911", model_name: "스타리아", initial_km: 32796, current_km: 33484, is_active: true, default_driver: "조경찬", tire_type: "all_season", tire_changed_date: "2026-03-20" }
         ];
       }
 
@@ -1560,11 +1560,15 @@
           v.model_name = '스타리아';
         }
         if (v.default_driver && v.default_driver.includes('?')) {
-          v.default_driver = (v.vehicle_no === '801라8744') ? '조경찬' : '한민혁';
+          v.default_driver = '조경찬';
         }
-        // Tire Default Protection
+        // Tire Default Protection based on B2B maintenance log
         v.tire_type = v.tire_type || 'all_season';
-        v.tire_changed_date = v.tire_changed_date || '2026-04-15';
+        if (v.vehicle_no === '801라8744') {
+          v.tire_changed_date = v.tire_changed_date || '2026-03-23';
+        } else if (v.vehicle_no === '826라8911') {
+          v.tire_changed_date = v.tire_changed_date || '2026-03-20';
+        }
         return v;
       });
       localStorage.setItem('CORPORATE_VEHICLES_MASTER_V1', JSON.stringify(vehiclesMaster));
@@ -4489,12 +4493,182 @@
     var maintSelectedMonth = new Date().getMonth() + 1;
     var maintIsAllPeriod = false;
     var maintenanceIntervals = {
-      engine_oil: 10000,
+      engine_oil: 7000,
       cabin_filter: 15000,
       brake_pad: 40000,
       mission_oil: 50000,
       inspection_years: 2
     };
+
+    // Default Seed Data from B2B Maintenance Excel (11 verified records, Total: ₩2,212,000)
+    var DEFAULT_MAINTENANCE_LOGS = [
+      {
+        "id": "maint_8744_20260902",
+        "vehicle_no": "801라8744",
+        "date": "2026-09-02",
+        "driver_name": "조경찬",
+        "category": "소모품교체",
+        "item_name": "엔진오일, 필터",
+        "shop_name": "블루핸즈/지정정비소",
+        "odometer_km": 70730,
+        "cost": 115500,
+        "pay_method": "법인카드",
+        "receipt_data": "",
+        "memo": "운전자: 조경찬, 재정비 예정: 77,730km",
+        "created_at": "2026-09-02T09:00:00.000Z"
+      },
+      {
+        "id": "maint_8911_20260805",
+        "vehicle_no": "826라8911",
+        "date": "2026-08-05",
+        "driver_name": "조경찬",
+        "category": "소모품교체",
+        "item_name": "엔진오일, 필터",
+        "shop_name": "블루핸즈/지정정비소",
+        "odometer_km": 30333,
+        "cost": 115500,
+        "pay_method": "법인카드",
+        "receipt_data": "",
+        "memo": "운전자: 조경찬, 재정비 예정: 37,333km, 잔여: 7,000km",
+        "created_at": "2026-08-05T09:00:00.000Z"
+      },
+      {
+        "id": "maint_8911_20260522",
+        "vehicle_no": "826라8911",
+        "date": "2026-05-22",
+        "driver_name": "조경찬",
+        "category": "소모품교체",
+        "item_name": "엔진오일, 필터",
+        "shop_name": "블루핸즈/지정정비소",
+        "odometer_km": 23479,
+        "cost": 110000,
+        "pay_method": "법인카드",
+        "receipt_data": "",
+        "memo": "운전자: 조경찬, 재정비 예정: 30,479km, 잔여: 414km",
+        "created_at": "2026-05-22T09:00:00.000Z"
+      },
+      {
+        "id": "maint_8744_20260522",
+        "vehicle_no": "801라8744",
+        "date": "2026-05-22",
+        "driver_name": "조경찬",
+        "category": "소모품교체",
+        "item_name": "엔진오일, 필터",
+        "shop_name": "블루핸즈/지정정비소",
+        "odometer_km": 62400,
+        "cost": 110000,
+        "pay_method": "법인카드",
+        "receipt_data": "",
+        "memo": "운전자: 조경찬, 재정비 예정: 69,400km, 잔여: 1,167km",
+        "created_at": "2026-05-22T09:00:00.000Z"
+      },
+      {
+        "id": "maint_8744_20260323",
+        "vehicle_no": "801라8744",
+        "date": "2026-03-23",
+        "driver_name": "김승지",
+        "category": "타이어교체",
+        "item_name": "타이어 교체 후 스노우 타이어 보관",
+        "shop_name": "블루핸즈/지정정비소",
+        "odometer_km": 58116,
+        "cost": 80000,
+        "pay_method": "법인카드",
+        "receipt_data": "",
+        "memo": "운전자: 김승지, 재정비 예정: 겨울",
+        "created_at": "2026-03-23T09:00:00.000Z"
+      },
+      {
+        "id": "maint_8911_20260320",
+        "vehicle_no": "826라8911",
+        "date": "2026-03-20",
+        "driver_name": "김승지",
+        "category": "타이어교체",
+        "item_name": "타이어 교체 후 스노우 타이어 보관",
+        "shop_name": "블루핸즈/지정정비소",
+        "odometer_km": 19991,
+        "cost": 80000,
+        "pay_method": "법인카드",
+        "receipt_data": "",
+        "memo": "운전자: 김승지, 재정비 예정: 겨울",
+        "created_at": "2026-03-20T09:00:00.000Z"
+      },
+      {
+        "id": "maint_8744_20260204",
+        "vehicle_no": "801라8744",
+        "date": "2026-02-04",
+        "driver_name": "조경찬",
+        "category": "정기점검",
+        "item_name": "차량 점검",
+        "shop_name": "블루핸즈/지정정비소",
+        "odometer_km": 55658,
+        "cost": 23000,
+        "pay_method": "법인카드",
+        "receipt_data": "",
+        "memo": "운전자: 조경찬",
+        "created_at": "2026-02-04T09:00:00.000Z"
+      },
+      {
+        "id": "maint_8744_20260126",
+        "vehicle_no": "801라8744",
+        "date": "2026-01-26",
+        "driver_name": "김승지",
+        "category": "소모품교체",
+        "item_name": "엔진오일, 필터",
+        "shop_name": "블루핸즈/지정정비소",
+        "odometer_km": 54810,
+        "cost": 99000,
+        "pay_method": "법인카드",
+        "receipt_data": "",
+        "memo": "운전자: 김승지, 재정비 예정: 61,810km",
+        "created_at": "2026-01-26T09:00:00.000Z"
+      },
+      {
+        "id": "maint_8911_20260123",
+        "vehicle_no": "826라8911",
+        "date": "2026-01-23",
+        "driver_name": "정상권",
+        "category": "소모품교체",
+        "item_name": "엔진오일, 필터",
+        "shop_name": "블루핸즈/지정정비소",
+        "odometer_km": 16600,
+        "cost": 99000,
+        "pay_method": "법인카드",
+        "receipt_data": "",
+        "memo": "운전자: 정상권, 재정비 예정: 23,600km",
+        "created_at": "2026-01-23T09:00:00.000Z"
+      },
+      {
+        "id": "maint_8911_20251224",
+        "vehicle_no": "826라8911",
+        "date": "2025-12-24",
+        "driver_name": "현민혁",
+        "category": "타이어교체",
+        "item_name": "스노우 타이어 교체",
+        "shop_name": "블루핸즈/지정정비소",
+        "odometer_km": 0,
+        "cost": 690000,
+        "pay_method": "법인카드",
+        "receipt_data": "",
+        "memo": "운전자: 현민혁, 재정비 예정: 3월 교체",
+        "created_at": "2025-12-24T09:00:00.000Z"
+      },
+      {
+        "id": "maint_8744_20251224",
+        "vehicle_no": "801라8744",
+        "date": "2025-12-24",
+        "driver_name": "현민혁",
+        "category": "타이어교체",
+        "item_name": "스노우 타이어 교체",
+        "shop_name": "블루핸즈/지정정비소",
+        "odometer_km": 0,
+        "cost": 690000,
+        "pay_method": "법인카드",
+        "receipt_data": "",
+        "memo": "운전자: 현민혁, 재정비 예정: 3월 교체",
+        "created_at": "2025-12-24T09:00:00.000Z"
+      }
+    ];
+
     var maintenanceLogs = [];
     var damagePhotos = [];
     var maintTempReceiptBase64 = '';
@@ -4541,8 +4715,12 @@
       if (cachedLogs) {
         try {
           var parsedL = JSON.parse(cachedLogs);
-          if (Array.isArray(parsedL)) maintenanceLogs = parsedL;
+          if (Array.isArray(parsedL) && parsedL.length > 0) maintenanceLogs = parsedL;
         } catch(e) {}
+      }
+      if (maintenanceLogs.length === 0) {
+        maintenanceLogs = JSON.parse(JSON.stringify(DEFAULT_MAINTENANCE_LOGS));
+        localStorage.setItem('VEHICLE_MAINTENANCE_LOGS_V1', JSON.stringify(maintenanceLogs));
       }
 
       var cachedPhotos = localStorage.getItem('VEHICLE_DAMAGE_PHOTOS_V1');
@@ -4570,35 +4748,38 @@
             }
           }
 
-          // Maintenance Logs
+          // Maintenance Logs (delivery_date)
           var resLogs = await supabaseClient.from('delivery_schedules')
-            .select('id, memo_full, date')
+            .select('id, memo_full, delivery_date')
             .eq('source_sheet', 'VEHICLE_MAINTENANCE_LOGS')
-            .order('date', { ascending: false });
+            .order('delivery_date', { ascending: false });
 
           if (resLogs.data && resLogs.data.length > 0) {
             maintenanceLogs = resLogs.data.map(function(row) {
               var obj = {};
               try { obj = JSON.parse(row.memo_full || '{}'); } catch(e) {}
               obj.db_id = row.id;
-              obj.date = obj.date || row.date;
+              obj.date = obj.date || row.delivery_date;
               return obj;
             });
             localStorage.setItem('VEHICLE_MAINTENANCE_LOGS_V1', JSON.stringify(maintenanceLogs));
+          } else if (maintenanceLogs.length === 0) {
+            maintenanceLogs = JSON.parse(JSON.stringify(DEFAULT_MAINTENANCE_LOGS));
+            localStorage.setItem('VEHICLE_MAINTENANCE_LOGS_V1', JSON.stringify(maintenanceLogs));
           }
 
-          // Damage Photos
+          // Damage Photos (delivery_date)
           var resPhotos = await supabaseClient.from('delivery_schedules')
-            .select('id, memo_full, date')
+            .select('id, memo_full, delivery_date')
             .eq('source_sheet', 'VEHICLE_DAMAGE_PHOTOS')
-            .order('date', { ascending: false });
+            .order('delivery_date', { ascending: false });
 
           if (resPhotos.data && resPhotos.data.length > 0) {
             damagePhotos = resPhotos.data.map(function(row) {
               var obj = {};
               try { obj = JSON.parse(row.memo_full || '{}'); } catch(e) {}
               obj.db_id = row.id;
-              obj.date = obj.date || row.date;
+              obj.date = obj.date || row.delivery_date;
               return obj;
             });
             localStorage.setItem('VEHICLE_DAMAGE_PHOTOS_V1', JSON.stringify(damagePhotos));
@@ -4801,7 +4982,7 @@
 
           await supabaseClient.from('delivery_schedules')
             .insert([{
-              date: '2099-12-31',
+              delivery_date: '2099-12-31',
               customer_name: 'SYSTEM_CONFIG_MAINTENANCE_INTERVALS',
               source_sheet: 'SYSTEM_CONFIG_MAINTENANCE_INTERVALS',
               memo_full: JSON.stringify(maintenanceIntervals)
@@ -5226,7 +5407,7 @@
       if (supabaseClient) {
         try {
           var res = await supabaseClient.from('delivery_schedules').insert([{
-            date: dateVal,
+            delivery_date: dateVal,
             customer_name: 'VEHICLE_DAMAGE_PHOTOS',
             driver_name: vehicleNo,
             source_sheet: 'VEHICLE_DAMAGE_PHOTOS',
@@ -5593,14 +5774,14 @@
           if (logObj.db_id) {
             await supabaseClient.from('delivery_schedules')
               .update({
-                date: dateVal,
+                delivery_date: dateVal,
                 driver_name: vehicleNo,
                 memo_full: JSON.stringify(logObj)
               })
               .eq('id', logObj.db_id);
           } else {
             var res = await supabaseClient.from('delivery_schedules').insert([{
-              date: dateVal,
+              delivery_date: dateVal,
               customer_name: 'VEHICLE_MAINTENANCE_LOGS',
               driver_name: vehicleNo,
               source_sheet: 'VEHICLE_MAINTENANCE_LOGS',
