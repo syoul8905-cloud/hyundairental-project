@@ -303,7 +303,7 @@
             <i class="fa-solid fa-chevron-left"></i>
           </button>
           <span id="maintCurrentMonthDisplay" class="font-black text-slate-900 text-xs px-3 min-w-[95px] text-center">
-            2026년 9월
+            전체 기간
           </span>
           <button onclick="shiftMaintMonth(1)" title="다음 달" class="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-white text-slate-600 hover:text-indigo-600 text-xs">
             <i class="fa-solid fa-chevron-right"></i>
@@ -311,7 +311,7 @@
           <button onclick="goToCurrentMaintMonth()" class="ml-1 px-2 py-1 bg-white hover:bg-slate-100 text-slate-700 rounded-lg text-xs font-bold border border-slate-200">
             당월
           </button>
-          <button onclick="toggleMaintAllPeriod()" id="btnMaintAllPeriod" class="ml-1 px-2 py-1 bg-white hover:bg-slate-100 text-slate-600 rounded-lg text-xs font-bold border border-slate-200">
+          <button onclick="toggleMaintAllPeriod()" id="btnMaintAllPeriod" class="ml-1 px-2 py-1 bg-indigo-600 text-white rounded-lg text-xs font-black shadow-2xs">
             전체
           </button>
         </div>
@@ -431,17 +431,17 @@
         <table class="w-full text-left border-collapse text-xs">
           <thead>
             <tr class="bg-slate-50/80 text-slate-500 font-bold border-b border-slate-200 text-[11px]">
-              <th class="py-2.5 px-3 text-center w-12">No</th>
-              <th class="py-2.5 px-3">정비일자</th>
-              <th class="py-2.5 px-3">차량번호</th>
-              <th class="py-2.5 px-3">구분</th>
-              <th class="py-2.5 px-3">정비항목 및 상세</th>
-              <th class="py-2.5 px-3">정비업체(카센터)</th>
-              <th class="py-2.5 px-3 text-right">정비 당시 Km</th>
-              <th class="py-2.5 px-3 text-right">총 결제금액</th>
-              <th class="py-2.5 px-3 text-center">결제수단</th>
-              <th class="py-2.5 px-3 text-center">영수증/증빙</th>
-              <th class="py-2.5 px-3 text-center w-20">관리</th>
+              <th class="py-2.5 px-3 text-center w-10">No</th>
+              <th class="py-2.5 px-3 whitespace-nowrap">정비일자</th>
+              <th class="py-2.5 px-3 whitespace-nowrap">차량번호</th>
+              <th class="py-2.5 px-3 text-center whitespace-nowrap">운전자</th>
+              <th class="py-2.5 px-3">정비내역 (항목)</th>
+              <th class="py-2.5 px-3 text-right whitespace-nowrap">정비 시점 Km</th>
+              <th class="py-2.5 px-3 text-right whitespace-nowrap">재정비 예정 Km</th>
+              <th class="py-2.5 px-3 text-right whitespace-nowrap">남은 Km</th>
+              <th class="py-2.5 px-3 text-right whitespace-nowrap">정비 금액</th>
+              <th class="py-2.5 px-3 text-center whitespace-nowrap">영수증/증빙</th>
+              <th class="py-2.5 px-3 text-center w-16 whitespace-nowrap">관리</th>
             </tr>
           </thead>
           <tbody id="maintTableBody" class="divide-y divide-slate-100 text-slate-800">
@@ -1157,7 +1157,8 @@
         <input type="hidden" id="maintEditId" value="">
 
         <!-- Row 1: Vehicle & Date -->
-        <div class="grid grid-cols-2 gap-3">
+        <!-- Row 1: Vehicle & Date & Driver -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div>
             <label class="block text-xs font-bold text-slate-700 mb-1">정비 대상 차량</label>
             <select id="maintVehicleSelect" onchange="onMaintVehicleChange()" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold focus:bg-white focus:border-indigo-600 outline-none" required>
@@ -1168,23 +1169,36 @@
             <label class="block text-xs font-bold text-slate-700 mb-1">정비 일자</label>
             <input type="date" id="maintDateInput" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold focus:bg-white focus:border-indigo-600 outline-none" required>
           </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">운전자 (담당)</label>
+            <input type="text" id="maintDriverInput" placeholder="예: 조경찬, 김승지" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold focus:bg-white focus:border-indigo-600 outline-none" required>
+          </div>
         </div>
 
-        <!-- Row 2: Odometer & Category -->
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-xs font-bold text-slate-700 mb-1">정비 당시 계기판 (Km)</label>
-            <input type="number" id="maintOdoInput" min="0" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold font-mono text-right focus:bg-white focus:border-indigo-600 outline-none" placeholder="71450" required>
-          </div>
+        <!-- Row 2: Category, Odometer, Next Maint Km, Remain Km -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
           <div>
             <label class="block text-xs font-bold text-slate-700 mb-1">정비 구분</label>
-            <select id="maintCategorySelect" onchange="onMaintCategoryChange()" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold focus:bg-white focus:border-indigo-600 outline-none" required>
+            <select id="maintCategorySelect" onchange="onMaintCategoryChange()" class="w-full px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold focus:bg-white focus:border-indigo-600 outline-none" required>
               <option value="소모품교체">🛢️ 소모품 교체</option>
-              <option value="일반정비">🔧 일반 정비/수리</option>
               <option value="타이어교체">🛞 타이어 교체</option>
-              <option value="정기검사">📋 정기/종합검사</option>
-              <option value="사고수리">💥 사고 수리/판금</option>
+              <option value="정기점검">🔍 차량 점검</option>
+              <option value="일반정비">🔧 일반 정비/수리</option>
+              <option value="정기검사">📋 종합정기검사</option>
+              <option value="사고수리">💥 사고 수리</option>
             </select>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">정비 당시 Km</label>
+            <input type="number" id="maintOdoInput" min="0" class="w-full px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold font-mono text-right focus:bg-white focus:border-indigo-600 outline-none" placeholder="70730">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">재정비 예정 Km</label>
+            <input type="text" id="maintNextKmInput" class="w-full px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold font-mono text-right focus:bg-white focus:border-indigo-600 outline-none" placeholder="예: 77730, 겨울">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">남은 Km</label>
+            <input type="text" id="maintRemainKmInput" class="w-full px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold font-mono text-right focus:bg-white focus:border-indigo-600 outline-none" placeholder="예: 7000">
           </div>
         </div>
 
@@ -4491,7 +4505,7 @@
     var maintSelectedVehicle = 'ALL';
     var maintSelectedYear = new Date().getFullYear();
     var maintSelectedMonth = new Date().getMonth() + 1;
-    var maintIsAllPeriod = false;
+    var maintIsAllPeriod = true;
     var maintenanceIntervals = {
       engine_oil: 7000,
       cabin_filter: 15000,
@@ -4511,10 +4525,14 @@
         "item_name": "엔진오일, 필터",
         "shop_name": "블루핸즈/지정정비소",
         "odometer_km": 70730,
+        "next_maint_km": "77730",
+        "current_km": "",
+        "remain_km": "",
         "cost": 115500,
+        "total_cost": 115500,
         "pay_method": "법인카드",
         "receipt_data": "",
-        "memo": "운전자: 조경찬, 재정비 예정: 77,730km",
+        "memo": "",
         "created_at": "2026-09-02T09:00:00.000Z"
       },
       {
@@ -4526,10 +4544,14 @@
         "item_name": "엔진오일, 필터",
         "shop_name": "블루핸즈/지정정비소",
         "odometer_km": 30333,
+        "next_maint_km": "37333",
+        "current_km": 30333,
+        "remain_km": 7000,
         "cost": 115500,
+        "total_cost": 115500,
         "pay_method": "법인카드",
         "receipt_data": "",
-        "memo": "운전자: 조경찬, 재정비 예정: 37,333km, 잔여: 7,000km",
+        "memo": "",
         "created_at": "2026-08-05T09:00:00.000Z"
       },
       {
@@ -4541,10 +4563,14 @@
         "item_name": "엔진오일, 필터",
         "shop_name": "블루핸즈/지정정비소",
         "odometer_km": 23479,
+        "next_maint_km": "30479",
+        "current_km": 30065,
+        "remain_km": 414,
         "cost": 110000,
+        "total_cost": 110000,
         "pay_method": "법인카드",
         "receipt_data": "",
-        "memo": "운전자: 조경찬, 재정비 예정: 30,479km, 잔여: 414km",
+        "memo": "",
         "created_at": "2026-05-22T09:00:00.000Z"
       },
       {
@@ -4556,10 +4582,14 @@
         "item_name": "엔진오일, 필터",
         "shop_name": "블루핸즈/지정정비소",
         "odometer_km": 62400,
+        "next_maint_km": "69400",
+        "current_km": 68233,
+        "remain_km": 1167,
         "cost": 110000,
+        "total_cost": 110000,
         "pay_method": "법인카드",
         "receipt_data": "",
-        "memo": "운전자: 조경찬, 재정비 예정: 69,400km, 잔여: 1,167km",
+        "memo": "",
         "created_at": "2026-05-22T09:00:00.000Z"
       },
       {
@@ -4571,10 +4601,14 @@
         "item_name": "타이어 교체 후 스노우 타이어 보관",
         "shop_name": "블루핸즈/지정정비소",
         "odometer_km": 58116,
+        "next_maint_km": "겨울",
+        "current_km": "",
+        "remain_km": "",
         "cost": 80000,
+        "total_cost": 80000,
         "pay_method": "법인카드",
         "receipt_data": "",
-        "memo": "운전자: 김승지, 재정비 예정: 겨울",
+        "memo": "",
         "created_at": "2026-03-23T09:00:00.000Z"
       },
       {
@@ -4586,10 +4620,14 @@
         "item_name": "타이어 교체 후 스노우 타이어 보관",
         "shop_name": "블루핸즈/지정정비소",
         "odometer_km": 19991,
+        "next_maint_km": "겨울",
+        "current_km": "",
+        "remain_km": "",
         "cost": 80000,
+        "total_cost": 80000,
         "pay_method": "법인카드",
         "receipt_data": "",
-        "memo": "운전자: 김승지, 재정비 예정: 겨울",
+        "memo": "",
         "created_at": "2026-03-20T09:00:00.000Z"
       },
       {
@@ -4601,10 +4639,14 @@
         "item_name": "차량 점검",
         "shop_name": "블루핸즈/지정정비소",
         "odometer_km": 55658,
+        "next_maint_km": "",
+        "current_km": "",
+        "remain_km": "",
         "cost": 23000,
+        "total_cost": 23000,
         "pay_method": "법인카드",
         "receipt_data": "",
-        "memo": "운전자: 조경찬",
+        "memo": "",
         "created_at": "2026-02-04T09:00:00.000Z"
       },
       {
@@ -4616,10 +4658,14 @@
         "item_name": "엔진오일, 필터",
         "shop_name": "블루핸즈/지정정비소",
         "odometer_km": 54810,
+        "next_maint_km": "61810",
+        "current_km": "",
+        "remain_km": "",
         "cost": 99000,
+        "total_cost": 99000,
         "pay_method": "법인카드",
         "receipt_data": "",
-        "memo": "운전자: 김승지, 재정비 예정: 61,810km",
+        "memo": "",
         "created_at": "2026-01-26T09:00:00.000Z"
       },
       {
@@ -4631,10 +4677,14 @@
         "item_name": "엔진오일, 필터",
         "shop_name": "블루핸즈/지정정비소",
         "odometer_km": 16600,
+        "next_maint_km": "23600",
+        "current_km": "",
+        "remain_km": "",
         "cost": 99000,
+        "total_cost": 99000,
         "pay_method": "법인카드",
         "receipt_data": "",
-        "memo": "운전자: 정상권, 재정비 예정: 23,600km",
+        "memo": "",
         "created_at": "2026-01-23T09:00:00.000Z"
       },
       {
@@ -4646,10 +4696,14 @@
         "item_name": "스노우 타이어 교체",
         "shop_name": "블루핸즈/지정정비소",
         "odometer_km": 0,
+        "next_maint_km": "3월 교체",
+        "current_km": "",
+        "remain_km": "",
         "cost": 690000,
+        "total_cost": 690000,
         "pay_method": "법인카드",
         "receipt_data": "",
-        "memo": "운전자: 현민혁, 재정비 예정: 3월 교체",
+        "memo": "",
         "created_at": "2025-12-24T09:00:00.000Z"
       },
       {
@@ -4661,10 +4715,14 @@
         "item_name": "스노우 타이어 교체",
         "shop_name": "블루핸즈/지정정비소",
         "odometer_km": 0,
+        "next_maint_km": "3월 교체",
+        "current_km": "",
+        "remain_km": "",
         "cost": 690000,
+        "total_cost": 690000,
         "pay_method": "법인카드",
         "receipt_data": "",
-        "memo": "운전자: 현민혁, 재정비 예정: 3월 교체",
+        "memo": "",
         "created_at": "2025-12-24T09:00:00.000Z"
       }
     ];
@@ -4711,7 +4769,7 @@
       }
 
       // 2. Load Logs & Photos from LocalStorage
-      var cachedLogs = localStorage.getItem('VEHICLE_MAINTENANCE_LOGS_V1');
+      var cachedLogs = localStorage.getItem('VEHICLE_MAINTENANCE_LOGS_V3');
       if (cachedLogs) {
         try {
           var parsedL = JSON.parse(cachedLogs);
@@ -4720,7 +4778,7 @@
       }
       if (maintenanceLogs.length === 0) {
         maintenanceLogs = JSON.parse(JSON.stringify(DEFAULT_MAINTENANCE_LOGS));
-        localStorage.setItem('VEHICLE_MAINTENANCE_LOGS_V1', JSON.stringify(maintenanceLogs));
+        localStorage.setItem('VEHICLE_MAINTENANCE_LOGS_V3', JSON.stringify(maintenanceLogs));
       }
 
       var cachedPhotos = localStorage.getItem('VEHICLE_DAMAGE_PHOTOS_V1');
@@ -4762,10 +4820,10 @@
               obj.date = obj.date || row.delivery_date;
               return obj;
             });
-            localStorage.setItem('VEHICLE_MAINTENANCE_LOGS_V1', JSON.stringify(maintenanceLogs));
+            localStorage.setItem('VEHICLE_MAINTENANCE_LOGS_V3', JSON.stringify(maintenanceLogs));
           } else if (maintenanceLogs.length === 0) {
             maintenanceLogs = JSON.parse(JSON.stringify(DEFAULT_MAINTENANCE_LOGS));
-            localStorage.setItem('VEHICLE_MAINTENANCE_LOGS_V1', JSON.stringify(maintenanceLogs));
+            localStorage.setItem('VEHICLE_MAINTENANCE_LOGS_V3', JSON.stringify(maintenanceLogs));
           }
 
           // Damage Photos (delivery_date)
@@ -5479,7 +5537,7 @@
       var keyword = (document.getElementById('maintSearchInput') ? document.getElementById('maintSearchInput').value.trim().toLowerCase() : '');
       if (keyword) {
         filtered = filtered.filter(function(l) {
-          var text = (l.vehicle_no + ' ' + l.shop_name + ' ' + l.item_name + ' ' + l.memo + ' ' + l.category).toLowerCase();
+          var text = (l.vehicle_no + ' ' + (l.driver_name || '') + ' ' + (l.shop_name || '') + ' ' + (l.item_name || '') + ' ' + (l.memo || '') + ' ' + (l.category || '')).toLowerCase();
           return text.indexOf(keyword) !== -1;
         });
       }
@@ -5502,26 +5560,46 @@
         var costVal = parseInt(l.cost || l.total_cost || 0, 10);
         var costStr = '₩' + costVal.toLocaleString();
         var hasReceipt = !!(l.receipt_data || l.receipt_url);
+        
+        var odoVal = parseInt(l.odometer_km, 10);
+        var odoStr = (!isNaN(odoVal) && odoVal > 0) ? (odoVal.toLocaleString() + ' km') : '-';
+
+        var nextKmStr = '-';
+        if (l.next_maint_km) {
+          var nkm = parseInt(String(l.next_maint_km).replace(/,/g, '').replace(/km/gi, '').trim(), 10);
+          nextKmStr = (!isNaN(nkm) && nkm > 0) ? (nkm.toLocaleString() + ' km') : l.next_maint_km;
+        }
+
+        var remainKmStr = '-';
+        if (l.remain_km) {
+          var rkm = parseInt(String(l.remain_km).replace(/,/g, '').replace(/km/gi, '').trim(), 10);
+          remainKmStr = (!isNaN(rkm) && rkm > 0) ? (rkm.toLocaleString() + ' km') : l.remain_km;
+        }
 
         html += `
           <tr class="hover:bg-indigo-50/30 transition">
             <td class="py-2.5 px-3 text-center text-slate-400 font-mono">${idx + 1}</td>
-            <td class="py-2.5 px-3 font-bold font-mono text-slate-900">${l.date || ''}</td>
-            <td class="py-2.5 px-3 font-black text-indigo-700">${l.vehicle_no || ''}</td>
-            <td class="py-2.5 px-3">
-              <span class="px-2 py-0.5 rounded text-[10px] font-bold ${getCategoryBadgeClass(l.category)}">
-                ${l.category || '소모품'}
+            <td class="py-2.5 px-3 font-bold font-mono text-slate-900 whitespace-nowrap">${l.date || ''}</td>
+            <td class="py-2.5 px-3 font-black text-indigo-700 whitespace-nowrap">${l.vehicle_no || ''}</td>
+            <td class="py-2.5 px-3 text-center whitespace-nowrap">
+              <span class="px-2 py-0.5 rounded bg-slate-100 text-slate-800 text-xs font-bold border border-slate-200">
+                ${l.driver_name || '-'}
               </span>
             </td>
             <td class="py-2.5 px-3">
-              <div class="font-bold text-slate-800">${l.item_name || ''}</div>
-              ${l.memo ? `<div class="text-[10px] text-slate-400 truncate max-w-xs">${l.memo}</div>` : ''}
+              <div class="flex items-center gap-1.5 flex-wrap">
+                <span class="px-1.5 py-0.5 rounded text-[10px] font-bold ${getCategoryBadgeClass(l.category)}">
+                  ${l.category || '소모품'}
+                </span>
+                <span class="font-bold text-slate-800">${l.item_name || ''}</span>
+              </div>
+              ${l.memo ? `<div class="text-[10px] text-slate-400 truncate max-w-xs mt-0.5">${l.memo}</div>` : ''}
             </td>
-            <td class="py-2.5 px-3 text-slate-600 font-medium">${l.shop_name || '-'}</td>
-            <td class="py-2.5 px-3 text-right font-mono font-bold text-slate-700">${(l.odometer_km ? l.odometer_km.toLocaleString() + ' km' : '-')}</td>
-            <td class="py-2.5 px-3 text-right font-mono font-black text-rose-600">${costStr}</td>
-            <td class="py-2.5 px-3 text-center font-bold text-slate-600">${l.pay_method || '법인카드'}</td>
-            <td class="py-2.5 px-3 text-center">
+            <td class="py-2.5 px-3 text-right font-mono font-bold text-slate-700 whitespace-nowrap">${odoStr}</td>
+            <td class="py-2.5 px-3 text-right font-mono font-bold text-indigo-600 whitespace-nowrap">${nextKmStr}</td>
+            <td class="py-2.5 px-3 text-right font-mono font-bold text-amber-700 whitespace-nowrap">${remainKmStr}</td>
+            <td class="py-2.5 px-3 text-right font-mono font-black text-rose-600 whitespace-nowrap">${costStr}</td>
+            <td class="py-2.5 px-3 text-center whitespace-nowrap">
               ${hasReceipt ? `
                 <button type="button" onclick="openImageLightbox('${l.receipt_data || l.receipt_url}', '정비 영수증 (${l.vehicle_no})')" class="px-2 py-0.5 rounded bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold text-[10px] border border-emerald-200 transition">
                   <i class="fa-solid fa-receipt"></i> 영수증
@@ -5530,7 +5608,7 @@
                 <span class="text-[10px] text-slate-300">미첨부</span>
               `}
             </td>
-            <td class="py-2.5 px-3 text-center">
+            <td class="py-2.5 px-3 text-center whitespace-nowrap">
               <div class="flex items-center justify-center gap-1">
                 <button type="button" onclick="openEditMaintenanceModal('${l.id}')" class="w-6 h-6 rounded bg-slate-100 hover:bg-indigo-100 text-slate-600 hover:text-indigo-600 flex items-center justify-center text-[10px]" title="수정">
                   <i class="fa-solid fa-pen"></i>
@@ -5580,6 +5658,13 @@
       document.getElementById('maintDateInput').value = new Date().toISOString().substring(0, 10);
       onMaintVehicleChange();
 
+      var targetV = vehiclesMaster.find(function(v) { return v.vehicle_no === (vehicleNo || (sel ? sel.value : '')); });
+      if (document.getElementById('maintDriverInput')) {
+        document.getElementById('maintDriverInput').value = targetV ? (targetV.default_driver || '') : '';
+      }
+      if (document.getElementById('maintNextKmInput')) document.getElementById('maintNextKmInput').value = '';
+      if (document.getElementById('maintRemainKmInput')) document.getElementById('maintRemainKmInput').value = '';
+
       document.getElementById('maintCategorySelect').value = '소모품교체';
       onMaintCategoryChange();
 
@@ -5614,7 +5699,11 @@
       }
 
       document.getElementById('maintDateInput').value = item.date || '';
+      if (document.getElementById('maintDriverInput')) document.getElementById('maintDriverInput').value = item.driver_name || '';
       document.getElementById('maintOdoInput').value = item.odometer_km || '';
+      if (document.getElementById('maintNextKmInput')) document.getElementById('maintNextKmInput').value = item.next_maint_km || '';
+      if (document.getElementById('maintRemainKmInput')) document.getElementById('maintRemainKmInput').value = item.remain_km || '';
+
       document.getElementById('maintCategorySelect').value = item.category || '소모품교체';
       onMaintCategoryChange();
 
@@ -5729,6 +5818,10 @@
       var payVal = document.getElementById('maintPayMethodSelect').value;
       var memoVal = document.getElementById('maintMemoInput').value.trim();
 
+      var driverVal = (document.getElementById('maintDriverInput') ? document.getElementById('maintDriverInput').value.trim() : '');
+      var nextKmVal = (document.getElementById('maintNextKmInput') ? document.getElementById('maintNextKmInput').value.trim() : '');
+      var remainKmVal = (document.getElementById('maintRemainKmInput') ? document.getElementById('maintRemainKmInput').value.trim() : '');
+
       // Tire Update if Tire category
       if (catVal === '타이어교체') {
         var tireTypeRadio = document.querySelector('input[name="maintTireType"]:checked');
@@ -5745,7 +5838,10 @@
         id: editId || ('maint_' + Date.now()),
         vehicle_no: vehicleNo,
         date: dateVal,
+        driver_name: driverVal,
         odometer_km: odoVal,
+        next_maint_km: nextKmVal,
+        remain_km: remainKmVal,
         category: catVal,
         item_name: itemVal,
         shop_name: shopVal,
@@ -5767,7 +5863,7 @@
         maintenanceLogs.unshift(logObj);
       }
 
-      localStorage.setItem('VEHICLE_MAINTENANCE_LOGS_V1', JSON.stringify(maintenanceLogs));
+      localStorage.setItem('VEHICLE_MAINTENANCE_LOGS_V3', JSON.stringify(maintenanceLogs));
 
       if (supabaseClient) {
         try {
@@ -5808,7 +5904,7 @@
       if (idx === -1) return;
       var target = maintenanceLogs[idx];
       maintenanceLogs.splice(idx, 1);
-      localStorage.setItem('VEHICLE_MAINTENANCE_LOGS_V1', JSON.stringify(maintenanceLogs));
+      localStorage.setItem('VEHICLE_MAINTENANCE_LOGS_V3', JSON.stringify(maintenanceLogs));
 
       if (supabaseClient && target.db_id) {
         try {
@@ -5829,8 +5925,8 @@
       var filename = titlePrefix + (maintSelectedVehicle !== 'ALL' ? '_' + maintSelectedVehicle : '') + '.csv';
 
       var headers = [
-        "순번", "정비일자", "차량번호", "차종", "정비구분", "정비항목", "정비업체(카센터)", 
-        "정비당시Km", "총결제금액(원)", "결제수단", "영수증증빙여부", "비고"
+        "순번", "정비일자", "차량번호", "운전자", "차종", "정비구분", "정비항목", "정비업체(카센터)", 
+        "정비당시Km", "재정비예정Km", "남은Km", "총결제금액(원)", "결제수단", "영수증증빙여부", "비고"
       ];
 
       var rows = [headers];
@@ -5846,11 +5942,14 @@
             idx + 1,
             l.date || '',
             l.vehicle_no || '',
+            '"' + (l.driver_name || '').replace(/"/g, '""') + '"',
             model,
             l.category || '',
             '"' + (l.item_name || '').replace(/"/g, '""') + '"',
             '"' + (l.shop_name || '').replace(/"/g, '""') + '"',
             l.odometer_km || 0,
+            '"' + (l.next_maint_km || '').toString().replace(/"/g, '""') + '"',
+            '"' + (l.remain_km || '').toString().replace(/"/g, '""') + '"',
             l.cost || l.total_cost || 0,
             l.pay_method || '법인카드',
             hasReceipt,
