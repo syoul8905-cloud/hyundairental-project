@@ -1278,12 +1278,12 @@
 
         <!-- Receipt / Proof Upload -->
         <div>
-          <label class="block text-xs font-bold text-slate-700 mb-1">정비 영수증 / 정비명세서 사진 첨부</label>
+          <label class="block text-xs font-bold text-slate-700 mb-1">정비 영수증 / 정비명세서 (사진 또는 PDF 첨부)</label>
           <div class="flex items-center gap-2">
             <label class="cursor-pointer px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition flex items-center gap-1.5 border border-slate-300 shadow-2xs">
-              <i class="fa-solid fa-camera text-indigo-600"></i>
-              <span>카메라/파일 선택</span>
-              <input type="file" id="maintReceiptFileInput" accept="image/*" onchange="handleMaintReceiptUpload(event)" class="hidden">
+              <i class="fa-solid fa-paperclip text-indigo-600"></i>
+              <span>카메라/파일(PDF) 선택</span>
+              <input type="file" id="maintReceiptFileInput" accept="image/*,application/pdf,.pdf" onchange="handleMaintReceiptUpload(event)" class="hidden">
             </label>
             <span id="maintReceiptFileName" class="text-xs text-slate-400 truncate flex-1">선택된 파일 없음</span>
             <button type="button" id="btnRemoveReceipt" onclick="removeMaintReceipt()" class="hidden text-rose-500 hover:text-rose-700 text-xs">
@@ -1292,10 +1292,14 @@
           </div>
           <!-- Preview -->
           <div id="maintReceiptPreviewBox" class="hidden mt-2 p-2 bg-slate-50 rounded-xl border border-slate-200 flex items-center gap-3">
-            <img id="maintReceiptPreviewImg" src="" class="w-16 h-16 object-cover rounded-lg border border-slate-200 cursor-pointer shadow-xs" onclick="openImageLightbox(this.src, '영수증/정비명세서')" title="클릭하여 확대">
+            <img id="maintReceiptPreviewImg" src="" class="hidden w-16 h-16 object-cover rounded-lg border border-slate-200 cursor-pointer shadow-xs" onclick="viewReceiptDocument(maintTempReceiptBase64, '영수증/정비명세서')" title="클릭하여 확대">
+            <div id="maintReceiptPreviewPdf" class="hidden w-16 h-16 rounded-lg bg-rose-50 border border-rose-200 flex flex-col items-center justify-center text-rose-600 cursor-pointer hover:bg-rose-100 transition shadow-2xs shrink-0" onclick="viewReceiptDocument(maintTempReceiptBase64, '영수증/정비명세서 PDF')" title="클릭하여 PDF 열람">
+              <i class="fa-solid fa-file-pdf text-2xl"></i>
+              <span class="text-[9px] font-black mt-0.5">PDF 열람</span>
+            </div>
             <div class="text-[11px] text-slate-500 space-y-0.5">
-              <p class="font-bold text-slate-700">영수증 첨부 완료</p>
-              <p class="text-[10px] text-slate-400">클릭하면 크게 볼 수 있습니다.</p>
+              <p class="font-bold text-slate-700" id="maintReceiptPreviewTitle">영수증 첨부 완료</p>
+              <p class="text-[10px] text-slate-400" id="maintReceiptPreviewSub">클릭하면 크게 볼 수 있습니다.</p>
             </div>
           </div>
         </div>
@@ -4730,6 +4734,7 @@
     var maintenanceLogs = [];
     var damagePhotos = [];
     var maintTempReceiptBase64 = '';
+    var maintTempReceiptFileName = '';
     var damageTempPhotoBase64 = '';
 
     // Main Tab Switching
@@ -5600,11 +5605,25 @@
             <td class="py-2.5 px-3 text-right font-mono font-bold text-amber-700 whitespace-nowrap">${remainKmStr}</td>
             <td class="py-2.5 px-3 text-right font-mono font-black text-rose-600 whitespace-nowrap">${costStr}</td>
             <td class="py-2.5 px-3 text-center whitespace-nowrap">
-              ${hasReceipt ? `
-                <button type="button" onclick="openImageLightbox('${l.receipt_data || l.receipt_url}', '정비 영수증 (${l.vehicle_no})')" class="px-2 py-0.5 rounded bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold text-[10px] border border-emerald-200 transition">
-                  <i class="fa-solid fa-receipt"></i> 영수증
-                </button>
-              ` : `
+              ${hasReceipt ? (function() {
+                var rSrc = l.receipt_data || l.receipt_url;
+                var isPdf = (rSrc.indexOf('data:application/pdf') !== -1) || 
+                            (rSrc.toLowerCase().indexOf('.pdf') !== -1) || 
+                            (l.receipt_name && l.receipt_name.toLowerCase().endsWith('.pdf'));
+                if (isPdf) {
+                  return `
+                    <button type="button" onclick="viewReceiptDocument('${rSrc}', '정비명세서 PDF (${l.vehicle_no})')" class="px-2 py-0.5 rounded bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-[10px] border border-rose-200 transition inline-flex items-center gap-1 shadow-2xs" title="클릭하여 PDF 문서 열람">
+                      <i class="fa-solid fa-file-pdf text-rose-500"></i> PDF 증빙
+                    </button>
+                  `;
+                } else {
+                  return `
+                    <button type="button" onclick="viewReceiptDocument('${rSrc}', '정비 영수증 (${l.vehicle_no})')" class="px-2 py-0.5 rounded bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold text-[10px] border border-emerald-200 transition inline-flex items-center gap-1 shadow-2xs" title="클릭하여 영수증 사진 확대">
+                      <i class="fa-solid fa-receipt text-emerald-600"></i> 영수증
+                    </button>
+                  `;
+                }
+              })() : `
                 <span class="text-[10px] text-slate-300">미첨부</span>
               `}
             </td>
@@ -5674,11 +5693,7 @@
       document.getElementById('maintPayMethodSelect').value = '법인카드';
       document.getElementById('maintMemoInput').value = '';
 
-      maintTempReceiptBase64 = '';
-      document.getElementById('maintReceiptPreviewBox').classList.add('hidden');
-      document.getElementById('maintReceiptFileName').innerText = '선택된 파일 없음';
-      document.getElementById('btnRemoveReceipt').classList.add('hidden');
-      document.getElementById('maintReceiptFileInput').value = '';
+      removeMaintReceipt();
 
       document.getElementById('maintenanceLogModal').classList.remove('hidden');
     }
@@ -5714,21 +5729,8 @@
       document.getElementById('maintMemoInput').value = item.memo || '';
 
       maintTempReceiptBase64 = item.receipt_data || item.receipt_url || '';
-      var pBox = document.getElementById('maintReceiptPreviewBox');
-      var pImg = document.getElementById('maintReceiptPreviewImg');
-      var fName = document.getElementById('maintReceiptFileName');
-      var btnRem = document.getElementById('btnRemoveReceipt');
-
-      if (maintTempReceiptBase64) {
-        pImg.src = maintTempReceiptBase64;
-        pBox.classList.remove('hidden');
-        fName.innerText = '첨부된 영수증 있음';
-        btnRem.classList.remove('hidden');
-      } else {
-        pBox.classList.add('hidden');
-        fName.innerText = '선택된 파일 없음';
-        btnRem.classList.add('hidden');
-      }
+      maintTempReceiptFileName = item.receipt_name || '';
+      renderMaintReceiptPreview(maintTempReceiptBase64, maintTempReceiptFileName || (maintTempReceiptBase64 ? '첨부된 파일' : ''));
 
       document.getElementById('maintenanceLogModal').classList.remove('hidden');
     }
@@ -5783,25 +5785,118 @@
       onMaintCategoryChange();
     }
 
+    function renderMaintReceiptPreview(dataUrl, fileName, fileSize) {
+      var pBox = document.getElementById('maintReceiptPreviewBox');
+      var pImg = document.getElementById('maintReceiptPreviewImg');
+      var pPdf = document.getElementById('maintReceiptPreviewPdf');
+      var fName = document.getElementById('maintReceiptFileName');
+      var pTitle = document.getElementById('maintReceiptPreviewTitle');
+      var pSub = document.getElementById('maintReceiptPreviewSub');
+      var btnRem = document.getElementById('btnRemoveReceipt');
+
+      if (!pBox) return;
+
+      if (!dataUrl) {
+        pBox.classList.add('hidden');
+        if (pImg) pImg.classList.add('hidden');
+        if (pPdf) pPdf.classList.add('hidden');
+        if (fName) fName.innerText = '선택된 파일 없음';
+        if (btnRem) btnRem.classList.add('hidden');
+        return;
+      }
+
+      var isPdf = (dataUrl.indexOf('data:application/pdf') !== -1) || 
+                  (dataUrl.toLowerCase().indexOf('.pdf') !== -1) || 
+                  (fileName && fileName.toLowerCase().endsWith('.pdf'));
+
+      pBox.classList.remove('hidden');
+      if (btnRem) btnRem.classList.remove('hidden');
+
+      var sizeText = fileSize ? (' (' + (fileSize / 1024).toFixed(1) + ' KB)') : '';
+      if (fName) fName.innerText = (fileName || (isPdf ? '정비명세서.pdf' : '영수증_사진.jpg')) + sizeText;
+
+      if (isPdf) {
+        if (pImg) pImg.classList.add('hidden');
+        if (pPdf) pPdf.classList.remove('hidden');
+        if (pTitle) pTitle.innerText = '정비명세서 PDF 첨부 완료';
+        if (pSub) pSub.innerText = '클릭하면 새 창에서 PDF 문서를 열람합니다.';
+      } else {
+        if (pPdf) pPdf.classList.add('hidden');
+        if (pImg) {
+          pImg.src = dataUrl;
+          pImg.classList.remove('hidden');
+        }
+        if (pTitle) pTitle.innerText = '영수증 사진 첨부 완료';
+        if (pSub) pSub.innerText = '클릭하면 크게 볼 수 있습니다.';
+      }
+    }
+
+    function viewReceiptDocument(fileData, title) {
+      if (!fileData) return;
+      var isPdf = (fileData.indexOf('data:application/pdf') !== -1) || 
+                  (fileData.toLowerCase().indexOf('.pdf') !== -1);
+
+      if (isPdf) {
+        try {
+          var arr = fileData.split(',');
+          if (arr.length > 1) {
+            var mimeMatch = arr[0].match(/:(.*?);/);
+            var mime = mimeMatch ? mimeMatch[1] : 'application/pdf';
+            var bstr = atob(arr[1]);
+            var n = bstr.length;
+            var u8arr = new Uint8Array(n);
+            while (n--) {
+              u8arr[n] = bstr.charCodeAt(n);
+            }
+            var blob = new Blob([u8arr], { type: mime });
+            var blobUrl = URL.createObjectURL(blob);
+            window.open(blobUrl, '_blank');
+            return;
+          }
+        } catch (e) {
+          console.warn('Blob conversion fallback:', e);
+        }
+        window.open(fileData, '_blank');
+      } else {
+        openImageLightbox(fileData, title || '정비 영수증');
+      }
+    }
+
     function handleMaintReceiptUpload(e) {
       var file = e.target.files && e.target.files[0];
       if (!file) return;
 
-      compressImage(file, 1024, 1024, 0.75, function(base64) {
-        maintTempReceiptBase64 = base64;
-        document.getElementById('maintReceiptPreviewImg').src = base64;
-        document.getElementById('maintReceiptPreviewBox').classList.remove('hidden');
-        document.getElementById('maintReceiptFileName').innerText = file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)';
-        document.getElementById('btnRemoveReceipt').classList.remove('hidden');
-      });
+      var isPdf = (file.type === 'application/pdf') || file.name.toLowerCase().endsWith('.pdf');
+
+      if (isPdf) {
+        if (file.size > 15 * 1024 * 1024) {
+          alert('15MB 이하의 PDF 파일만 첨부할 수 있습니다.');
+          return;
+        }
+        var reader = new FileReader();
+        reader.onload = function(evt) {
+          maintTempReceiptBase64 = evt.target.result;
+          maintTempReceiptFileName = file.name;
+          renderMaintReceiptPreview(maintTempReceiptBase64, file.name, file.size);
+          showToast('📄 정비명세서 PDF가 첨부되었습니다.');
+        };
+        reader.readAsDataURL(file);
+      } else {
+        compressImage(file, 1024, 1024, 0.75, function(base64) {
+          maintTempReceiptBase64 = base64;
+          maintTempReceiptFileName = file.name;
+          renderMaintReceiptPreview(maintTempReceiptBase64, file.name, file.size);
+          showToast('📷 영수증 사진이 첨부되었습니다.');
+        });
+      }
     }
 
     function removeMaintReceipt() {
       maintTempReceiptBase64 = '';
-      document.getElementById('maintReceiptPreviewBox').classList.add('hidden');
-      document.getElementById('maintReceiptFileName').innerText = '선택된 파일 없음';
-      document.getElementById('btnRemoveReceipt').classList.add('hidden');
-      document.getElementById('maintReceiptFileInput').value = '';
+      maintTempReceiptFileName = '';
+      renderMaintReceiptPreview('', '');
+      var fInput = document.getElementById('maintReceiptFileInput');
+      if (fInput) fInput.value = '';
     }
 
     async function saveMaintenanceLogSubmit(e) {
@@ -5850,6 +5945,7 @@
         pay_method: payVal,
         memo: memoVal,
         receipt_data: maintTempReceiptBase64,
+        receipt_name: maintTempReceiptFileName || (editId ? (maintenanceLogs.find(function(l){return l.id === editId;}) || {}).receipt_name : ''),
         updated_at: new Date().toISOString()
       };
 
@@ -5936,7 +6032,9 @@
         filtered.forEach(function(l, idx) {
           var v = vehiclesMaster.find(function(veh) { return veh.vehicle_no === l.vehicle_no; });
           var model = v ? (v.model_name || '스타리아') : '스타리아';
-          var hasReceipt = (l.receipt_data || l.receipt_url) ? '증빙첨부' : '미첨부';
+          var rSrc = l.receipt_data || l.receipt_url || '';
+          var isPdf = (rSrc.indexOf('data:application/pdf') !== -1) || (rSrc.toLowerCase().indexOf('.pdf') !== -1) || (l.receipt_name && l.receipt_name.toLowerCase().endsWith('.pdf'));
+          var hasReceipt = rSrc ? (isPdf ? 'PDF증빙첨부' : '사진증빙첨부') : '미첨부';
 
           rows.push([
             idx + 1,
