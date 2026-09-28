@@ -5555,6 +5555,47 @@
       renderMaintenanceKPIs();
     }
 
+    // Helper: Escape HTML to prevent XSS and quote breakage
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    // Helper: View single receipt directly from table
+    function viewSingleReceipt(id) {
+      var item = maintenanceLogs.find(function(l) { return l.id === id; });
+      if (!item) return;
+      var receipts = getRecordReceipts(item);
+      if (receipts.length > 0) {
+        var r = receipts[0];
+        viewReceiptDocument(r.data, r.name || (r.type === 'pdf' ? '정비명세서 PDF' : '정비 영수증'));
+      }
+    }
+
+    var currentViewingMaintLogId = null;
+
+    function viewReceiptFromListModal(idx) {
+      var item = maintenanceLogs.find(function(l) { return l.id === currentViewingMaintLogId; });
+      if (!item) return;
+      var receipts = getRecordReceipts(item);
+      if (idx >= 0 && idx < receipts.length) {
+        var r = receipts[idx];
+        viewReceiptDocument(r.data, r.name || '정비 증빙 서류');
+      }
+    }
+
+    function viewMaintTempReceipt(idx) {
+      if (idx >= 0 && idx < maintTempReceipts.length) {
+        var r = maintTempReceipts[idx];
+        viewReceiptDocument(r.data, r.name || '정비 영수증/명세서');
+      }
+    }
+
     // Helper to normalize receipt attachments for both single and multiple formats
     function getRecordReceipts(log) {
       if (!log) return [];
@@ -5580,6 +5621,7 @@
       var item = maintenanceLogs.find(function(l) { return l.id === id; });
       if (!item) return;
 
+      currentViewingMaintLogId = id;
       var receipts = getRecordReceipts(item);
       if (receipts.length === 0) {
         showToast('첨부된 증빙 서류가 없습니다.');
@@ -5614,7 +5656,7 @@
                     <p class="text-[10px] text-slate-400 font-mono">PDF 정비명세서${sizeStr}</p>
                   </div>
                 </div>
-                <button type="button" onclick="viewReceiptDocument(getRecordReceipts(maintenanceLogs.find(function(l){return l.id==='${item.id}'}))[${idx}].data, '${safeName}')" class="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-2xs transition shrink-0 flex items-center gap-1.5">
+                <button type="button" onclick="viewReceiptFromListModal(${idx})" class="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-2xs transition shrink-0 flex items-center gap-1.5">
                   <i class="fa-solid fa-arrow-up-right-from-square"></i> 열람
                 </button>
               </div>
@@ -5623,13 +5665,13 @@
             return `
               <div class="p-3 bg-slate-50 hover:bg-indigo-50/50 rounded-xl border border-slate-200 hover:border-indigo-300 transition flex items-center justify-between gap-3 group">
                 <div class="flex items-center gap-3 min-w-0">
-                  <img src="${r.data}" class="w-10 h-10 rounded-lg object-cover border border-slate-200 shrink-0 shadow-2xs cursor-pointer" onclick="viewReceiptDocument(getRecordReceipts(maintenanceLogs.find(function(l){return l.id==='${item.id}'}))[${idx}].data, '${safeName}')">
+                  <img src="${r.data}" class="w-10 h-10 rounded-lg object-cover border border-slate-200 shrink-0 shadow-2xs cursor-pointer" onclick="viewReceiptFromListModal(${idx})">
                   <div class="min-w-0">
                     <p class="text-xs font-black text-slate-800 truncate">${idx + 1}. ${safeName}</p>
                     <p class="text-[10px] text-slate-400 font-mono">영수증 사진${sizeStr}</p>
                   </div>
                 </div>
-                <button type="button" onclick="viewReceiptDocument(getRecordReceipts(maintenanceLogs.find(function(l){return l.id==='${item.id}'}))[${idx}].data, '${safeName}')" class="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-2xs transition shrink-0 flex items-center gap-1.5">
+                <button type="button" onclick="viewReceiptFromListModal(${idx})" class="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-2xs transition shrink-0 flex items-center gap-1.5">
                   <i class="fa-solid fa-magnifying-glass-plus"></i> 확대
                 </button>
               </div>
@@ -5729,13 +5771,13 @@
                   var isPdf = r.type === 'pdf' || (r.data && (r.data.indexOf('application/pdf') !== -1 || (r.name && r.name.toLowerCase().endsWith('.pdf'))));
                   if (isPdf) {
                     return `
-                      <button type="button" onclick="viewReceiptDocument(getRecordReceipts(maintenanceLogs.find(function(m){return m.id==='${l.id}'}))[0].data, '정비명세서 PDF (${l.vehicle_no})')" class="px-2 py-0.5 rounded bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-[10px] border border-rose-200 transition inline-flex items-center gap-1 shadow-2xs" title="클릭하여 PDF 문서 열람">
+                      <button type="button" onclick="viewSingleReceipt('${l.id}')" class="px-2 py-0.5 rounded bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-[10px] border border-rose-200 transition inline-flex items-center gap-1 shadow-2xs" title="클릭하여 PDF 문서 열람">
                         <i class="fa-solid fa-file-pdf text-rose-500"></i> PDF 증빙
                       </button>
                     `;
                   } else {
                     return `
-                      <button type="button" onclick="viewReceiptDocument(getRecordReceipts(maintenanceLogs.find(function(m){return m.id==='${l.id}'}))[0].data, '정비 영수증 (${l.vehicle_no})')" class="px-2 py-0.5 rounded bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold text-[10px] border border-emerald-200 transition inline-flex items-center gap-1 shadow-2xs" title="클릭하여 영수증 사진 확대">
+                      <button type="button" onclick="viewSingleReceipt('${l.id}')" class="px-2 py-0.5 rounded bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold text-[10px] border border-emerald-200 transition inline-flex items-center gap-1 shadow-2xs" title="클릭하여 영수증 사진 확대">
                         <i class="fa-solid fa-receipt text-emerald-600"></i> 영수증
                       </button>
                     `;
@@ -5952,11 +5994,11 @@
         if (isPdf) {
           return `
             <div class="flex items-center gap-2 p-1.5 bg-white rounded-lg border border-slate-200 hover:border-rose-300 transition group relative shadow-2xs">
-              <div class="w-10 h-10 rounded-md bg-rose-50 border border-rose-200 flex flex-col items-center justify-center text-rose-600 cursor-pointer shrink-0 hover:bg-rose-100 transition" onclick="viewReceiptDocument(maintTempReceipts[${idx}].data, '${safeName}')" title="클릭하여 PDF 열람">
+              <div class="w-10 h-10 rounded-md bg-rose-50 border border-rose-200 flex flex-col items-center justify-center text-rose-600 cursor-pointer shrink-0 hover:bg-rose-100 transition" onclick="viewMaintTempReceipt(${idx})" title="클릭하여 PDF 열람">
                 <i class="fa-solid fa-file-pdf text-lg"></i>
                 <span class="text-[8px] font-black leading-none mt-0.5">PDF</span>
               </div>
-              <div class="flex-1 min-w-0 pr-6 cursor-pointer" onclick="viewReceiptDocument(maintTempReceipts[${idx}].data, '${safeName}')">
+              <div class="flex-1 min-w-0 pr-6 cursor-pointer" onclick="viewMaintTempReceipt(${idx})">
                 <p class="text-xs font-bold text-slate-700 truncate" title="${safeName}">${safeName}</p>
                 <p class="text-[10px] text-slate-400 font-mono">${sizeText || 'PDF 문서'}</p>
               </div>
@@ -5968,8 +6010,8 @@
         } else {
           return `
             <div class="flex items-center gap-2 p-1.5 bg-white rounded-lg border border-slate-200 hover:border-indigo-300 transition group relative shadow-2xs">
-              <img src="${item.data}" class="w-10 h-10 rounded-md object-cover border border-slate-200 cursor-pointer shrink-0 hover:opacity-90 transition shadow-2xs" onclick="viewReceiptDocument(maintTempReceipts[${idx}].data, '${safeName}')" title="클릭하여 확대">
-              <div class="flex-1 min-w-0 pr-6 cursor-pointer" onclick="viewReceiptDocument(maintTempReceipts[${idx}].data, '${safeName}')">
+              <img src="${item.data}" class="w-10 h-10 rounded-md object-cover border border-slate-200 cursor-pointer shrink-0 hover:opacity-90 transition shadow-2xs" onclick="viewMaintTempReceipt(${idx})" title="클릭하여 확대">
+              <div class="flex-1 min-w-0 pr-6 cursor-pointer" onclick="viewMaintTempReceipt(${idx})">
                 <p class="text-xs font-bold text-slate-700 truncate" title="${safeName}">${safeName}</p>
                 <p class="text-[10px] text-slate-400 font-mono">${sizeText || '이미지 사진'}</p>
               </div>
