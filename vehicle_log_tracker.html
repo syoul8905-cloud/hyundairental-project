@@ -1517,10 +1517,57 @@
     </div>
   </div>
 
-  <!-- Toast Notification -->
-  <div id="toast" class="fixed bottom-6 right-6 bg-slate-900 text-white text-xs px-4 py-2.5 rounded-xl shadow-2xl z-50 flex items-center gap-2 transform transition-all duration-200 translate-y-24 opacity-0 pointer-events-none">
+  <!-- Toast Notification (Adjusted position so it doesn't overlap with floating memo) -->
+  <div id="toast" class="fixed bottom-20 right-6 bg-slate-900 text-white text-xs px-4 py-2.5 rounded-xl shadow-2xl z-50 flex items-center gap-2 transform transition-all duration-200 translate-y-24 opacity-0 pointer-events-none">
     <i class="fa-solid fa-circle-check text-emerald-400" id="toastIcon"></i>
     <span id="toastMsg">알림 메시지</span>
+  </div>
+
+  <!-- Quick Memo Floating Button (PC Only: hidden on mobile/tablet) -->
+  <button id="quickMemoFloatingBtn" onclick="toggleQuickMemoDrawer()" type="button" class="hidden lg:flex fixed bottom-6 right-6 z-40 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white w-12 h-12 rounded-full shadow-xl items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95 group cursor-pointer border border-amber-400/40" title="업무 퀵메모 열기 (Alt+M)">
+    <i class="fa-solid fa-note-sticky text-lg group-hover:rotate-6 transition-transform"></i>
+    <span id="quickMemoCountBadge" class="absolute -top-1 -right-1 bg-rose-600 text-white text-[10px] font-black min-w-[20px] h-5 px-1 rounded-full flex items-center justify-center border-2 border-white shadow-xs">0</span>
+  </button>
+
+  <!-- Quick Memo Slide-over Drawer (PC Only) -->
+  <div id="quickMemoDrawer" class="hidden fixed inset-y-0 right-0 z-50 w-full sm:w-[420px] bg-slate-50 border-l border-slate-200 shadow-2xl flex flex-col transition-all duration-200">
+    <!-- Header -->
+    <div class="px-4 py-3 bg-amber-500 text-slate-900 border-b border-amber-600/30 flex items-center justify-between shadow-xs select-none">
+      <div class="flex items-center gap-2">
+        <i class="fa-solid fa-note-sticky text-white text-base"></i>
+        <h3 class="font-black text-sm text-white tracking-tight">업무 퀵메모</h3>
+        <span id="quickMemoHeaderBadge" class="px-2 py-0.5 rounded-full text-[10px] bg-white/20 text-white font-bold backdrop-blur-xs">0건</span>
+      </div>
+      <div class="flex items-center gap-1.5">
+        <button onclick="createNewQuickMemo()" type="button" class="px-2.5 py-1 bg-white hover:bg-amber-50 text-amber-900 rounded-lg text-xs font-black transition flex items-center gap-1 shadow-2xs cursor-pointer active:scale-95" title="새 메모 추가">
+          <i class="fa-solid fa-plus text-[10px]"></i>
+          <span>새 메모</span>
+        </button>
+        <button onclick="toggleQuickMemoDrawer(false)" type="button" class="w-7 h-7 flex items-center justify-center text-white/80 hover:text-white hover:bg-black/10 rounded-lg transition text-sm ml-1 cursor-pointer" title="닫기 (ESC)">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Search & Shortcuts Bar -->
+    <div class="p-3 bg-white border-b border-slate-200/80 flex items-center gap-2">
+      <div class="relative flex-1">
+        <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+        <input type="text" id="quickMemoSearchInput" oninput="onQuickMemoSearch(this.value)" placeholder="메모 검색 (제목, 내용)..." class="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:border-amber-500 focus:bg-white transition shadow-2xs">
+      </div>
+      <span class="text-[10.5px] font-bold text-slate-400 bg-slate-100 px-2 py-1 rounded-lg border border-slate-200 whitespace-nowrap hidden sm:inline" title="토글 단축키">Alt+M</span>
+    </div>
+
+    <!-- Memo List Container (Scrollable) -->
+    <div id="quickMemoListContainer" class="flex-1 overflow-y-auto p-3 space-y-3">
+      <!-- Injected via renderQuickMemos() -->
+    </div>
+
+    <!-- Drawer Footer -->
+    <div class="px-4 py-2.5 bg-white border-t border-slate-200 text-[11px] text-slate-400 flex items-center justify-between select-none">
+      <span class="flex items-center gap-1 font-bold text-slate-500"><i class="fa-solid fa-floppy-disk text-emerald-500"></i> 자동 저장 (Auto-save) 활성</span>
+      <span class="text-[10px] text-slate-400">ESC 키로 닫기</span>
+    </div>
   </div>
 
   <!-- ========================================== -->
@@ -1552,6 +1599,9 @@
       await loadVehiclesMaster();
       await loadVehicleData(true);
       await loadMaintenanceData();
+      if (typeof loadQuickMemos === 'function') {
+        await loadQuickMemos();
+      }
       setupSupabaseRealtime();
     });
 
@@ -1966,6 +2016,10 @@
       try {
         supabaseClient.channel('vehicle_logs_channel')
           .on('postgres_changes', { event: '*', schema: 'public', table: 'delivery_schedules' }, function(payload) {
+            if (payload && payload.new && payload.new.source_sheet === 'SYSTEM_CONFIG_QUICK_MEMOS') {
+              if (typeof loadQuickMemos === 'function') loadQuickMemos(false);
+              return;
+            }
             loadVehicleData(false);
             if (typeof loadMaintenanceData === 'function') {
               loadMaintenanceData();
@@ -6476,6 +6530,409 @@
         toast.classList.add('translate-y-24', 'opacity-0', 'pointer-events-none');
       }, 3000);
     }
+
+    // ==========================================
+    // Quick Memo Engine (PC Floating Notepad)
+    // ==========================================
+    var quickMemos = [];
+    var quickMemoSearchQuery = '';
+    var quickMemoSaveTimer = null;
+
+    var QUICK_MEMO_COLORS = {
+      yellow: {
+        card: 'bg-amber-50/95 border-amber-200 shadow-2xs hover:border-amber-300',
+        dot: 'bg-amber-400',
+        badge: 'text-amber-800'
+      },
+      green: {
+        card: 'bg-emerald-50/95 border-emerald-200 shadow-2xs hover:border-emerald-300',
+        dot: 'bg-emerald-400',
+        badge: 'text-emerald-800'
+      },
+      blue: {
+        card: 'bg-sky-50/95 border-sky-200 shadow-2xs hover:border-sky-300',
+        dot: 'bg-sky-400',
+        badge: 'text-sky-800'
+      },
+      pink: {
+        card: 'bg-rose-50/95 border-rose-200 shadow-2xs hover:border-rose-300',
+        dot: 'bg-rose-400',
+        badge: 'text-rose-800'
+      },
+      gray: {
+        card: 'bg-slate-100/95 border-slate-200 shadow-2xs hover:border-slate-300',
+        dot: 'bg-slate-400',
+        badge: 'text-slate-800'
+      }
+    };
+
+    async function loadQuickMemos(shouldRender) {
+      if (shouldRender === undefined) shouldRender = true;
+
+      // 1. LocalStorage Fast Load (0ms)
+      var cached = localStorage.getItem('QUICK_MEMOS_V1');
+      if (cached) {
+        try {
+          var parsed = JSON.parse(cached);
+          if (Array.isArray(parsed)) quickMemos = parsed;
+        } catch(e) {}
+      }
+
+      // Default Seed if empty
+      if (quickMemos.length === 0) {
+        quickMemos = [
+          {
+            id: 'memo_welcome_1',
+            title: '📌 퀵메모 사용 가이드',
+            content: '• 화면 어디서든 [Alt + M]을 누르면 퀵메모창이 열리고 닫힙니다.\n• 작성한 메모는 글자를 치는 즉시 자동으로 저장됩니다.\n• 상단 핀을 누르면 중요 메모로 상단에 고정됩니다.\n• 📋 버튼으로 내용을 원클릭 복사할 수 있습니다.',
+            color: 'yellow',
+            is_pinned: true,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          }
+        ];
+        try {
+          localStorage.setItem('QUICK_MEMOS_V1', JSON.stringify(quickMemos));
+        } catch(e) {}
+      }
+
+      if (shouldRender) {
+        renderQuickMemos();
+      }
+      updateQuickMemoBadge();
+
+      // 2. Background Supabase Cloud Sync
+      if (supabaseClient) {
+        try {
+          var res = await supabaseClient.from('delivery_schedules')
+            .select('memo_full')
+            .eq('source_sheet', 'SYSTEM_CONFIG_QUICK_MEMOS')
+            .limit(1);
+
+          if (res.data && res.data.length > 0 && res.data[0].memo_full) {
+            var cloudMemos = JSON.parse(res.data[0].memo_full);
+            if (Array.isArray(cloudMemos) && cloudMemos.length > 0) {
+              quickMemos = cloudMemos;
+              try {
+                localStorage.setItem('QUICK_MEMOS_V1', JSON.stringify(quickMemos));
+              } catch(e) {}
+              if (shouldRender) {
+                renderQuickMemos();
+              }
+              updateQuickMemoBadge();
+            }
+          }
+        } catch(err) {
+          console.warn('Quick memo cloud sync failed:', err);
+        }
+      }
+    }
+
+    function updateQuickMemoBadge() {
+      var count = quickMemos.length;
+      var floatBadge = document.getElementById('quickMemoCountBadge');
+      var headerBadge = document.getElementById('quickMemoHeaderBadge');
+      if (floatBadge) floatBadge.innerText = count;
+      if (headerBadge) headerBadge.innerText = count + '건';
+    }
+
+    function debouncedSaveQuickMemos() {
+      if (quickMemoSaveTimer) clearTimeout(quickMemoSaveTimer);
+      quickMemoSaveTimer = setTimeout(function() {
+        saveQuickMemos();
+      }, 350);
+    }
+
+    async function saveQuickMemos() {
+      // 1. LocalStorage Safe Save
+      try {
+        localStorage.setItem('QUICK_MEMOS_V1', JSON.stringify(quickMemos));
+      } catch(e) {
+        console.warn('LocalStorage save error for quick memos:', e);
+      }
+
+      updateQuickMemoBadge();
+
+      // 2. Supabase Upsert Single Record
+      if (supabaseClient) {
+        try {
+          var res = await supabaseClient.from('delivery_schedules')
+            .select('id')
+            .eq('source_sheet', 'SYSTEM_CONFIG_QUICK_MEMOS')
+            .limit(1);
+
+          if (res.data && res.data.length > 0) {
+            await supabaseClient.from('delivery_schedules')
+              .update({
+                memo_full: JSON.stringify(quickMemos),
+                delivery_date: new Date().toISOString().substring(0, 10)
+              })
+              .eq('id', res.data[0].id);
+          } else {
+            await supabaseClient.from('delivery_schedules')
+              .insert([{
+                customer_name: 'SYSTEM_CONFIG_QUICK_MEMOS',
+                driver_name: 'PC_USER',
+                source_sheet: 'SYSTEM_CONFIG_QUICK_MEMOS',
+                delivery_date: new Date().toISOString().substring(0, 10),
+                memo_full: JSON.stringify(quickMemos)
+              }]);
+          }
+        } catch(err) {
+          console.warn('Supabase save error for quick memos:', err);
+        }
+      }
+    }
+
+    function createNewQuickMemo() {
+      var newMemo = {
+        id: 'memo_' + Date.now(),
+        title: '',
+        content: '',
+        color: 'yellow',
+        is_pinned: false,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+
+      quickMemos.unshift(newMemo);
+      saveQuickMemos();
+      renderQuickMemos();
+
+      // Focus first memo title input
+      setTimeout(function() {
+        var container = document.getElementById('quickMemoListContainer');
+        if (container) {
+          container.scrollTop = 0;
+          var input = container.querySelector('input');
+          if (input) input.focus();
+        }
+      }, 50);
+    }
+
+    function updateQuickMemoField(id, field, value) {
+      var item = quickMemos.find(function(m) { return m.id === id; });
+      if (!item) return;
+
+      item[field] = value;
+      item.updated_at = new Date().toISOString();
+
+      var timeEl = document.getElementById('memoTime_' + id);
+      if (timeEl) timeEl.innerText = formatMemoDate(item.updated_at);
+
+      debouncedSaveQuickMemos();
+    }
+
+    function setQuickMemoColor(id, color) {
+      var item = quickMemos.find(function(m) { return m.id === id; });
+      if (!item) return;
+
+      item.color = color;
+      item.updated_at = new Date().toISOString();
+      saveQuickMemos();
+      renderQuickMemos();
+    }
+
+    function toggleQuickMemoPin(id) {
+      var item = quickMemos.find(function(m) { return m.id === id; });
+      if (!item) return;
+
+      item.is_pinned = !item.is_pinned;
+      item.updated_at = new Date().toISOString();
+      saveQuickMemos();
+      renderQuickMemos();
+    }
+
+    function copyQuickMemo(id) {
+      var item = quickMemos.find(function(m) { return m.id === id; });
+      if (!item) return;
+
+      var text = (item.title ? '[' + item.title + ']\n' : '') + (item.content || '');
+      if (!text.trim()) {
+        showToast('복사할 메모 내용이 없습니다.');
+        return;
+      }
+
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(function() {
+          showToast('📋 메모 내용이 클립보드에 복사되었습니다.');
+        }).catch(function() {
+          fallbackCopyText(text);
+        });
+      } else {
+        fallbackCopyText(text);
+      }
+    }
+
+    function fallbackCopyText(text) {
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      showToast('📋 메모 내용이 복사되었습니다.');
+    }
+
+    function deleteQuickMemo(id) {
+      if (!confirm('해당 메모를 삭제하시겠습니까?')) return;
+
+      var idx = quickMemos.findIndex(function(m) { return m.id === id; });
+      if (idx === -1) return;
+
+      quickMemos.splice(idx, 1);
+      saveQuickMemos();
+      renderQuickMemos();
+      showToast('메모가 삭제되었습니다.');
+    }
+
+    function onQuickMemoSearch(q) {
+      quickMemoSearchQuery = (q || '').trim().toLowerCase();
+      renderQuickMemos();
+    }
+
+    function toggleQuickMemoDrawer(forceState) {
+      var drawer = document.getElementById('quickMemoDrawer');
+      var btn = document.getElementById('quickMemoFloatingBtn');
+      if (!drawer) return;
+
+      var isHidden = drawer.classList.contains('hidden');
+      var shouldOpen = (forceState !== undefined) ? forceState : isHidden;
+
+      if (shouldOpen) {
+        drawer.classList.remove('hidden');
+        if (btn) btn.classList.add('scale-90', 'ring-4', 'ring-amber-300/50');
+        renderQuickMemos();
+      } else {
+        drawer.classList.add('hidden');
+        if (btn) btn.classList.remove('scale-90', 'ring-4', 'ring-amber-300/50');
+      }
+    }
+
+    function autoResizeTextarea(el) {
+      if (!el) return;
+      el.style.height = 'auto';
+      el.style.height = (el.scrollHeight) + 'px';
+    }
+
+    function formatMemoDate(isoStr) {
+      if (!isoStr) return '';
+      try {
+        var d = new Date(isoStr);
+        var now = new Date();
+        var diffMs = now - d;
+        if (diffMs < 60000) return '방금 전';
+        var mm = String(d.getMonth() + 1).padStart(2, '0');
+        var dd = String(d.getDate()).padStart(2, '0');
+        var hh = String(d.getHours()).padStart(2, '0');
+        var mi = String(d.getMinutes()).padStart(2, '0');
+        return `${mm}-${dd} ${hh}:${mi}`;
+      } catch(e) {
+        return '';
+      }
+    }
+
+    function renderQuickMemos() {
+      var container = document.getElementById('quickMemoListContainer');
+      if (!container) return;
+
+      // Filter
+      var filtered = quickMemos.filter(function(item) {
+        if (!quickMemoSearchQuery) return true;
+        var t = (item.title || '').toLowerCase();
+        var c = (item.content || '').toLowerCase();
+        return t.includes(quickMemoSearchQuery) || c.includes(quickMemoSearchQuery);
+      });
+
+      // Sort: Pinned first, then newest updated_at
+      filtered.sort(function(a, b) {
+        if (a.is_pinned !== b.is_pinned) {
+          return a.is_pinned ? -1 : 1;
+        }
+        return new Date(b.updated_at || b.created_at || 0) - new Date(a.updated_at || a.created_at || 0);
+      });
+
+      if (filtered.length === 0) {
+        container.innerHTML = `
+          <div class="py-12 text-center text-slate-400 space-y-2 select-none">
+            <i class="fa-regular fa-note-sticky text-3xl text-slate-300"></i>
+            <p class="text-xs font-bold">${quickMemoSearchQuery ? '검색 결과와 일치하는 메모가 없습니다.' : '등록된 퀵메모가 없습니다.'}</p>
+            <p class="text-[11px] text-slate-400">${quickMemoSearchQuery ? '다른 검색어를 입력해보세요.' : '상단의 [+ 새 메모] 버튼을 눌러 첫 메모를 작성해보세요.'}</p>
+          </div>
+        `;
+        return;
+      }
+
+      var html = '';
+      filtered.forEach(function(item) {
+        var colorConfig = QUICK_MEMO_COLORS[item.color] || QUICK_MEMO_COLORS.yellow;
+        var isPinned = !!item.is_pinned;
+
+        html += `
+          <div class="rounded-2xl border p-3.5 transition flex flex-col justify-between ${colorConfig.card} group relative">
+            <!-- Top Controls Toolbar -->
+            <div class="flex items-center justify-between gap-1 pb-2 border-b border-black/5 select-none">
+              <!-- Color Palette Picker -->
+              <div class="flex items-center gap-1">
+                ${['yellow', 'green', 'blue', 'pink', 'gray'].map(function(c) {
+                  var cfg = QUICK_MEMO_COLORS[c];
+                  var isSelected = (item.color === c);
+                  return `<button type="button" onclick="setQuickMemoColor('${item.id}', '${c}')" class="w-3.5 h-3.5 rounded-full ${cfg.dot} transition hover:scale-125 cursor-pointer ${isSelected ? 'ring-2 ring-slate-800 ring-offset-1 scale-110' : 'opacity-70 hover:opacity-100'}" title="${c} 테마"></button>`;
+                }).join('')}
+              </div>
+
+              <!-- Action Buttons -->
+              <div class="flex items-center gap-1 text-slate-400">
+                <button type="button" onclick="toggleQuickMemoPin('${item.id}')" class="p-1 rounded hover:bg-black/5 transition cursor-pointer ${isPinned ? 'text-amber-600 font-bold' : 'hover:text-slate-600'}" title="${isPinned ? '핀 고정 해제' : '상단에 핀 고정'}">
+                  <i class="fa-solid fa-thumbtack ${isPinned ? 'rotate-[-30deg]' : ''} text-xs"></i>
+                </button>
+                <button type="button" onclick="copyQuickMemo('${item.id}')" class="p-1 rounded hover:bg-black/5 hover:text-indigo-600 transition cursor-pointer" title="내용 전체 복사">
+                  <i class="fa-regular fa-copy text-xs"></i>
+                </button>
+                <button type="button" onclick="deleteQuickMemo('${item.id}')" class="p-1 rounded hover:bg-black/5 hover:text-rose-600 transition cursor-pointer" title="메모 삭제">
+                  <i class="fa-regular fa-trash-can text-xs"></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- Title & Content -->
+            <div class="pt-2 space-y-1.5 flex-1">
+              <input type="text" value="${escapeHtml(item.title || '')}" oninput="updateQuickMemoField('${item.id}', 'title', this.value)" placeholder="제목 (선택)" class="w-full text-xs font-black text-slate-900 bg-transparent border-none outline-none placeholder:text-slate-400/80">
+              <textarea oninput="updateQuickMemoField('${item.id}', 'content', this.value); autoResizeTextarea(this);" placeholder="메모할 내용을 자유롭게 적어보세요..." class="w-full text-xs text-slate-800 bg-transparent border-none outline-none resize-none leading-relaxed placeholder:text-slate-400/80 min-h-[55px] font-medium">${escapeHtml(item.content || '')}</textarea>
+            </div>
+
+            <!-- Footer: Timestamp -->
+            <div class="pt-2 border-t border-black/5 flex items-center justify-between text-[10px] text-slate-400 select-none">
+              <span id="memoTime_${item.id}">${formatMemoDate(item.updated_at || item.created_at)}</span>
+              ${isPinned ? '<span class="text-amber-600 font-bold flex items-center gap-0.5"><i class="fa-solid fa-thumbtack text-[9px]"></i> 고정됨</span>' : ''}
+            </div>
+          </div>
+        `;
+      });
+
+      container.innerHTML = html;
+
+      // Adjust height for all textareas
+      setTimeout(function() {
+        var textareas = container.querySelectorAll('textarea');
+        textareas.forEach(function(ta) {
+          autoResizeTextarea(ta);
+        });
+      }, 10);
+    }
+
+    // Keyboard Shortcuts (Alt+M to toggle, Escape to close)
+    window.addEventListener('keydown', function(e) {
+      if (e.altKey && (e.key === 'm' || e.key === 'M' || e.code === 'KeyM')) {
+        e.preventDefault();
+        toggleQuickMemoDrawer();
+      } else if (e.key === 'Escape' || e.key === 'Esc') {
+        var drawer = document.getElementById('quickMemoDrawer');
+        if (drawer && !drawer.classList.contains('hidden')) {
+          toggleQuickMemoDrawer(false);
+        }
+      }
+    });
   </script>
 </body>
 </html>
