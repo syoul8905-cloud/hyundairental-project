@@ -2206,25 +2206,36 @@
         const parsed = JSON.parse(row.memo_full || '{}');
         const cloudSerials = parsed.serials || [];
 
-        if (cloudSerials.length > 0 && (inboundSerials.length === 0 || isInitial)) {
-          inboundSerials = cloudSerials;
-          inboundSerialSet.clear();
-          inboundSerials.forEach(item => {
-            if (item.serialNo) inboundSerialSet.set(item.serialNo.toUpperCase(), item.index);
-          });
-          inboundDupCount = parsed.dupCount || 0;
-          inboundMasterDupCount = parsed.masterDupCount || 0;
+        if (Array.isArray(cloudSerials)) {
+          const isDifferent = cloudSerials.length !== inboundSerials.length ||
+            (cloudSerials.length > 0 && inboundSerials.length > 0 && cloudSerials[0]?.serialNo !== inboundSerials[0]?.serialNo);
 
-          if (row.customer_name && document.getElementById('inputInboundProdName')) {
-            document.getElementById('inputInboundProdName').value = row.customer_name;
-          }
-          if (row.memo_special && document.getElementById('inputInboundMemo')) {
-            document.getElementById('inputInboundMemo').value = row.memo_special;
-          }
+          if (isDifferent || isInitial) {
+            inboundSerials = cloudSerials;
+            inboundSerialSet.clear();
+            inboundSerials.forEach(item => {
+              if (item.serialNo) inboundSerialSet.set(item.serialNo.toUpperCase(), item.index);
+            });
+            inboundDupCount = parsed.dupCount || 0;
+            inboundMasterDupCount = parsed.masterDupCount || 0;
 
-          renderInboundFeed();
-          updateInboundStats();
-          saveInboundState();
+            const prodNameInput = document.getElementById('inputInboundProdName');
+            if (prodNameInput && document.activeElement !== prodNameInput && row.customer_name) {
+              prodNameInput.value = row.customer_name;
+            }
+            const memoInput = document.getElementById('inputInboundMemo');
+            if (memoInput && document.activeElement !== memoInput && row.memo_special) {
+              memoInput.value = row.memo_special;
+            }
+
+            renderInboundFeed();
+            updateInboundStats();
+            saveInboundState();
+
+            if (!isInitial && isDifferent) {
+              showFooterMessage(`[실시간 동기화] 입고 시리얼이 갱신되었습니다. (총 ${inboundSerials.length}건)`);
+            }
+          }
         }
       } catch (e) {
         console.warn('loadInboundCloudData error:', e);
@@ -2358,8 +2369,9 @@
           if (contentId === 'tabMissing') renderMissingList();
           // 실시간 탭으로 올 때 바코드 인풋 포커스
           if (contentId === 'tabLive') document.getElementById('barcodeInput').focus();
-          // 입고 채번 탭으로 올 때 시리얼 인풋 포커스 및 피드 갱신
+          // 입고 채번 탭으로 올 때 시리얼 인풋 포커스 및 최신 클라우드 동기화
           if (contentId === 'tabInbound') {
+            loadInboundCloudData(false);
             renderInboundFeed();
             const inp = document.getElementById('inboundBarcodeInput');
             if (inp) inp.focus();
@@ -2468,6 +2480,7 @@
       if (btnSync) {
         btnSync.addEventListener('click', () => {
           loadCloudData(true);
+          loadInboundCloudData(true);
         });
       }
 
