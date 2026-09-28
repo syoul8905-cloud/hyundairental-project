@@ -405,10 +405,16 @@
           <h3 class="font-black text-sm">차량 고장 및 외관 손상 부위 사진 보관함</h3>
           <span id="damagePhotosBadge" class="px-2 py-0.5 rounded-full text-[10px] bg-rose-500/30 text-rose-200 border border-rose-400/30 font-bold">0건</span>
         </div>
-        <button onclick="openDamagePhotoModal()" class="px-2.5 py-1 bg-rose-600 hover:bg-rose-500 text-white rounded-lg text-xs font-bold transition flex items-center gap-1 shadow-xs">
-          <i class="fa-solid fa-plus text-[10px]"></i>
-          <span>새 사진 등록</span>
-        </button>
+        <div class="flex items-center gap-2">
+          <button type="button" onclick="loadMaintenanceData()" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-bold transition flex items-center gap-1 shadow-xs" title="클라우드 동기화">
+            <i class="fa-solid fa-rotate"></i>
+            <span>동기화</span>
+          </button>
+          <button type="button" onclick="openDamagePhotoModal()" class="px-2.5 py-1 bg-rose-600 hover:bg-rose-500 text-white rounded-lg text-xs font-bold transition flex items-center gap-1 shadow-xs">
+            <i class="fa-solid fa-plus text-[10px]"></i>
+            <span>새 사진 등록</span>
+          </button>
+        </div>
       </div>
       <div class="p-4" id="damagePhotosContainer">
         <!-- Injected via renderDamagePhotos() -->
@@ -1961,6 +1967,9 @@
         supabaseClient.channel('vehicle_logs_channel')
           .on('postgres_changes', { event: '*', schema: 'public', table: 'delivery_schedules' }, function(payload) {
             loadVehicleData(false);
+            if (typeof loadMaintenanceData === 'function') {
+              loadMaintenanceData();
+            }
           })
           .subscribe();
       } catch(e) {}
@@ -4782,6 +4791,10 @@
         if (conMaint) conMaint.classList.remove('hidden');
 
         renderMaintenanceAll();
+        // 정비일지 탭 전환 시 최신 클라우드 데이터 백그라운드 동기화
+        if (typeof loadMaintenanceData === 'function') {
+          loadMaintenanceData();
+        }
       }
     }
 
@@ -4850,10 +4863,16 @@
               obj.date = obj.date || row.delivery_date;
               return obj;
             });
-            localStorage.setItem('VEHICLE_MAINTENANCE_LOGS_V3', JSON.stringify(maintenanceLogs));
+            try {
+              localStorage.setItem('VEHICLE_MAINTENANCE_LOGS_V3', JSON.stringify(maintenanceLogs));
+            } catch(e) {
+              console.warn('LocalStorage quota warning for maintenance logs:', e);
+            }
           } else if (maintenanceLogs.length === 0) {
             maintenanceLogs = JSON.parse(JSON.stringify(DEFAULT_MAINTENANCE_LOGS));
-            localStorage.setItem('VEHICLE_MAINTENANCE_LOGS_V3', JSON.stringify(maintenanceLogs));
+            try {
+              localStorage.setItem('VEHICLE_MAINTENANCE_LOGS_V3', JSON.stringify(maintenanceLogs));
+            } catch(e) {}
           }
 
           // Damage Photos (delivery_date)
@@ -4868,9 +4887,17 @@
               try { obj = JSON.parse(row.memo_full || '{}'); } catch(e) {}
               obj.db_id = row.id;
               obj.date = obj.date || row.delivery_date;
+              if (obj.vehicle_no) {
+                if (obj.vehicle_no.includes('8911')) obj.vehicle_no = '826라8911';
+                else if (obj.vehicle_no.includes('8744')) obj.vehicle_no = '801부8744';
+              }
               return obj;
             });
-            localStorage.setItem('VEHICLE_DAMAGE_PHOTOS_V1', JSON.stringify(damagePhotos));
+            try {
+              localStorage.setItem('VEHICLE_DAMAGE_PHOTOS_V1', JSON.stringify(damagePhotos));
+            } catch(e) {
+              console.warn('LocalStorage quota exceeded for damage photos, memory state maintained:', e);
+            }
           }
         } catch(err) {
           console.warn('Failed to load maintenance data from Supabase:', err);
@@ -5359,7 +5386,12 @@
       if (!container) return;
 
       var filtered = damagePhotos.filter(function(p) {
-        return (maintSelectedVehicle === 'ALL' || p.vehicle_no === maintSelectedVehicle);
+        if (!p) return false;
+        if (maintSelectedVehicle === 'ALL') return true;
+        if (p.vehicle_no === maintSelectedVehicle) return true;
+        if (maintSelectedVehicle.includes('8911') && p.vehicle_no && p.vehicle_no.includes('8911')) return true;
+        if (maintSelectedVehicle.includes('8744') && p.vehicle_no && p.vehicle_no.includes('8744')) return true;
+        return false;
       });
 
       if (badge) badge.innerText = filtered.length + '건';
@@ -5490,7 +5522,11 @@
       };
 
       damagePhotos.unshift(photoObj);
-      localStorage.setItem('VEHICLE_DAMAGE_PHOTOS_V1', JSON.stringify(damagePhotos));
+      try {
+        localStorage.setItem('VEHICLE_DAMAGE_PHOTOS_V1', JSON.stringify(damagePhotos));
+      } catch(e) {
+        console.warn('LocalStorage quota exceeded for damage photos, skipped local cache:', e);
+      }
 
       if (supabaseClient) {
         try {
@@ -5520,7 +5556,9 @@
       if (!item) return;
 
       item.status = (item.status === 'pending') ? 'repaired' : 'pending';
-      localStorage.setItem('VEHICLE_DAMAGE_PHOTOS_V1', JSON.stringify(damagePhotos));
+      try {
+        localStorage.setItem('VEHICLE_DAMAGE_PHOTOS_V1', JSON.stringify(damagePhotos));
+      } catch(e) {}
 
       if (supabaseClient && item.db_id) {
         try {
@@ -5542,7 +5580,9 @@
       if (idx === -1) return;
       var target = damagePhotos[idx];
       damagePhotos.splice(idx, 1);
-      localStorage.setItem('VEHICLE_DAMAGE_PHOTOS_V1', JSON.stringify(damagePhotos));
+      try {
+        localStorage.setItem('VEHICLE_DAMAGE_PHOTOS_V1', JSON.stringify(damagePhotos));
+      } catch(e) {}
 
       if (supabaseClient && target.db_id) {
         try {
