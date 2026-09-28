@@ -662,25 +662,52 @@
   <div id="printPreviewModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-3 sm:p-5 z-50" onclick="if(event.target===this)closePrintPreviewModal()">
     <div class="bg-white rounded-2xl max-w-4xl w-full max-h-[92vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden">
       <!-- Modal Top Header -->
-      <div class="px-5 py-3.5 bg-slate-900 text-white flex items-center justify-between shadow-xs select-none">
+      <div class="px-5 py-3 bg-slate-900 text-white flex items-center justify-between shadow-xs select-none">
         <div class="flex items-center gap-2.5">
-          <i class="fa-solid fa-print text-indigo-400 text-base"></i>
+          <div class="w-8 h-8 rounded-lg bg-indigo-600/30 flex items-center justify-center border border-indigo-500/40">
+            <i class="fa-solid fa-print text-indigo-400 text-sm"></i>
+          </div>
           <div>
             <h3 class="font-black text-sm text-white flex items-center gap-2">
-              <span>배송 물품 상차 및 배송 지시서 미리보기</span>
+              <span>배송 물품 상차 및 배송 지시서</span>
               <span id="printPreviewDateBadge" class="text-[10.5px] bg-indigo-500/40 text-indigo-200 px-2 py-0.5 rounded font-bold"></span>
             </h3>
-            <p class="text-[11px] text-slate-400">출차 전 창고 피킹 및 차량 적재 검수용 A4 지시서 미리보기</p>
+            <p class="text-[11px] text-slate-400">창고 물품 상차 및 출차 검수용 지시서 (A4 1장 출력 최적화)</p>
           </div>
         </div>
         <div class="flex items-center gap-2">
-          <button type="button" onclick="executePrintManifest()" class="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white rounded-xl text-xs font-black transition flex items-center gap-1.5 shadow-sm active:scale-95 cursor-pointer">
+          <button type="button" onclick="executePrintManifest()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white rounded-xl text-xs font-black transition flex items-center gap-1.5 shadow-md active:scale-95 cursor-pointer">
             <i class="fa-solid fa-print"></i>
-            <span>🖨️ 인쇄하기</span>
+            <span>🖨️ 인쇄하기 (출력)</span>
           </button>
           <button type="button" onclick="closePrintPreviewModal()" class="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition text-base cursor-pointer">
             <i class="fa-solid fa-xmark"></i>
           </button>
+        </div>
+      </div>
+
+      <!-- Manifest Target Driver Selector Subbar -->
+      <div class="px-5 py-2.5 bg-slate-800 border-b border-slate-700 flex flex-wrap items-center justify-between gap-3 text-xs select-none">
+        <div class="flex items-center gap-2.5">
+          <span class="text-slate-300 font-bold flex items-center gap-1.5">
+            <i class="fa-solid fa-user-check text-indigo-400"></i>
+            출력 대상 기사:
+          </span>
+          <select id="manifestDriverSelect" onchange="onManifestDriverChanged(this.value)" class="bg-slate-900 text-white border border-slate-600 rounded-lg px-3 py-1 font-bold text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none cursor-pointer">
+            <!-- 동적 주입 -->
+          </select>
+          <span id="manifestPageCountBadge" class="bg-indigo-950 text-indigo-300 border border-indigo-700/60 px-2.5 py-0.5 rounded-full text-[11px] font-bold">
+            1장 (1페이지)
+          </span>
+        </div>
+        <div class="text-[11.5px] text-slate-300 flex items-center gap-2">
+          <span class="text-emerald-400 font-bold flex items-center gap-1">
+            <i class="fa-solid fa-circle-check"></i> 빈 장 없는 A4 1장 출력 최적화
+          </span>
+          <span class="text-slate-500">|</span>
+          <span class="text-amber-300">
+            💡 원하는 기사를 선택하면 해당 기사 분량만 정확히 1장 출력됩니다.
+          </span>
         </div>
       </div>
 
@@ -6848,13 +6875,72 @@
       var dateBadge = document.getElementById('printPreviewDateBadge');
       if (dateBadge) dateBadge.innerText = dateLabel;
 
-      var fullHtml = generateManifestHtml(filtered);
+      // 일정이 있는 기사 목록 추출 (빈 기사는 원천 제외)
+      var driverCounts = {};
+      filtered.forEach(function(r) {
+        var d = (r.담당기사 || '미배정').trim();
+        driverCounts[d] = (driverCounts[d] || 0) + 1;
+      });
+      var availableDrivers = Object.keys(driverCounts);
 
-      var previewArea = document.getElementById('printPreviewContentArea');
-      if (previewArea) previewArea.innerHTML = fullHtml;
+      // 모달 내 기사 선택 셀렉트 옵션 구성
+      var manifestSelect = document.getElementById('manifestDriverSelect');
+      var mainDriverFilter = document.getElementById('driverFilterSelect') ? document.getElementById('driverFilterSelect').value : 'all';
+
+      if (manifestSelect) {
+        manifestSelect.innerHTML = '';
+
+        // 일정이 있는 기사들 개별 옵션 (기본적으로 1장 인쇄)
+        availableDrivers.forEach(function(d) {
+          var opt = document.createElement('option');
+          opt.value = d;
+          opt.innerText = `${d} (${driverCounts[d]}건 - 1장 출력)`;
+          manifestSelect.appendChild(opt);
+        });
+
+        // 2명 이상의 기사가 있을 때만 "전체 기사" 분리 출력 옵션 추가
+        if (availableDrivers.length > 1) {
+          var allOpt = document.createElement('option');
+          allOpt.value = 'all';
+          allOpt.innerText = `전체 기사 (총 ${filtered.length}건, 기사별 1장씩 분리)`;
+          manifestSelect.insertBefore(allOpt, manifestSelect.firstChild);
+        }
+
+        // 기본 선택값: 메인 화면 필터의 기사가 배송 건수가 있으면 그 기사, 아니면 1순위 기사(단독 1장 기본)
+        if (mainDriverFilter !== 'all' && driverCounts[mainDriverFilter]) {
+          manifestSelect.value = mainDriverFilter;
+        } else if (availableDrivers.length === 1) {
+          manifestSelect.value = availableDrivers[0];
+        } else {
+          // 메인 필터가 전체이거나 특정 기사가 아닐 경우에도 가장 일정이 많은 기사 또는 첫 번째 기사를 우선 선택하여 1장 인쇄 보장
+          manifestSelect.value = availableDrivers[0];
+        }
+      }
+
+      var selectedDriver = manifestSelect ? manifestSelect.value : 'all';
+      updateManifestPreview(filtered, selectedDriver);
 
       var modal = document.getElementById('printPreviewModal');
       if (modal) modal.classList.remove('hidden');
+    }
+
+    // 모달 내 기사 드롭다운 변경 이벤트
+    function onManifestDriverChanged(selectedDriver) {
+      var filtered = getFilteredDeliveryRecords();
+      updateManifestPreview(filtered, selectedDriver);
+    }
+
+    // 미리보기 렌더링 및 페이지 수 배지 갱신
+    function updateManifestPreview(recordsList, targetDriver) {
+      var fullHtml = generateManifestHtml(recordsList, targetDriver);
+      var previewArea = document.getElementById('printPreviewContentArea');
+      if (previewArea) previewArea.innerHTML = fullHtml;
+
+      var badge = document.getElementById('manifestPageCountBadge');
+      if (badge) {
+        var pageCount = (previewArea ? previewArea.querySelectorAll('.manifest-page').length : 1) || 1;
+        badge.innerText = `${pageCount}장 (${pageCount}페이지)`;
+      }
     }
 
     function closePrintPreviewModal() {
@@ -6862,33 +6948,113 @@
       if (modal) modal.classList.add('hidden');
     }
 
-    // 3. 브라우저 A4 인쇄 실행
+    // 3. 브라우저 A4 인쇄 실행 (독립 iframe 격리 인쇄 엔진으로 빈 페이지 버그 100% 차단)
     function executePrintManifest() {
       var filtered = getFilteredDeliveryRecords();
-      if (!filtered || filtered.length === 0) return;
-
-      var fullHtml = generateManifestHtml(filtered);
-      var container = document.getElementById('printManifestContainer');
-      if (container) {
-        container.innerHTML = fullHtml;
+      if (!filtered || filtered.length === 0) {
+        showToast('ℹ️ 인쇄할 배송 일정이 없습니다.');
+        return;
       }
 
-      // 브라우저 네이티브 인쇄 대화상자 호출
-      window.print();
+      var targetDriver = document.getElementById('manifestDriverSelect') ? document.getElementById('manifestDriverSelect').value : 'all';
+      var manifestHtml = generateManifestHtml(filtered, targetDriver);
+
+      // 독립 격리 인쇄 전용 iframe 확보 또는 생성
+      var iframe = document.getElementById('manifestPrintIframe');
+      if (!iframe) {
+        iframe = document.createElement('iframe');
+        iframe.id = 'manifestPrintIframe';
+        iframe.style.position = 'fixed';
+        iframe.style.right = '0';
+        iframe.style.bottom = '0';
+        iframe.style.width = '0';
+        iframe.style.height = '0';
+        iframe.style.border = '0';
+        iframe.style.visibility = 'hidden';
+        document.body.appendChild(iframe);
+      }
+
+      var doc = iframe.contentDocument || iframe.contentWindow.document;
+      doc.open();
+      doc.write(`
+        <!DOCTYPE html>
+        <html lang="ko">
+        <head>
+          <meta charset="UTF-8">
+          <title>배송 물품 상차 및 배송 지시서</title>
+          <style>
+            @page {
+              size: A4 portrait;
+              margin: 7mm 7mm 7mm 7mm;
+            }
+            * {
+              box-sizing: border-box;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
+            html, body {
+              margin: 0;
+              padding: 0;
+              background: #ffffff;
+              color: #000000;
+              font-family: -apple-system, BlinkMacSystemFont, "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", "맑은 고딕", sans-serif;
+            }
+            .manifest-page {
+              page-break-after: always;
+              page-break-inside: avoid;
+              width: 100%;
+              margin: 0;
+              padding: 0;
+              box-sizing: border-box;
+            }
+            .manifest-page:last-child {
+              page-break-after: auto;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              border: 1.5px solid #000000;
+            }
+            th, td {
+              border: 1px solid #000000;
+            }
+          </style>
+        </head>
+        <body>
+          ${manifestHtml}
+        </body>
+        </html>
+      `);
+      doc.close();
+
+      setTimeout(function() {
+        iframe.contentWindow.focus();
+        iframe.contentWindow.print();
+      }, 250);
     }
 
-    // 4. A4 최적화 상차 및 배송 지시서 HTML 템플릿 생성 엔진
-    function generateManifestHtml(recordsList) {
+    // 4. A4 1장 최적화 상차 및 배송 지시서 HTML 템플릿 생성 엔진 (고대비 딥 블랙 폰트 & 대형 체크박스)
+    function generateManifestHtml(recordsList, targetDriver) {
       var targetDate = document.getElementById('calendarDateDisplay') ? document.getElementById('calendarDateDisplay').innerText : '당일';
       var nowStr = new Date().toLocaleString('ko-KR', { hour12: false });
-      var driverFilter = document.getElementById('driverFilterSelect') ? document.getElementById('driverFilterSelect').value : 'all';
+      
+      var driverFilter = targetDriver;
+      if (!driverFilter) {
+        var sel = document.getElementById('manifestDriverSelect');
+        driverFilter = sel ? sel.value : 'all';
+      }
 
       // 기사별 그룹핑 처리
       var groups = {};
-      if (driverFilter !== 'all' && driverFilter !== '') {
-        groups[driverFilter] = recordsList;
+      if (driverFilter && driverFilter !== 'all') {
+        var matched = recordsList.filter(function(r) {
+          return (r.담당기사 || '미배정').trim() === driverFilter;
+        });
+        if (matched.length > 0) {
+          groups[driverFilter] = matched;
+        }
       } else {
-        // 전체 기사일 때 기사별로 그룹핑
+        // 전체 기사일 때 기사별로 그룹핑 (배송 건수가 있는 기사만 포함)
         recordsList.forEach(function(r) {
           var d = (r.담당기사 || '미배정').trim();
           if (!groups[d]) groups[d] = [];
@@ -6899,8 +7065,14 @@
       var pagesHtml = '';
       var driverNames = Object.keys(groups);
 
+      // 인쇄할 일정이 없을 경우 안내
+      if (driverNames.length === 0) {
+        return '<div style="text-align: center; padding: 40px; font-weight: bold; color: #475569;">출력할 배송 일정이 없습니다.</div>';
+      }
+
       driverNames.forEach(function(dName, pageIdx) {
         var groupList = groups[dName];
+        if (!groupList || groupList.length === 0) return;
 
         // 구분별 건수 집계
         var catCounts = {};
@@ -6921,94 +7093,98 @@
           var isReturn = (cat === '회수');
           var isInstall = (cat === '설치');
           var isAS = (cat === 'A/S' || cat === 'AS');
+          var isExchange = (cat === '교환');
 
+          // 고대비 뱃지 스타일 (흑백 출력 시에도 1.5px 진한 테두리로 선명 식별)
           var catBadgeStyle = isReturn 
-            ? 'background:#f3e8ff; color:#6b21a8; border:1px solid #d8b4fe;' 
+            ? 'background:#f3e8ff; color:#581c87; border:1.5px solid #7e22ce;' 
             : isInstall 
-            ? 'background:#ecfdf5; color:#065f46; border:1px solid #a7f3d0;' 
+            ? 'background:#ecfdf5; color:#064e3b; border:1.5px solid #047857;' 
             : isAS 
-            ? 'background:#fff1f2; color:#9f1239; border:1px solid #fecdd3;' 
-            : 'background:#eff6ff; color:#1e40af; border:1px solid #bfdbfe;';
+            ? 'background:#fff1f2; color:#881337; border:1.5px solid #be123c;' 
+            : isExchange
+            ? 'background:#fffbeb; color:#78350f; border:1.5px solid #b45309;'
+            : 'background:#eff6ff; color:#1e3a8a; border:1.5px solid #1d4ed8;';
 
           return `
-            <tr style="border-bottom: 1px solid #cbd5e1; page-break-inside: avoid;">
-              <td style="border: 1px solid #94a3b8; padding: 6px 4px; text-align: center; font-weight: bold; font-size: 11px;">
+            <tr style="border-bottom: 1px solid #000000; page-break-inside: avoid;">
+              <td style="border: 1px solid #000000; padding: 6px 3px; text-align: center; font-weight: 900; font-size: 12px; color: #000000;">
                 ${idx + 1}
               </td>
-              <td style="border: 1px solid #94a3b8; padding: 4px; text-align: center; background-color: #fefce8;">
-                <div style="width: 20px; height: 20px; border: 2px solid #000; border-radius: 4px; margin: 0 auto; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 10px; color: #cbd5e1;"></div>
+              <td style="border: 1px solid #000000; padding: 4px; text-align: center; background-color: #fefce8;">
+                <div style="width: 22px; height: 22px; border: 2.5px solid #000000; border-radius: 4px; margin: 0 auto; background: #ffffff;"></div>
               </td>
-              <td style="border: 1px solid #94a3b8; padding: 6px 4px; text-align: center; font-weight: bold; font-size: 11px;">
+              <td style="border: 1px solid #000000; padding: 6px 3px; text-align: center; font-weight: 800; font-size: 11.5px; color: #000000;">
                 ${r.방문시간 || '-'}
               </td>
-              <td style="border: 1px solid #94a3b8; padding: 6px 4px; text-align: center;">
-                <span style="display: inline-block; padding: 1px 5px; border-radius: 4px; font-size: 10px; font-weight: 800; ${catBadgeStyle}">
+              <td style="border: 1px solid #000000; padding: 6px 3px; text-align: center;">
+                <span style="display: inline-block; padding: 1.5px 5px; border-radius: 4px; font-size: 11px; font-weight: 900; ${catBadgeStyle}">
                   ${cat}
                 </span>
               </td>
-              <td style="border: 1px solid #94a3b8; padding: 6px 6px; font-weight: bold; font-size: 11px; word-break: break-all;">
+              <td style="border: 1px solid #000000; padding: 6px 6px; font-weight: 900; font-size: 12.5px; color: #000000; word-break: break-all;">
                 <div>${r.고객사 || '미지정'}</div>
-                ${contactObj.name ? `<div style="font-size: 9.5px; color: #64748b; font-weight: normal;">담당: ${contactObj.name}</div>` : ''}
+                ${contactObj.name ? `<div style="font-size: 10.5px; color: #1e293b; font-weight: 700; margin-top: 1px;">담당: ${contactObj.name}</div>` : ''}
               </td>
-              <td style="border: 1px solid #94a3b8; padding: 6px 6px; font-weight: 900; font-size: 12px; color: #0f172a; background-color: #f8fafc; word-break: break-all;">
+              <td style="border: 1px solid #000000; padding: 6px 6px; font-weight: 900; font-size: 13.5px; color: #000000; background-color: #f8fafc; word-break: break-all; letter-spacing: -0.3px;">
                 ${r.품목_수량 || '-'}
               </td>
-              <td style="border: 1px solid #94a3b8; padding: 6px 6px; font-size: 10.5px; color: #334155; word-break: break-all;">
+              <td style="border: 1px solid #000000; padding: 6px 6px; font-size: 11px; font-weight: 600; color: #000000; word-break: break-all; line-height: 1.35;">
                 ${r.주소 || '-'}
               </td>
-              <td style="border: 1px solid #94a3b8; padding: 6px 6px; font-size: 10px; color: #475569; word-break: break-all;">
-                ${contactObj.phone ? `<div style="font-weight: bold; color: #1e293b;">📞 ${contactObj.phone}</div>` : ''}
-                ${memo ? `<div style="color: #b45309; font-weight: 600; margin-top: 2px;">💬 ${memo}</div>` : ''}
+              <td style="border: 1px solid #000000; padding: 6px 6px; font-size: 10.5px; color: #000000; word-break: break-all;">
+                ${contactObj.phone ? `<div style="font-weight: 800; color: #000000;">📞 ${contactObj.phone}</div>` : ''}
+                ${memo ? `<div style="color: #92400e; font-weight: 700; background: #fef3c7; border: 1px solid #fde68a; padding: 1.5px 4px; border-radius: 3px; display: inline-block; margin-top: 2px;">💬 ${memo}</div>` : ''}
               </td>
             </tr>
           `;
         }).join('');
 
         pagesHtml += `
-          <div class="manifest-page" style="page-break-after: ${pageIdx === driverNames.length - 1 ? 'auto' : 'always'}; margin-bottom: 24px; padding-bottom: 12px; background: #fff;">
+          <div class="manifest-page" style="page-break-after: ${pageIdx === driverNames.length - 1 ? 'auto' : 'always'}; margin-bottom: 24px; padding-bottom: 8px; background: #ffffff;">
             <!-- 상단 헤더 -->
-            <div style="border-bottom: 2px solid #0f172a; padding-bottom: 8px; margin-bottom: 12px; display: flex; align-items: flex-end; justify-content: space-between;">
+            <div style="border-bottom: 2.5px solid #000000; padding-bottom: 6px; margin-bottom: 10px; display: flex; align-items: flex-end; justify-content: space-between;">
               <div>
                 <div style="display: flex; align-items: center; gap: 6px;">
-                  <span style="font-size: 10px; font-weight: 900; background: #0f172a; color: #fff; padding: 1px 5px; border-radius: 3px;">현대렌탈서비스</span>
-                  <span style="font-size: 11px; font-weight: bold; color: #475569;">배송 스케줄 및 창고 피킹 상차 지시서</span>
+                  <span style="font-size: 11px; font-weight: 900; background: #000000; color: #ffffff; padding: 2px 6px; border-radius: 4px;">현대렌탈서비스</span>
+                  <span style="font-size: 11.5px; font-weight: 800; color: #1e293b;">스마트 물류·배송 통합 관제 시스템</span>
                 </div>
-                <h1 style="font-size: 18px; font-weight: 900; margin-top: 4px; color: #0f172a; letter-spacing: -0.5px;">
+                <h1 style="font-size: 20px; font-weight: 900; margin: 4px 0 0 0; color: #000000; letter-spacing: -0.5px;">
                   📦 배송 물품 상차 및 배송 지시서
                 </h1>
               </div>
-              <div style="text-align: right; font-size: 11px; line-height: 1.4; color: #334155;">
-                <div>배송일자: <b style="font-size: 12px; color: #0f172a;">${targetDate}</b></div>
-                <div>담당기사: <b style="font-size: 13px; color: #1d4ed8; background: #dbeafe; padding: 1px 6px; border-radius: 4px;">${dName}</b></div>
-                <div style="font-size: 9.5px; color: #94a3b8;">출력: ${nowStr}</div>
+              <div style="text-align: right; font-size: 11px; line-height: 1.45; color: #000000;">
+                <div>배송일자: <b style="font-size: 13px; color: #000000; font-weight: 900;">${targetDate}</b></div>
+                <div>담당기사: <span style="font-size: 14px; font-weight: 900; color: #000000; background: #e0e7ff; border: 1.5px solid #4338ca; padding: 1px 8px; border-radius: 4px; display: inline-block;">${dName}</span></div>
+                <div style="font-size: 9.5px; color: #475569; font-weight: 600; margin-top: 2px;">출력: ${nowStr}</div>
               </div>
             </div>
 
             <!-- 핵심 상차 요약 바 -->
-            <div style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 12px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; font-size: 11px;">
+            <div style="background: #f8fafc; border: 1.5px solid #000000; border-radius: 6px; padding: 6px 12px; margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; font-size: 11.5px;">
               <div>
-                <span style="font-weight: 900; color: #0f172a;">총 배송 건수:</span>
-                <b style="font-size: 13px; color: #2563eb; margin-left: 2px;">${groupList.length}</b>건
-                <span style="margin: 0 6px; color: #cbd5e1;">|</span>
-                <span style="color: #475569;">${catSummaryParts.join(' , ')}</span>
+                <span style="font-weight: 900; color: #000000;">배송 일정:</span>
+                <b style="font-size: 14px; color: #1d4ed8; font-weight: 900; margin: 0 4px 0 2px;">${groupList.length}</b>건
+                <span style="margin: 0 6px; color: #94a3b8;">|</span>
+                <span style="color: #000000; font-weight: 800;">${catSummaryParts.join(' , ')}</span>
               </div>
-              <div style="font-weight: bold; color: #b45309; font-size: 10.5px;">
+              <div style="font-weight: 900; color: #b45309; font-size: 11px;">
                 ✍️ 물품을 차량에 실을 때마다 [상차확인] 란에 체크(V)하세요.
               </div>
             </div>
 
             <!-- 배송 상세 및 상차 체크 테이블 -->
-            <table style="width: 100%; border-collapse: collapse; border: 1px solid #94a3b8; font-size: 11px; text-align: left; margin-bottom: 12px;">
+            <table style="width: 100%; border-collapse: collapse; border: 1.5px solid #000000; font-size: 11px; text-align: left; margin-bottom: 10px;">
               <thead>
-                <tr style="background: #e2e8f0; border-bottom: 2px solid #64748b; font-weight: 900; color: #0f172a; text-align: center; font-size: 11px;">
-                  <th style="border: 1px solid #94a3b8; padding: 6px 4px; width: 34px;">순번</th>
-                  <th style="border: 1px solid #94a3b8; padding: 6px 4px; width: 42px; background: #fef08a; color: #854d0e;">상차<br>확인</th>
-                  <th style="border: 1px solid #94a3b8; padding: 6px 4px; width: 55px;">방문시간</th>
-                  <th style="border: 1px solid #94a3b8; padding: 6px 4px; width: 44px;">구분</th>
-                  <th style="border: 1px solid #94a3b8; padding: 6px 6px; width: 140px;">고객사명</th>
-                  <th style="border: 1px solid #94a3b8; padding: 6px 6px; font-weight: 900; background: #f1f5f9;">품목 및 수량 (상차 대상 물품)</th>
-                  <th style="border: 1px solid #94a3b8; padding: 6px 6px; width: 220px;">배송지 주소</th>
-                  <th style="border: 1px solid #94a3b8; padding: 6px 6px; width: 130px;">비고 / 연락처</th>
+                <tr style="background: #e2e8f0; border-bottom: 2px solid #000000; font-weight: 900; color: #000000; text-align: center; font-size: 11.5px;">
+                  <th style="border: 1px solid #000000; padding: 6px 3px; width: 32px;">No</th>
+                  <th style="border: 1px solid #000000; padding: 6px 3px; width: 44px; background: #fef08a; color: #000000; font-weight: 900;">상차<br>확인</th>
+                  <th style="border: 1px solid #000000; padding: 6px 4px; width: 56px;">방문시간</th>
+                  <th style="border: 1px solid #000000; padding: 6px 4px; width: 50px;">구분</th>
+                  <th style="border: 1px solid #000000; padding: 6px 6px; width: 135px;">고객사명</th>
+                  <th style="border: 1px solid #000000; padding: 6px 6px; font-weight: 900; background: #f1f5f9;">품목 및 수량 (상차 대상 물품)</th>
+                  <th style="border: 1px solid #000000; padding: 6px 6px; width: 200px;">배송지 주소</th>
+                  <th style="border: 1px solid #000000; padding: 6px 6px; width: 130px;">비고 / 연락처</th>
                 </tr>
               </thead>
               <tbody>
@@ -7017,11 +7193,11 @@
             </table>
 
             <!-- 하단 안내 및 서명란 -->
-            <div style="display: flex; align-items: center; justify-content: space-between; font-size: 10px; color: #64748b; border-top: 1px solid #cbd5e1; padding-top: 6px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; font-size: 10px; color: #000000; border-top: 1.5px solid #000000; padding-top: 6px;">
               <div>
-                <span>※ 본 문서는 현대렌탈서비스 배송 및 물품 상차 검수 전용 지시서입니다. (고객 개인정보 보호 및 분실 주의)</span>
+                <span style="font-weight: 600;">※ 본 문서는 현대렌탈서비스 배송 및 상차 검수 전용 지시서입니다. (물품 상차 후 즉시 적재 상태 확인)</span>
               </div>
-              <div style="font-weight: bold; color: #0f172a; font-size: 10.5px;">
+              <div style="font-weight: 900; color: #000000; font-size: 11px;">
                 상차 검수자(기사): ___________________ (인/서명)
               </div>
             </div>

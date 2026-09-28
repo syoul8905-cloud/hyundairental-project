@@ -5,3 +5,4 @@ test_syntax.html
 *.tmp
 *.bak
 backups/
+scratch/
