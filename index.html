@@ -5025,6 +5025,23 @@
           continue;
         }
 
+        // 구분 뱃지 (배송, 회수, 설치, 교환출고, A/S, 수령)
+        var cat = (r.구분 || '배송').trim();
+        var catBadgeHtml = '';
+        if (cat === '회수' || cat.indexOf('회수') !== -1) {
+          catBadgeHtml = '<span class="text-[9.5px] bg-purple-100 text-purple-900 px-1.5 py-0.5 rounded font-black border border-purple-300 shrink-0">📦 회수</span>';
+        } else if (cat === '설치' || cat.indexOf('설치') !== -1) {
+          catBadgeHtml = '<span class="text-[9.5px] bg-emerald-100 text-emerald-900 px-1.5 py-0.5 rounded font-black border border-emerald-300 shrink-0">🛠️ 설치</span>';
+        } else if (cat === '교환출고' || cat.indexOf('교환') !== -1) {
+          catBadgeHtml = '<span class="text-[9.5px] bg-indigo-100 text-indigo-900 px-1.5 py-0.5 rounded font-black border border-indigo-300 shrink-0">🔄 교환</span>';
+        } else if (cat === 'A/S' || cat === 'AS' || cat.indexOf('AS') !== -1) {
+          catBadgeHtml = '<span class="text-[9.5px] bg-rose-100 text-rose-900 px-1.5 py-0.5 rounded font-black border border-rose-300 shrink-0">🚨 A/S</span>';
+        } else if (cat === '수령' || cat.indexOf('수령') !== -1) {
+          catBadgeHtml = '<span class="text-[9.5px] bg-amber-100 text-amber-900 px-1.5 py-0.5 rounded font-black border border-amber-300 shrink-0">🏢 수령</span>';
+        } else {
+          catBadgeHtml = '<span class="text-[9.5px] bg-blue-100 text-blue-900 px-1.5 py-0.5 rounded font-black border border-blue-300 shrink-0">🚚 배송</span>';
+        }
+
         // Timeline Card with Drag & Drop and Mobile Quick Actions
         timelineBox.innerHTML += `
           <div class="p-2.5 rounded-xl bg-white border border-slate-200 hover:border-indigo-400 transition cursor-pointer space-y-2 shadow-xs group"
@@ -5036,16 +5053,17 @@
                onclick="zoomToStop(${coord.lat}, ${coord.lng})">
             
             <div class="flex items-center justify-between">
-              <div class="flex items-center gap-1.5 font-bold text-slate-800">
-                <span class="cursor-grab active:cursor-grabbing text-slate-300 group-hover:text-indigo-600 px-0.5" title="끌어서 순서 변경">
+              <div class="flex items-center gap-1.5 font-bold text-slate-800 min-w-0">
+                <span class="cursor-grab active:cursor-grabbing text-slate-300 group-hover:text-indigo-600 px-0.5 shrink-0" title="끌어서 순서 변경">
                   <i class="fa-solid fa-grip-vertical text-xs"></i>
                 </span>
-                <span class="w-5 h-5 rounded-full ${isRecov ? 'bg-purple-600' : 'bg-indigo-600'} text-white flex items-center justify-center text-[10px] font-black">${stopNumber}</span>
-                <span class="truncate max-w-[120px] font-black text-slate-900">${r.고객사}</span>
-                ${r.담당기사 ? `<span class="text-[9px] bg-amber-50 text-amber-700 px-1.5 py-0.5 rounded font-semibold border border-amber-200">${r.담당기사}</span>` : ''}
+                <span class="w-5 h-5 rounded-full ${isRecov ? 'bg-purple-600' : 'bg-indigo-600'} text-white flex items-center justify-center text-[10px] font-black shrink-0">${stopNumber}</span>
+                <span class="truncate max-w-[110px] sm:max-w-[130px] font-black text-slate-900" title="${r.고객사}">${r.고객사}</span>
+                ${catBadgeHtml}
+                ${r.담당기사 ? `<span class="text-[9px] bg-amber-50 text-amber-700 px-1.5 py-0.5 rounded font-semibold border border-amber-200 shrink-0">${r.담당기사}</span>` : ''}
               </div>
 
-              <div class="flex items-center gap-1">
+              <div class="flex items-center gap-1 shrink-0 ml-1">
                 <span class="text-[10px] text-slate-400 font-medium mr-0.5">${r.방문시간 || '무관'}</span>
                 <button onclick="event.stopPropagation(); moveStop(${realIdx}, ${prevRealIdx});" 
                         class="w-5 h-5 rounded bg-slate-100 hover:bg-indigo-100 hover:text-indigo-600 text-slate-600 flex items-center justify-center text-[9px] font-bold ${isFirst ? 'opacity-30 cursor-not-allowed' : ''}" 
@@ -5073,6 +5091,15 @@
                 <i class="fa-regular fa-copy text-[9px]"></i> 복사
               </button>
             </div>
+
+            ${r.품목_수량 ? `
+              <div class="flex items-center gap-1.5 pl-6 text-[10px] text-slate-800 font-bold">
+                <span class="px-1.5 py-0.5 rounded bg-slate-50 text-slate-700 border border-slate-200/90 flex items-center gap-1 truncate max-w-full" title="${r.품목_수량}">
+                  <i class="fa-solid fa-box text-indigo-500 text-[9px] shrink-0"></i>
+                  <span class="truncate">${r.품목_수량}</span>
+                </span>
+              </div>
+            ` : ''}
 
             ${contactDisplay ? `
               <div class="flex items-center gap-1.5 pl-6 text-[10px] text-slate-700 font-semibold cursor-pointer hover:text-indigo-600" onclick="event.stopPropagation(); openEditStopModal(${realIdx});" title="담당자/연락처 수정">
