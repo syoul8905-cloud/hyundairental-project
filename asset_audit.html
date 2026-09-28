@@ -210,6 +210,11 @@
         <i data-lucide="file-check-2" class="w-3.5 h-3.5"></i>
         <span>보고서 내보내기</span>
       </button>
+      <button id="tabBtnInbound" class="tab-btn px-3 py-2 text-slate-500 hover:text-slate-700 flex items-center gap-1.5 transition bg-indigo-50/50 rounded-t-lg">
+        <i data-lucide="package-plus" class="w-3.5 h-3.5 text-indigo-600"></i>
+        <span class="font-bold text-indigo-900">입고 시리얼 채번</span>
+        <span id="badgeInboundTab" class="px-1.5 py-0.2 rounded-full text-[10px] bg-indigo-100 text-indigo-700 font-bold">0</span>
+      </button>
     </nav>
 
     <!-- ==================== 탭 1: 실시간 라이브 스캔 ==================== -->
@@ -456,6 +461,133 @@
       <div class="bg-white rounded-xl p-4 shadow-sm border border-slate-200 space-y-2">
         <h4 class="text-xs font-bold text-slate-700">보고서 텍스트 미리보기</h4>
         <pre id="txtReportPreview" class="p-3 bg-slate-900 text-emerald-400 rounded-lg text-[11px] font-mono whitespace-pre-wrap max-h-48 overflow-y-auto"></pre>
+    </section>
+
+    <!-- ==================== 탭 5: 신규 입고 시리얼 채번 ==================== -->
+    <section id="tabInbound" class="tab-content hidden space-y-3">
+      <!-- 1. 입고 정보 설정 및 통계 요약 카드 -->
+      <div class="bg-white rounded-xl p-3.5 shadow-sm border border-slate-200 space-y-2.5">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-1.5 text-xs font-bold text-slate-800">
+            <i data-lucide="boxes" class="w-4 h-4 text-indigo-600"></i>
+            <span>신규 입고 상품 정보</span>
+          </div>
+          <span class="text-[11px] text-slate-400">시리얼 연속 채번 & 중복 방지</span>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <div>
+            <label class="text-[11px] font-medium text-slate-500 block mb-1">입고 상품명 / 모델명 (선택)</label>
+            <input type="text" id="inputInboundProdName" placeholder="예: 갤럭시탭 S11 128G, 24인치 모니터..." 
+                   class="w-full px-3 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500">
+          </div>
+          <div>
+            <label class="text-[11px] font-medium text-slate-500 block mb-1">입고 비고 / 거래처</label>
+            <input type="text" id="inputInboundMemo" placeholder="예: 한진정보통신 1차 입고분..." 
+                   class="w-full px-3 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500">
+          </div>
+        </div>
+
+        <!-- 실시간 입고 통계 카드 3종 -->
+        <div class="grid grid-cols-3 gap-2 pt-1 border-t border-slate-100">
+          <div class="p-2.5 bg-indigo-50 border border-indigo-200 rounded-xl text-center">
+            <span class="text-[11px] font-semibold text-indigo-700 block">채번 완료</span>
+            <span id="statInboundTotal" class="text-xl font-black text-indigo-900 leading-tight">0</span>
+            <span class="text-[10px] text-indigo-600">대</span>
+          </div>
+          <div class="p-2.5 bg-amber-50 border border-amber-200 rounded-xl text-center">
+            <span class="text-[11px] font-semibold text-amber-700 block">세션 중복 차단</span>
+            <span id="statInboundDup" class="text-xl font-black text-amber-900 leading-tight">0</span>
+            <span class="text-[10px] text-amber-600">건 방어</span>
+          </div>
+          <div class="p-2.5 bg-rose-50 border border-rose-200 rounded-xl text-center">
+            <span class="text-[11px] font-semibold text-rose-700 block">대장 기등록 중복</span>
+            <span id="statInboundMasterDup" class="text-xl font-black text-rose-900 leading-tight">0</span>
+            <span class="text-[10px] text-rose-600">건 차단</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. 시리얼 바코드 스캐너 입력 카드 -->
+      <div class="bg-white rounded-xl p-3.5 shadow-sm border border-slate-200 space-y-2.5">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-1.5 text-xs font-bold text-slate-700">
+            <i data-lucide="barcode" class="w-4 h-4 text-indigo-600"></i>
+            <span>시리얼 바코드 스캔 (S/N)</span>
+          </div>
+          <button id="btnToggleInboundCamera" class="flex items-center gap-1 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold shadow-sm transition">
+            <i data-lucide="video" id="iconInboundCameraState" class="w-3.5 h-3.5"></i>
+            <span id="txtInboundCameraToggle">카메라 켜기</span>
+          </button>
+        </div>
+
+        <!-- 카메라 비디오 영역 -->
+        <div id="inboundCameraContainer" class="hidden relative w-full aspect-video sm:aspect-[21/9] bg-black rounded-lg overflow-hidden flex items-center justify-center">
+          <video id="inboundCameraVideo" class="w-full h-full object-cover" playsinline autoplay muted></video>
+          <div class="absolute inset-0 border-2 border-indigo-500/60 pointer-events-none rounded-lg"></div>
+          <div class="scan-laser"></div>
+          <div class="absolute bottom-2 px-2.5 py-1 bg-black/70 backdrop-blur text-white text-[11px] rounded-full">
+            박스나 기기의 시리얼 바코드(S/N)를 비추세요
+          </div>
+        </div>
+
+        <!-- 시리얼 키보드/스캐너 입력창 -->
+        <div class="relative">
+          <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+            <i data-lucide="scan-line" class="w-4 h-4"></i>
+          </div>
+          <input type="text" id="inboundBarcodeInput" 
+                 placeholder="시리얼넘버 바코드를 찍거나 직접 입력 후 Enter..." 
+                 autocomplete="off"
+                 class="w-full pl-9 pr-20 py-2.5 bg-indigo-50/40 border border-indigo-200 rounded-lg text-sm font-mono tracking-wider focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition">
+          <button id="btnManualInboundSubmit" class="absolute right-1.5 top-1.5 bottom-1.5 px-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md text-xs font-semibold transition">
+            채번
+          </button>
+        </div>
+        <p class="text-[11px] text-slate-400">
+          💡 블루투스 스캐너로 박스/실물 시리얼을 연속으로 찍으면 중복 여부를 0.001초 만에 감지하고 순번을 자동 부여합니다.
+        </p>
+      </div>
+
+      <!-- 3. 직전 시리얼 채번 결과 피드백 카드 -->
+      <div id="lastInboundCard" class="hidden rounded-xl p-4 shadow-sm border transition-all duration-300">
+        <div class="flex items-start justify-between gap-2">
+          <div class="flex items-center gap-2">
+            <span id="inboundResultBadge" class="px-2.5 py-0.5 rounded-full text-xs font-black">#1 정상</span>
+            <span id="inboundResultSerial" class="text-base font-black font-mono tracking-wider text-slate-900">5MXUH4CWA00238X</span>
+          </div>
+          <span id="inboundResultTime" class="text-[11px] text-slate-400">방금 전</span>
+        </div>
+        <div id="inboundResultMessage" class="mt-2 text-xs font-medium text-slate-700 bg-white/80 p-2.5 rounded-lg border border-slate-200/50"></div>
+      </div>
+
+      <!-- 4. 액션 버튼 (ERP 복사 및 엑셀 다운로드) -->
+      <div class="flex flex-wrap items-center justify-between gap-2 pt-1">
+        <div class="flex items-center gap-1.5 w-full sm:w-auto">
+          <button id="btnCopyInboundSerials" class="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-sm transition">
+            <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+            <span>📋 시리얼 목록 전체 복사 (ERP용)</span>
+          </button>
+          <button id="btnExportInboundExcel" class="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-sm transition">
+            <i data-lucide="file-spreadsheet" class="w-3.5 h-3.5"></i>
+            <span>📥 엑셀 다운로드</span>
+          </button>
+        </div>
+        <button id="btnClearInboundSession" class="text-xs text-rose-600 hover:text-rose-700 font-semibold px-2 py-1 flex items-center gap-1">
+          <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+          <span>채번 목록 비우기</span>
+        </button>
+      </div>
+
+      <!-- 5. 채번된 시리얼 목록 (역순 피드) -->
+      <div class="bg-white rounded-xl p-3.5 shadow-sm border border-slate-200 space-y-2">
+        <div class="flex items-center justify-between text-xs font-bold text-slate-700">
+          <span>채번된 시리얼 피드 (<strong id="txtInboundFeedCount" class="text-indigo-600">0</strong>건)</span>
+          <span class="text-[11px] font-normal text-slate-400">최신 스캔이 위로 올라옵니다</span>
+        </div>
+        <div id="inboundSerialList" class="space-y-1.5 max-h-72 overflow-y-auto pr-1 text-xs">
+          <p class="text-center py-8 text-slate-400 text-xs">아직 채번된 시리얼넘버가 없습니다.<br>바코드를 스캔하세요.</p>
+        </div>
       </div>
     </section>
 
@@ -490,12 +622,25 @@
     }
 
     let masterAssets = new Map(); // assetNo -> AssetRecord
+    let masterSerialMap = new Map(); // serialNo (대문자) -> AssetRecord (기등록 자산 중복 대조용)
     let scannedAssets = new Map(); // assetNo -> { scannedAt: Date, count: number, ... }
     let extraAssets = new Map();   // assetNo -> { scannedAt: Date, count: number }
     let rawCsvData = [];           // 원본 행 배열
     let currentFileName = '';
     let isCloudSyncing = false;
     let syncScansTimeout = null;
+
+    // [신규 입고 시리얼 채번 상태 변수]
+    let inboundSerials = [];          // [ { id, index, serialNo, time, productName, memo } ]
+    let inboundSerialSet = new Map();  // serialNo (대문자) -> index (세션 중복 검출 및 이전 순번 표기)
+    let inboundDupCount = 0;           // 당일 세션 내 중복 스캔 횟수
+    let inboundMasterDupCount = 0;     // 기존 대장 기등록 중복 스캔 횟수
+    const INBOUND_STORAGE_KEY = 'HYUNDAI_ASSET_INBOUND_SERIALS_V1';
+    let isInboundCameraActive = false;
+    let inboundCameraStream = null;
+    let inboundCameraScanInterval = null;
+    let syncInboundTimeout = null;
+    let currentActiveTab = 'tabLive';
     
     // 환경설정
     let config = {
@@ -683,9 +828,14 @@
         .channel('asset-audit-changes')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'delivery_schedules' }, (payload) => {
           const row = payload.new || payload.old;
-          if (row && (row.source_sheet === 'SYSTEM_CONFIG_ASSET_AUDIT_MASTER' || row.source_sheet === 'SYSTEM_CONFIG_ASSET_AUDIT_SCANS')) {
-            console.log('[Realtime] 자산 실사 변경 감지:', row.source_sheet);
-            loadCloudData(false);
+          if (row) {
+            if (row.source_sheet === 'SYSTEM_CONFIG_ASSET_AUDIT_MASTER' || row.source_sheet === 'SYSTEM_CONFIG_ASSET_AUDIT_SCANS') {
+              console.log('[Realtime] 자산 실사 변경 감지:', row.source_sheet);
+              loadCloudData(false);
+            } else if (row.source_sheet === 'SYSTEM_CONFIG_ASSET_INBOUND_SERIALS') {
+              console.log('[Realtime] 입고 시리얼 채번 변경 감지');
+              loadInboundCloudData(false);
+            }
           }
         })
         .subscribe();
@@ -886,6 +1036,7 @@
       const prevExtraKeys = new Set(extraAssets.keys());
 
       masterAssets.clear();
+      masterSerialMap.clear();
       if (!keepScanned) {
         scannedAssets.clear();
         extraAssets.clear();
@@ -951,6 +1102,9 @@
         };
 
         masterAssets.set(assetNo, record);
+        if (record.serialNo && record.serialNo !== '-' && record.serialNo.length >= 3) {
+          masterSerialMap.set(record.serialNo.toUpperCase(), record);
+        }
         loadedCount++;
       }
 
@@ -1703,7 +1857,475 @@
     }
 
     // ==========================================
-    // 10. 이벤트 리스너 바인딩
+    // 10. 신규 상품 입고 시리얼 채번 및 중복 검출 엔진
+    // ==========================================
+    function processInboundSerial(rawCode) {
+      if (!rawCode) return;
+      const serial = String(rawCode).trim();
+      if (!serial || serial.length < 2) return;
+
+      const upper = serial.toUpperCase();
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString();
+
+      // 블랙박스 영구 기록 (실수 리셋 방지)
+      recordBlackboxScan(serial);
+
+      const card = document.getElementById('lastInboundCard');
+      const badge = document.getElementById('inboundResultBadge');
+      const resultSerial = document.getElementById('inboundResultSerial');
+      const resultTime = document.getElementById('inboundResultTime');
+      const resultMsg = document.getElementById('inboundResultMessage');
+
+      card.classList.remove('hidden');
+      resultSerial.innerText = serial;
+      resultTime.innerText = timeStr;
+
+      // [1단계 검출] 당일 입고 세션 내 중복 스캔 (Warning: 삐-삐 경고음 + 주황 플래시 + 진동)
+      if (inboundSerialSet.has(upper)) {
+        const prevIndex = inboundSerialSet.get(upper);
+        inboundDupCount++;
+        feedback('WARNING');
+
+        card.className = 'rounded-xl p-4 shadow-sm border transition-all duration-300 bg-amber-50 border-amber-300';
+        badge.className = 'px-2.5 py-0.5 rounded-full text-xs font-black bg-amber-600 text-white';
+        badge.innerText = `중복 감지 (#${prevIndex})`;
+        resultMsg.className = 'mt-2 text-xs font-semibold text-amber-900 bg-white/80 p-2.5 rounded-lg border border-amber-200';
+        resultMsg.innerHTML = `⚠️ <strong>[세션 내 중복 스캔]</strong> 이 시리얼은 이미 앞서 <strong>#${prevIndex}</strong>번으로 채번되었습니다! (중복 스캔 제외됨)`;
+
+        updateInboundStats();
+        clearInboundInput();
+        return;
+      }
+
+      // [2단계 검출] 기존 ERP 마스터 대장 기등록 중복 (Danger: 저음 부저음 + 빨강 플래시 + 긴 진동)
+      let masterMatch = null;
+      if (masterSerialMap.has(upper)) {
+        masterMatch = masterSerialMap.get(upper);
+      } else if (masterAssets.has(upper)) {
+        masterMatch = masterAssets.get(upper);
+      }
+
+      if (masterMatch) {
+        inboundMasterDupCount++;
+        feedback('DANGER');
+
+        card.className = 'rounded-xl p-4 shadow-sm border transition-all duration-300 bg-rose-50 border-rose-300';
+        badge.className = 'px-2.5 py-0.5 rounded-full text-xs font-black bg-rose-600 text-white';
+        badge.innerText = '대장 기등록';
+        resultMsg.className = 'mt-2 text-xs font-semibold text-rose-900 bg-white/80 p-2.5 rounded-lg border border-rose-200';
+        resultMsg.innerHTML = `🚨 <strong>[기존 대장 중복]</strong> 기존 마스터 대장에 이미 등록된 자산/시리얼입니다!<br>` +
+          `<span class="text-[11px] font-normal text-rose-700">자산번호: ${masterMatch.assetNo} | 품명: ${masterMatch.productName || '-'} | 모델: ${masterMatch.modelName || '-'}</span>`;
+
+        updateInboundStats();
+        clearInboundInput();
+        return;
+      }
+
+      // [3단계 정상] 신규 채번 부여 (Success: 경쾌한 딩동음 + 초록 플래시 + 짧은 진동)
+      const newIndex = inboundSerials.length + 1;
+      inboundSerialSet.set(upper, newIndex);
+
+      const prodName = (document.getElementById('inputInboundProdName')?.value || '').trim();
+      const memo = (document.getElementById('inputInboundMemo')?.value || '').trim();
+
+      const item = {
+        id: Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+        index: newIndex,
+        serialNo: serial,
+        time: timeStr,
+        productName: prodName,
+        memo: memo
+      };
+
+      inboundSerials.unshift(item); // 최신 스캔이 최상단
+
+      feedback('SUCCESS');
+
+      card.className = 'rounded-xl p-4 shadow-sm border transition-all duration-300 bg-emerald-50 border-emerald-300';
+      badge.className = 'px-2.5 py-0.5 rounded-full text-xs font-black bg-emerald-600 text-white';
+      badge.innerText = `#${newIndex} 정상`;
+      resultMsg.className = 'mt-2 text-xs font-medium text-emerald-900 bg-white/80 p-2.5 rounded-lg border border-emerald-200';
+      resultMsg.innerHTML = `✅ 정상 채번 완료! 순번 <strong>#${newIndex}</strong>번이 부여되었습니다.`;
+
+      renderInboundFeed();
+      updateInboundStats();
+      saveInboundState();
+      scheduleSyncInboundToCloud();
+      clearInboundInput();
+      showFooterMessage(`[채번 #${newIndex}] ${serial} 등록 완료`);
+    }
+
+    function clearInboundInput() {
+      const input = document.getElementById('inboundBarcodeInput');
+      if (input) {
+        input.value = '';
+        input.focus();
+      }
+    }
+
+    function renderInboundFeed() {
+      const list = document.getElementById('inboundSerialList');
+      const countEl = document.getElementById('txtInboundFeedCount');
+      const badgeTab = document.getElementById('badgeInboundTab');
+      if (!list) return;
+
+      if (countEl) countEl.innerText = inboundSerials.length.toLocaleString();
+      if (badgeTab) badgeTab.innerText = inboundSerials.length.toLocaleString();
+
+      if (inboundSerials.length === 0) {
+        list.innerHTML = '<p class="text-center py-8 text-slate-400 text-xs">아직 채번된 시리얼넘버가 없습니다.<br>바코드를 스캔하세요.</p>';
+        return;
+      }
+
+      list.innerHTML = inboundSerials.map((item, idx) => `
+        <div class="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-200 hover:bg-indigo-50/40 transition">
+          <div class="flex items-center gap-2">
+            <span class="px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700 font-black text-[11px]">#${item.index}</span>
+            <span class="font-mono font-bold text-slate-800 text-xs tracking-wider">${item.serialNo}</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-[11px] text-slate-400">${item.time}</span>
+            <button onclick="deleteInboundSerial(${idx})" class="p-1 text-slate-400 hover:text-rose-600 rounded transition" title="삭제">
+              <i data-lucide="x" class="w-3.5 h-3.5"></i>
+            </button>
+          </div>
+        </div>
+      `).join('');
+
+      lucide.createIcons();
+    }
+
+    function deleteInboundSerial(idx) {
+      if (idx < 0 || idx >= inboundSerials.length) return;
+      const target = inboundSerials[idx];
+      if (!confirm(`[#${target.index}] 시리얼 '${target.serialNo}'을(를) 채번 목록에서 삭제하시겠습니까?`)) {
+        return;
+      }
+      inboundSerials.splice(idx, 1);
+      // 순번 재정렬 (채번 순서대로 #1..#N 재부여)
+      const reversed = inboundSerials.slice().reverse();
+      inboundSerialSet.clear();
+      reversed.forEach((item, i) => {
+        item.index = i + 1;
+        inboundSerialSet.set(item.serialNo.toUpperCase(), item.index);
+      });
+
+      renderInboundFeed();
+      updateInboundStats();
+      saveInboundState();
+      scheduleSyncInboundToCloud();
+      showFooterMessage('시리얼이 삭제되었습니다.');
+    }
+
+    function updateInboundStats() {
+      const elTotal = document.getElementById('statInboundTotal');
+      const elDup = document.getElementById('statInboundDup');
+      const elMasterDup = document.getElementById('statInboundMasterDup');
+      const elBadgeTab = document.getElementById('badgeInboundTab');
+
+      if (elTotal) elTotal.innerText = inboundSerials.length.toLocaleString();
+      if (elDup) elDup.innerText = inboundDupCount.toLocaleString();
+      if (elMasterDup) elMasterDup.innerText = inboundMasterDupCount.toLocaleString();
+      if (elBadgeTab) elBadgeTab.innerText = inboundSerials.length.toLocaleString();
+    }
+
+    function copyInboundSerials() {
+      if (inboundSerials.length === 0) {
+        alert('복사할 시리얼넘버가 없습니다.');
+        return;
+      }
+      // 채번 순번 오름차순(#1 -> #N)으로 정렬하여 줄바꿈으로 복사
+      const sortedSerials = inboundSerials.slice().reverse().map(item => item.serialNo);
+      const textToCopy = sortedSerials.join('\r\n');
+
+      navigator.clipboard.writeText(textToCopy).then(() => {
+        feedback('SUCCESS');
+        alert(`📋 총 ${sortedSerials.length}건의 시리얼넘버가 복사되었습니다!\nERP 또는 엑셀의 시리얼 셀을 클릭하고 [Ctrl + V] 하세요.`);
+      }).catch(() => {
+        prompt('아래 시리얼 목록을 복사하세요:', textToCopy);
+      });
+    }
+
+    function exportInboundExcel() {
+      if (inboundSerials.length === 0) {
+        alert('내보낼 시리얼 데이터가 없습니다.');
+        return;
+      }
+
+      const prodName = (document.getElementById('inputInboundProdName')?.value || '').trim();
+      const memo = (document.getElementById('inputInboundMemo')?.value || '').trim();
+      const nowStr = new Date().toISOString().slice(0, 10);
+
+      const wb = XLSX.utils.book_new();
+      const rows = [
+        ['순번', '시리얼넘버(S/N)', '상품명', '메모/거래처', '채번일시']
+      ];
+
+      const sortedList = inboundSerials.slice().reverse();
+      sortedList.forEach(item => {
+        rows.push([
+          item.index,
+          item.serialNo,
+          item.productName || prodName || '-',
+          item.memo || memo || '-',
+          item.time
+        ]);
+      });
+
+      const ws = XLSX.utils.aoa_to_sheet(rows);
+      XLSX.utils.book_append_sheet(wb, ws, '입고시리얼대장');
+
+      const fileName = `입고시리얼채번_${prodName ? prodName + '_' : ''}${nowStr}.xlsx`;
+      XLSX.writeFile(wb, fileName);
+      feedback('SUCCESS');
+      showFooterMessage(`${fileName} 다운로드 완료!`);
+    }
+
+    function clearInboundSession() {
+      if (inboundSerials.length === 0 && inboundDupCount === 0 && inboundMasterDupCount === 0) return;
+      if (!confirm(`현재 채번된 ${inboundSerials.length}건의 시리얼 목록을 모두 비우시겠습니까?\n(새로운 입고 건 채번을 시작합니다)`)) {
+        return;
+      }
+      inboundSerials = [];
+      inboundSerialSet.clear();
+      inboundDupCount = 0;
+      inboundMasterDupCount = 0;
+      document.getElementById('lastInboundCard').classList.add('hidden');
+      renderInboundFeed();
+      updateInboundStats();
+      saveInboundState();
+      scheduleSyncInboundToCloud();
+      showFooterMessage('입고 채번 세션이 초기화되었습니다.');
+    }
+
+    function saveInboundState() {
+      try {
+        const stateObj = {
+          inboundSerials,
+          inboundDupCount,
+          inboundMasterDupCount,
+          productName: document.getElementById('inputInboundProdName')?.value || '',
+          memo: document.getElementById('inputInboundMemo')?.value || '',
+          savedAt: new Date().toISOString()
+        };
+        localStorage.setItem(INBOUND_STORAGE_KEY, JSON.stringify(stateObj));
+      } catch (e) {
+        console.warn('saveInboundState error:', e);
+      }
+    }
+
+    function restoreInboundState() {
+      try {
+        const raw = localStorage.getItem(INBOUND_STORAGE_KEY);
+        if (!raw) return;
+        const obj = JSON.parse(raw);
+        if (obj.inboundSerials && Array.isArray(obj.inboundSerials)) {
+          inboundSerials = obj.inboundSerials;
+          inboundSerialSet.clear();
+          inboundSerials.forEach(item => {
+            if (item.serialNo) inboundSerialSet.set(item.serialNo.toUpperCase(), item.index);
+          });
+        }
+        if (typeof obj.inboundDupCount === 'number') inboundDupCount = obj.inboundDupCount;
+        if (typeof obj.inboundMasterDupCount === 'number') inboundMasterDupCount = obj.inboundMasterDupCount;
+
+        if (obj.productName && document.getElementById('inputInboundProdName')) {
+          document.getElementById('inputInboundProdName').value = obj.productName;
+        }
+        if (obj.memo && document.getElementById('inputInboundMemo')) {
+          document.getElementById('inputInboundMemo').value = obj.memo;
+        }
+
+        renderInboundFeed();
+        updateInboundStats();
+      } catch (e) {
+        console.warn('restoreInboundState error:', e);
+      }
+    }
+
+    function scheduleSyncInboundToCloud() {
+      if (syncInboundTimeout) clearTimeout(syncInboundTimeout);
+      syncInboundTimeout = setTimeout(() => {
+        syncInboundToCloud();
+      }, 500);
+    }
+
+    async function syncInboundToCloud() {
+      if (!supabaseClient) return;
+      try {
+        const prodName = document.getElementById('inputInboundProdName')?.value.trim() || '입고채번';
+        const memo = document.getElementById('inputInboundMemo')?.value.trim() || '';
+
+        const payload = {
+          source_sheet: 'SYSTEM_CONFIG_ASSET_INBOUND_SERIALS',
+          customer_name: prodName,
+          delivery_date: new Date().toISOString(),
+          memo_special: memo,
+          memo_full: JSON.stringify({
+            serials: inboundSerials,
+            dupCount: inboundDupCount,
+            masterDupCount: inboundMasterDupCount
+          }),
+          status: `${inboundSerials.length}건 채번완료`
+        };
+
+        const { data: existing } = await supabaseClient
+          .from('delivery_schedules')
+          .select('id')
+          .eq('source_sheet', 'SYSTEM_CONFIG_ASSET_INBOUND_SERIALS')
+          .limit(1);
+
+        if (existing && existing.length > 0) {
+          await supabaseClient
+            .from('delivery_schedules')
+            .update(payload)
+            .eq('id', existing[0].id);
+        } else {
+          await supabaseClient
+            .from('delivery_schedules')
+            .insert([payload]);
+        }
+      } catch (e) {
+        console.warn('syncInboundToCloud error:', e);
+      }
+    }
+
+    async function loadInboundCloudData(isInitial = false) {
+      if (!supabaseClient) return;
+      try {
+        const { data, error } = await supabaseClient
+          .from('delivery_schedules')
+          .select('*')
+          .eq('source_sheet', 'SYSTEM_CONFIG_ASSET_INBOUND_SERIALS')
+          .limit(1);
+
+        if (error || !data || data.length === 0) return;
+
+        const row = data[0];
+        const parsed = JSON.parse(row.memo_full || '{}');
+        const cloudSerials = parsed.serials || [];
+
+        if (cloudSerials.length > 0 && (inboundSerials.length === 0 || isInitial)) {
+          inboundSerials = cloudSerials;
+          inboundSerialSet.clear();
+          inboundSerials.forEach(item => {
+            if (item.serialNo) inboundSerialSet.set(item.serialNo.toUpperCase(), item.index);
+          });
+          inboundDupCount = parsed.dupCount || 0;
+          inboundMasterDupCount = parsed.masterDupCount || 0;
+
+          if (row.customer_name && document.getElementById('inputInboundProdName')) {
+            document.getElementById('inputInboundProdName').value = row.customer_name;
+          }
+          if (row.memo_special && document.getElementById('inputInboundMemo')) {
+            document.getElementById('inputInboundMemo').value = row.memo_special;
+          }
+
+          renderInboundFeed();
+          updateInboundStats();
+          saveInboundState();
+        }
+      } catch (e) {
+        console.warn('loadInboundCloudData error:', e);
+      }
+    }
+
+    async function toggleInboundCamera() {
+      if (isInboundCameraActive) {
+        stopInboundCamera();
+      } else {
+        startInboundCamera();
+      }
+    }
+
+    async function startInboundCamera() {
+      const container = document.getElementById('inboundCameraContainer');
+      const video = document.getElementById('inboundCameraVideo');
+      const btnTxt = document.getElementById('txtInboundCameraToggle');
+
+      container.classList.remove('hidden');
+      btnTxt.innerText = '카메라 끄기';
+
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { ideal: 'environment' },
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          }
+        });
+
+        inboundCameraStream = stream;
+        video.srcObject = stream;
+        await video.play();
+        isInboundCameraActive = true;
+
+        if ('BarcodeDetector' in window) {
+          try {
+            const detector = new BarcodeDetector({ formats: ['code_128', 'code_39', 'ean_13', 'qr_code', 'itf'] });
+            inboundCameraScanInterval = setInterval(async () => {
+              if (!isInboundCameraActive || video.readyState < 2) return;
+              try {
+                const barcodes = await detector.detect(video);
+                if (barcodes && barcodes.length > 0) {
+                  handleInboundDetectedCode(barcodes[0].rawValue);
+                }
+              } catch (e) {}
+            }, 200);
+            return;
+          } catch (e) {}
+        }
+
+        if (window.ZXing) {
+          const reader = new ZXing.BrowserMultiFormatReader();
+          reader.decodeFromVideoElement(video, (result, err) => {
+            if (result) {
+              handleInboundDetectedCode(result.getText());
+            }
+          });
+        }
+      } catch (err) {
+        console.error('Inbound Camera access error:', err);
+        alert('카메라 권한을 확인해주세요: ' + err.message);
+        stopInboundCamera();
+      }
+    }
+
+    function stopInboundCamera() {
+      const container = document.getElementById('inboundCameraContainer');
+      const video = document.getElementById('inboundCameraVideo');
+      const btnTxt = document.getElementById('txtInboundCameraToggle');
+
+      if (inboundCameraScanInterval) {
+        clearInterval(inboundCameraScanInterval);
+        inboundCameraScanInterval = null;
+      }
+      if (inboundCameraStream) {
+        inboundCameraStream.getTracks().forEach(t => t.stop());
+        inboundCameraStream = null;
+      }
+      video.srcObject = null;
+      container.classList.add('hidden');
+      btnTxt.innerText = '카메라 켜기';
+      isInboundCameraActive = false;
+    }
+
+    let lastInboundScannedCode = '';
+    let lastInboundScanTime = 0;
+
+    function handleInboundDetectedCode(detectedCode) {
+      const now = Date.now();
+      if (detectedCode === lastInboundScannedCode && (now - lastInboundScanTime) < 1500) {
+        return;
+      }
+      lastInboundScannedCode = detectedCode;
+      lastInboundScanTime = now;
+      processInboundSerial(detectedCode);
+    }
+
+    // ==========================================
+    // 11. 이벤트 리스너 바인딩
     // ==========================================
     document.addEventListener('DOMContentLoaded', () => {
       lucide.createIcons();
@@ -1711,6 +2333,7 @@
       // 탭 전환
       const tabs = {
         tabBtnLive: 'tabLive',
+        tabBtnInbound: 'tabInbound',
         tabBtnBatch: 'tabBatch',
         tabBtnMissing: 'tabMissing',
         tabBtnReport: 'tabReport'
@@ -1729,10 +2352,18 @@
           currentBtn.classList.remove('text-slate-500');
           document.getElementById(contentId).classList.remove('hidden');
 
+          currentActiveTab = contentId;
+
           // 미실사 탭으로 갈 때 리스트 리프레시
           if (contentId === 'tabMissing') renderMissingList();
           // 실시간 탭으로 올 때 바코드 인풋 포커스
           if (contentId === 'tabLive') document.getElementById('barcodeInput').focus();
+          // 입고 채번 탭으로 올 때 시리얼 인풋 포커스 및 피드 갱신
+          if (contentId === 'tabInbound') {
+            renderInboundFeed();
+            const inp = document.getElementById('inboundBarcodeInput');
+            if (inp) inp.focus();
+          }
         });
       });
 
@@ -1852,6 +2483,23 @@
         processBarcode(barcodeInput.value);
       });
 
+      // [신규] 입고 시리얼 바코드 입력 처리
+      const inboundBarcodeInput = document.getElementById('inboundBarcodeInput');
+      if (inboundBarcodeInput) {
+        inboundBarcodeInput.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            processInboundSerial(inboundBarcodeInput.value);
+          }
+        });
+      }
+      const btnManualInboundSubmit = document.getElementById('btnManualInboundSubmit');
+      if (btnManualInboundSubmit) {
+        btnManualInboundSubmit.addEventListener('click', () => {
+          processInboundSerial(inboundBarcodeInput.value);
+        });
+      }
+
       // 전역 키다운 인터셉트 (스마트폰에 블루투스 스캐너가 연결된 경우, 포커스가 없어도 Enter 감지 시 즉시 처리)
       let buffer = '';
       let lastKeyTime = Date.now();
@@ -1868,8 +2516,12 @@
         lastKeyTime = now;
 
         if (e.key === 'Enter') {
-          if (buffer.length >= 4) {
-            processBarcode(buffer);
+          if (buffer.length >= 2) {
+            if (currentActiveTab === 'tabInbound') {
+              processInboundSerial(buffer);
+            } else {
+              processBarcode(buffer);
+            }
             buffer = '';
           }
         } else if (e.key.length === 1) {
@@ -1879,6 +2531,40 @@
 
       // 카메라 토글
       document.getElementById('btnToggleCamera').addEventListener('click', toggleCamera);
+      const btnToggleInboundCamera = document.getElementById('btnToggleInboundCamera');
+      if (btnToggleInboundCamera) {
+        btnToggleInboundCamera.addEventListener('click', toggleInboundCamera);
+      }
+
+      // 입고 시리얼 전체 복사 & 엑셀 내보내기 & 목록 비우기
+      const btnCopyInboundSerials = document.getElementById('btnCopyInboundSerials');
+      if (btnCopyInboundSerials) {
+        btnCopyInboundSerials.addEventListener('click', copyInboundSerials);
+      }
+      const btnExportInboundExcel = document.getElementById('btnExportInboundExcel');
+      if (btnExportInboundExcel) {
+        btnExportInboundExcel.addEventListener('click', exportInboundExcel);
+      }
+      const btnClearInboundSession = document.getElementById('btnClearInboundSession');
+      if (btnClearInboundSession) {
+        btnClearInboundSession.addEventListener('click', clearInboundSession);
+      }
+
+      // 상품명 / 메모 변경 시 자동 저장 및 동기화
+      const inputInboundProdName = document.getElementById('inputInboundProdName');
+      if (inputInboundProdName) {
+        inputInboundProdName.addEventListener('change', () => {
+          saveInboundState();
+          scheduleSyncInboundToCloud();
+        });
+      }
+      const inputInboundMemo = document.getElementById('inputInboundMemo');
+      if (inputInboundMemo) {
+        inputInboundMemo.addEventListener('change', () => {
+          saveInboundState();
+          scheduleSyncInboundToCloud();
+        });
+      }
 
       // 일괄 대조 실행
       document.getElementById('btnExecuteBatch').addEventListener('click', executeBatchCompare);
@@ -1920,11 +2606,13 @@
 
       // 이전 로컬 세션 복원
       restoreState();
+      restoreInboundState();
       updateConfigUI();
       updateRecoverButtonUI();
 
       // 클라우드 마스터 및 스캔 기록 즉시 로드 & 실시간 변경 구독
       loadCloudData(true);
+      loadInboundCloudData(true);
       setupRealtimeSubscription();
     });
   </script>
