@@ -1310,7 +1310,7 @@
         <!-- Footer -->
         <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
           <button type="button" onclick="closeMaintenanceLogModal()" class="px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-600 transition">취소</button>
-          <button type="submit" id="btnSaveMaintLog" class="px-5 py-2 rounded-xl text-xs font-black bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs transition flex items-center gap-1.5">
+          <button type="button" id="btnSaveMaintLog" onclick="saveMaintenanceLogSubmit(event)" class="px-5 py-2 rounded-xl text-xs font-black bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs transition flex items-center gap-1.5 cursor-pointer">
             <i class="fa-solid fa-check"></i>
             <span>정비일지 저장</span>
           </button>
@@ -5895,7 +5895,7 @@
 
       document.getElementById('maintItemNameInput').value = item.item_name || '';
       document.getElementById('maintShopNameInput').value = item.shop_name || '';
-      document.getElementById('maintCostInput').value = item.cost || item.total_cost || '';
+      document.getElementById('maintCostInput').value = (item.cost !== undefined && item.cost !== null && item.cost !== '') ? item.cost : ((item.total_cost !== undefined && item.total_cost !== null && item.total_cost !== '') ? item.total_cost : 0);
       document.getElementById('maintPayMethodSelect').value = item.pay_method || '법인카드';
       document.getElementById('maintMemoInput').value = item.memo || '';
 
@@ -6147,99 +6147,147 @@
       removeAllMaintReceipts();
     }
 
-    async function saveMaintenanceLogSubmit(e) {
-      if (e) e.preventDefault();
-
-      var editId = document.getElementById('maintEditId').value;
-      var vehicleNo = document.getElementById('maintVehicleSelect').value;
-      var dateVal = document.getElementById('maintDateInput').value;
-      var odoVal = parseInt(document.getElementById('maintOdoInput').value, 10) || 0;
-      var catVal = document.getElementById('maintCategorySelect').value;
-      var itemVal = document.getElementById('maintItemNameInput').value.trim();
-      var shopVal = document.getElementById('maintShopNameInput').value.trim();
-      var costVal = parseInt(document.getElementById('maintCostInput').value, 10) || 0;
-      var payVal = document.getElementById('maintPayMethodSelect').value;
-      var memoVal = document.getElementById('maintMemoInput').value.trim();
-
-      var driverVal = (document.getElementById('maintDriverInput') ? document.getElementById('maintDriverInput').value.trim() : '');
-      var nextKmVal = (document.getElementById('maintNextKmInput') ? document.getElementById('maintNextKmInput').value.trim() : '');
-      var remainKmVal = (document.getElementById('maintRemainKmInput') ? document.getElementById('maintRemainKmInput').value.trim() : '');
-
-      // Tire Update if Tire category
-      if (catVal === '타이어교체') {
-        var tireTypeRadio = document.querySelector('input[name="maintTireType"]:checked');
-        var selTireType = tireTypeRadio ? tireTypeRadio.value : 'all_season';
-        var veh = vehiclesMaster.find(function(v) { return v.vehicle_no === vehicleNo; });
-        if (veh) {
-          veh.tire_type = selTireType;
-          veh.tire_changed_date = dateVal;
-          await saveVehiclesMasterConfig();
-        }
-      }
-
-      var logObj = {
-        id: editId || ('maint_' + Date.now()),
-        vehicle_no: vehicleNo,
-        date: dateVal,
-        driver_name: driverVal,
-        odometer_km: odoVal,
-        next_maint_km: nextKmVal,
-        remain_km: remainKmVal,
-        category: catVal,
-        item_name: itemVal,
-        shop_name: shopVal,
-        cost: costVal,
-        total_cost: costVal,
-        pay_method: payVal,
-        memo: memoVal,
-        receipts: maintTempReceipts,
-        receipt_data: (maintTempReceipts.length > 0 ? maintTempReceipts[0].data : ''),
-        receipt_name: (maintTempReceipts.length > 0 ? maintTempReceipts[0].name : ''),
-        updated_at: new Date().toISOString()
-      };
-
-      if (editId) {
-        var existingIdx = maintenanceLogs.findIndex(function(l) { return l.id === editId; });
-        if (existingIdx !== -1) {
-          logObj.db_id = maintenanceLogs[existingIdx].db_id;
-          maintenanceLogs[existingIdx] = logObj;
-        }
-      } else {
-        maintenanceLogs.unshift(logObj);
-      }
-
-      localStorage.setItem('VEHICLE_MAINTENANCE_LOGS_V3', JSON.stringify(maintenanceLogs));
-
-      if (supabaseClient) {
+    function safeSaveMaintenanceLogsToStorage() {
+      try {
+        localStorage.setItem('VEHICLE_MAINTENANCE_LOGS_V3', JSON.stringify(maintenanceLogs));
+      } catch (quotaErr) {
+        console.warn('LocalStorage Quota Exceeded. Attempting to clean redundant fields...', quotaErr);
         try {
-          if (logObj.db_id) {
-            await supabaseClient.from('delivery_schedules')
-              .update({
-                delivery_date: dateVal,
-                driver_name: vehicleNo,
-                memo_full: JSON.stringify(logObj)
-              })
-              .eq('id', logObj.db_id);
-          } else {
-            var res = await supabaseClient.from('delivery_schedules').insert([{
-              delivery_date: dateVal,
-              customer_name: 'VEHICLE_MAINTENANCE_LOGS',
-              driver_name: vehicleNo,
-              source_sheet: 'VEHICLE_MAINTENANCE_LOGS',
-              memo_full: JSON.stringify(logObj)
-            }]).select();
-            if (res.data && res.data[0]) {
-              logObj.db_id = res.data[0].id;
+          // Clean redundant receipt_data where receipts array already exists
+          var slimmed = maintenanceLogs.map(function(item) {
+            var clone = Object.assign({}, item);
+            if (Array.isArray(clone.receipts) && clone.receipts.length > 0) {
+              delete clone.receipt_data;
             }
-          }
-        } catch(err) {
-          console.warn('Failed to sync maintenance log to Supabase:', err);
+            return clone;
+          });
+          localStorage.setItem('VEHICLE_MAINTENANCE_LOGS_V3', JSON.stringify(slimmed));
+        } catch (retryErr) {
+          console.error('LocalStorage save failed even after slimming:', retryErr);
         }
       }
+    }
 
-      closeMaintenanceLogModal();
-      showToast('🔧 정비일지가 정상적으로 저장되었습니다.');
-      renderMaintenanceAll();
+    async function saveMaintenanceLogSubmit(e) {
+      if (e) {
+        if (typeof e.preventDefault === 'function') e.preventDefault();
+        if (typeof e.stopPropagation === 'function') e.stopPropagation();
+      }
+
+      try {
+        var editId = document.getElementById('maintEditId').value;
+        var vehicleNo = document.getElementById('maintVehicleSelect').value;
+        var dateVal = document.getElementById('maintDateInput').value;
+        var odoVal = parseInt(String(document.getElementById('maintOdoInput').value).replace(/,/g, ''), 10) || 0;
+        var catVal = document.getElementById('maintCategorySelect').value;
+        var itemVal = (document.getElementById('maintItemNameInput').value || '').trim();
+        var shopVal = (document.getElementById('maintShopNameInput').value || '').trim();
+        var costVal = parseInt(String(document.getElementById('maintCostInput').value).replace(/,/g, ''), 10) || 0;
+        var payVal = document.getElementById('maintPayMethodSelect').value;
+        var memoVal = (document.getElementById('maintMemoInput').value || '').trim();
+
+        var driverVal = (document.getElementById('maintDriverInput') ? document.getElementById('maintDriverInput').value.trim() : '');
+        var nextKmVal = (document.getElementById('maintNextKmInput') ? document.getElementById('maintNextKmInput').value.trim() : '');
+        var remainKmVal = (document.getElementById('maintRemainKmInput') ? document.getElementById('maintRemainKmInput').value.trim() : '');
+
+        if (!itemVal) {
+          alert('정비 항목 및 세부 내역을 입력해주세요.');
+          if (document.getElementById('maintItemNameInput')) document.getElementById('maintItemNameInput').focus();
+          return false;
+        }
+
+        // Tire Update if Tire category
+        if (catVal === '타이어교체') {
+          try {
+            var tireTypeRadio = document.querySelector('input[name="maintTireType"]:checked');
+            var selTireType = tireTypeRadio ? tireTypeRadio.value : 'all_season';
+            var veh = vehiclesMaster.find(function(v) { return v.vehicle_no === vehicleNo; });
+            if (veh) {
+              veh.tire_type = selTireType;
+              veh.tire_changed_date = dateVal;
+              if (typeof saveVehiclesMaster === 'function') {
+                await saveVehiclesMaster();
+              }
+            }
+          } catch(tireErr) {
+            console.warn('타이어 마스터 갱신 주의:', tireErr);
+          }
+        }
+
+        var logObj = {
+          id: editId || ('maint_' + Date.now()),
+          vehicle_no: vehicleNo,
+          date: dateVal,
+          driver_name: driverVal,
+          odometer_km: odoVal,
+          next_maint_km: nextKmVal,
+          remain_km: remainKmVal,
+          category: catVal,
+          item_name: itemVal,
+          shop_name: shopVal,
+          cost: costVal,
+          total_cost: costVal,
+          pay_method: payVal,
+          memo: memoVal,
+          receipts: maintTempReceipts,
+          receipt_data: (maintTempReceipts.length === 1 ? maintTempReceipts[0].data : ''),
+          receipt_name: (maintTempReceipts.length > 0 ? maintTempReceipts[0].name : ''),
+          updated_at: new Date().toISOString()
+        };
+
+        if (editId) {
+          var existingIdx = maintenanceLogs.findIndex(function(l) { return l.id === editId; });
+          if (existingIdx !== -1) {
+            logObj.db_id = maintenanceLogs[existingIdx].db_id;
+            maintenanceLogs[existingIdx] = logObj;
+          } else {
+            maintenanceLogs.unshift(logObj);
+          }
+        } else {
+          maintenanceLogs.unshift(logObj);
+        }
+
+        // Safe LocalStorage Saving
+        safeSaveMaintenanceLogsToStorage();
+
+        // Immediate responsive UI feedback
+        closeMaintenanceLogModal();
+        showToast('🔧 정비일지가 정상적으로 저장되었습니다.');
+        renderMaintenanceAll();
+
+        // Background Supabase Sync
+        if (supabaseClient) {
+          try {
+            if (logObj.db_id) {
+              await supabaseClient.from('delivery_schedules')
+                .update({
+                  delivery_date: dateVal,
+                  driver_name: vehicleNo,
+                  memo_full: JSON.stringify(logObj)
+                })
+                .eq('id', logObj.db_id);
+            } else {
+              var res = await supabaseClient.from('delivery_schedules').insert([{
+                delivery_date: dateVal,
+                customer_name: 'VEHICLE_MAINTENANCE_LOGS',
+                driver_name: vehicleNo,
+                source_sheet: 'VEHICLE_MAINTENANCE_LOGS',
+                memo_full: JSON.stringify(logObj)
+              }]).select();
+              if (res.data && res.data[0]) {
+                logObj.db_id = res.data[0].id;
+                safeSaveMaintenanceLogsToStorage();
+              }
+            }
+          } catch(err) {
+            console.warn('Failed to sync maintenance log to Supabase:', err);
+          }
+        }
+      } catch (fatalErr) {
+        console.error('saveMaintenanceLogSubmit error:', fatalErr);
+        alert('정비일지 저장 중 오류가 발생했습니다: ' + fatalErr.message);
+      }
+      return false;
     }
 
     async function deleteMaintenanceLog(id) {
