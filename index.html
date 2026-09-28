@@ -562,17 +562,11 @@
     <div id="mobileAdminCardList" class="block lg:hidden space-y-2.5"></div>
   </div>
 
-  <!-- Toast Notification (Adjusted position so it doesn't overlap with floating memo) -->
-  <div id="toast" class="fixed bottom-20 right-6 bg-slate-900 text-white px-4 py-2.5 rounded-xl shadow-lg border border-slate-800 flex items-center gap-2 transform translate-y-12 opacity-0 pointer-events-none transition-all duration-300 z-50">
+  <!-- Toast Notification -->
+  <div id="toast" class="fixed bottom-4 right-4 bg-slate-900 text-white px-4 py-2.5 rounded-xl shadow-lg border border-slate-800 flex items-center gap-2 transform translate-y-12 opacity-0 pointer-events-none transition-all duration-300 z-50">
     <i class="fa-solid fa-circle-check text-emerald-400"></i>
     <span id="toastMsg" class="font-medium text-xs">알림 메시지</span>
   </div>
-
-  <!-- Quick Memo Floating Button (Visible on PC) -->
-  <button id="quickMemoFloatingBtn" onclick="toggleQuickMemoDrawer()" type="button" class="flex fixed bottom-6 right-6 z-40 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white w-12 h-12 rounded-full shadow-xl items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95 group cursor-pointer border border-amber-400/40" title="업무 퀵메모 열기 (Alt+M)">
-    <i class="fa-solid fa-note-sticky text-lg group-hover:rotate-6 transition-transform"></i>
-    <span id="quickMemoCountBadge" class="absolute -top-1 -right-1 bg-rose-600 text-white text-[10px] font-black min-w-[20px] h-5 px-1 rounded-full flex items-center justify-center border-2 border-white shadow-xs">0</span>
-  </button>
 
   <!-- Quick Memo Slide-over Drawer -->
   <div id="quickMemoDrawer" class="hidden fixed inset-y-0 right-0 z-50 w-full sm:w-[420px] bg-slate-50 border-l border-slate-200 shadow-2xl flex flex-col transition-all duration-200">
