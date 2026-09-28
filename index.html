@@ -114,6 +114,12 @@
           <span>A/S 관리</span>
         </a>
 
+        <!-- Asset Audit & Inbound Inspection Button -->
+        <a href="https://hyundairental-project-1.vercel.app/asset_audit.html" target="_blank" title="자산 실사 및 입고 검수 시스템 바로가기" class="px-2.5 py-1 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-bold rounded-lg transition flex items-center gap-1.5 shadow-sm text-xs whitespace-nowrap cursor-pointer">
+          <i class="fa-solid fa-boxes-stacked"></i>
+          <span>자산 실사 및 입고 검수</span>
+        </a>
+
         <!-- Quick Memo Button -->
         <button onclick="toggleQuickMemoDrawer()" type="button" title="업무 퀵메모 (Alt+M)" class="px-2.5 py-1 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-bold rounded-lg transition flex items-center gap-1.5 shadow-sm text-xs whitespace-nowrap cursor-pointer">
           <i class="fa-solid fa-note-sticky"></i>
@@ -131,12 +137,6 @@
         <button onclick="openContractHistoryModal('')" title="계약번호별 과거 배송/회수 및 현장 메모 이력 조회" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg transition flex items-center gap-1 border border-slate-200 text-xs whitespace-nowrap shadow-xs">
           <i class="fa-solid fa-file-contract text-indigo-600"></i>
           <span>이력 조회</span>
-        </button>
-
-        <!-- Kakao Map Settings Button -->
-        <button onclick="openKakaoKeyModal()" title="카카오맵 API 키 설정" class="px-2 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold rounded-lg transition flex items-center gap-1 border border-amber-200 text-xs whitespace-nowrap">
-          <i class="fa-solid fa-map-location-dot text-amber-600"></i>
-          <span class="hidden sm:inline">지도 설정</span>
         </button>
 
         <!-- Manual Sync Button -->
@@ -198,6 +198,17 @@
               <span>A/S 기록 및 거래처 인수인계</span>
               <i class="fa-solid fa-arrow-up-right-from-square text-[10px] text-slate-400 ml-auto"></i>
             </a>
+            <!-- 자산 실사 및 입고 검수 (새 창) -->
+            <a id="menuItemAssetAudit" href="https://hyundairental-project-1.vercel.app/asset_audit.html" target="_blank" onclick="toggleUserMenu(false)" class="w-full px-3.5 py-2.5 text-left hover:bg-blue-50 hover:text-blue-700 font-bold flex items-center gap-2.5 transition text-slate-700">
+              <i class="fa-solid fa-boxes-stacked text-blue-600 text-sm"></i>
+              <span>자산 실사 및 입고 검수</span>
+              <i class="fa-solid fa-arrow-up-right-from-square text-[10px] text-slate-400 ml-auto"></i>
+            </a>
+            <!-- 카카오맵 지도 설정 -->
+            <button id="menuItemKakaoKey" onclick="openKakaoKeyModal(); toggleUserMenu(false);" class="w-full px-3.5 py-2.5 text-left hover:bg-amber-50 hover:text-amber-800 font-bold flex items-center gap-2.5 transition text-slate-700">
+              <i class="fa-solid fa-map-location-dot text-amber-600 text-sm"></i>
+              <span>카카오맵 지도 설정</span>
+            </button>
             <!-- 기사별 출발지/거점 관리 (관리자 전용) -->
             <button id="menuItemOriginSettings" onclick="openDriverOriginModal(getCurrentViewingDriver()); toggleUserMenu(false);" class="w-full px-3.5 py-2.5 text-left hover:bg-emerald-50 hover:text-emerald-700 font-bold flex items-center gap-2.5 transition text-slate-700">
               <i class="fa-solid fa-flag text-emerald-600 text-sm"></i>
