@@ -4960,6 +4960,7 @@
     function selectMaintVehicleFilter(vNo) {
       maintSelectedVehicle = vNo;
       renderMaintVehicleTabs();
+      renderMaintenanceVehiclesStatus();
       renderMaintenanceKPIs();
       renderDamagePhotos();
       renderMaintenanceTable();
@@ -5167,8 +5168,18 @@
       if (!grid) return;
 
       var activeVehicles = vehiclesMaster.filter(function(v) { return v.is_active !== false; });
+      if (maintSelectedVehicle && maintSelectedVehicle !== 'ALL') {
+        activeVehicles = activeVehicles.filter(function(v) { return v.vehicle_no === maintSelectedVehicle; });
+      }
+
+      if (activeVehicles.length === 1) {
+        grid.className = 'grid grid-cols-1 gap-4';
+      } else {
+        grid.className = 'grid grid-cols-1 lg:grid-cols-2 gap-4';
+      }
+
       if (activeVehicles.length === 0) {
-        grid.innerHTML = '<div class="col-span-2 py-6 text-center text-slate-400">등록된 법인차량이 없습니다.</div>';
+        grid.innerHTML = '<div class="col-span-2 py-6 text-center text-slate-400">선택된 조건의 차량이 없습니다.</div>';
         return;
       }
 
