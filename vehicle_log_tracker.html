@@ -1549,6 +1549,20 @@
       currentYear = now.getFullYear();
       currentMonth = now.getMonth() + 1;
 
+      try {
+        var urlParams = new URLSearchParams(window.location.search);
+        var paramMonth = urlParams.get('month');
+        if (paramMonth && /^\d{4}-\d{2}$/.test(paramMonth)) {
+          var parts = paramMonth.split('-');
+          currentYear = parseInt(parts[0], 10);
+          currentMonth = parseInt(parts[1], 10);
+        }
+        var paramVeh = urlParams.get('vehicle');
+        if (paramVeh) {
+          currentSelectedVehicleNo = paramVeh;
+        }
+      } catch(e) {}
+
       await loadVehiclesMaster();
       await loadVehicleData(true);
       await loadMaintenanceData();
