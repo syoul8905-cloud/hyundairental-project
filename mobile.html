@@ -2574,6 +2574,10 @@
 
     async function syncTodayScheduleToVehicleLog(vNo) {
       if (!vNo) return;
+      // 기사님이 오늘 차량을 명시적으로 확정(선택)하지 않은 상태(보기 모드)라면 일지 자동 작성 방지
+      if (!isVehicleConfirmedForToday() || currentMobileVehicleNo !== vNo) {
+        return;
+      }
       try {
         var veh = mobileVehiclesMaster.find(function(v) { return v.vehicle_no === vNo; }) || {};
         var drvName = getCurrentDriverName() || veh.default_driver || '조경찬';
@@ -2656,8 +2660,8 @@
           if (checkRes.data && checkRes.data.length > 0) {
             rowId = checkRes.data[0].id;
             try { existingPayload = JSON.parse(checkRes.data[0].memo_full || '{}'); } catch(e) {}
-            // 이미 오늘 미운행으로 지정된 차량이거나 운행 마감된 일지라면 중간 동기화로 덮어쓰지 않고 강력 보호!
-            if (existingPayload.is_unoperated === true || existingPayload.is_closed === true || checkRes.data[0].status === '운행마감' || checkRes.data[0].status === '미운행' || checkRes.data[0].driver_name === '미운행') {
+            // 이미 오늘 하루 일과가 끝나 운행 마감된 일지라면 마감 데이터(stops, Km, 상태)를 보존
+            if (existingPayload.is_closed === true || checkRes.data[0].status === '운행마감') {
               return;
             }
           }
@@ -2675,13 +2679,16 @@
             distance_km: distanceKm,
             destination_addr: destAddr,
             destination_name: destName,
-            stops: stops
+            stops: stops,
+            is_unoperated: false // 기사님이 차량을 선택하여 운행하므로 미운행 상태 자동 해제!
           });
 
           if (rowId) {
             await supabaseClient.from('delivery_schedules')
               .update({
                 driver_name: drvName,
+                status: '운행중',
+                memo_special: null,
                 memo_full: JSON.stringify(mergedPayload)
               })
               .eq('id', rowId);
@@ -2691,6 +2698,8 @@
               source_sheet: 'VEHICLE_TRIP_LOGS',
               delivery_date: currentDate,
               driver_name: drvName,
+              status: '운행중',
+              delivery_method: '직배송',
               memo_full: JSON.stringify(mergedPayload)
             }]);
           }
