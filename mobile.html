@@ -401,9 +401,9 @@
           </span>
         </div>
         <div class="flex items-center gap-1">
-          <button type="button" id="mobileNaverNavBtn" onclick="openMobileNaverRoute()" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-black text-[11px] flex items-center gap-1 shadow-xs transition active:scale-95" title="네이버 지도 앱으로 다중 경유지 길찾기">
-            <i class="fa-solid fa-map-location-dot"></i>
-            <span>네이버 길찾기</span>
+          <button type="button" id="mobileTmapTestRouteBtn" onclick="openMobileTmapTestRoute()" class="px-2.5 py-1 bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white rounded-lg font-black text-[11px] flex items-center gap-1 shadow-xs transition active:scale-95" title="출발시간 기록 없이 순수 티맵 모의주행 및 경로안내 테스트 실행">
+            <i class="fa-solid fa-flask text-amber-300 text-[10px]"></i>
+            <span>티맵 테스트 운행</span>
           </button>
           <button id="mobileResetRouteBtn" onclick="switchMobileToStraight()" class="hidden px-2 py-1 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-lg text-[11px]">
             직선
@@ -3914,14 +3914,25 @@
 
             <!-- Big Touch Action Buttons -->
             <div class="grid grid-cols-2 gap-2 pt-1">
-              <button onclick="openTmapMobile('${(r.customer_name || '가산 센터').replace(/'/g, "\\'")}', '${(r.address || '').replace(/'/g, "\\'")}', ${idx})" class="btn-touch ${times.depart ? 'bg-purple-800' : 'bg-purple-600 hover:bg-purple-700 active:bg-purple-800'} text-white font-black text-xs rounded-xl shadow-xs transition gap-1.5">
-                <i class="fa-solid fa-location-arrow"></i>
-                <span>${times.depart ? '티맵 재안내' : '🏢 복귀 티맵'}</span>
-              </button>
-              <button onclick="recordArrivalMobile(${idx})" class="btn-touch ${times.arrive ? 'bg-emerald-600' : 'bg-slate-100 hover:bg-purple-50 text-slate-700 hover:text-purple-900 border border-slate-200 hover:border-purple-300'} font-black text-xs rounded-xl transition gap-1.5">
-                <i class="fa-solid fa-building-circle-check ${times.arrive ? 'text-white' : 'text-purple-600'}"></i>
-                <span>${times.arrive ? '도착완료 ' + times.arrive : '🏢 센터 도착'}</span>
-              </button>
+              <div class="flex flex-col gap-1">
+                <button onclick="openTmapMobile('${(r.customer_name || '가산 센터').replace(/'/g, "\\'")}', '${(r.address || '').replace(/'/g, "\\'")}', ${idx})" class="btn-touch w-full ${times.depart ? 'bg-purple-800' : 'bg-purple-600 hover:bg-purple-700 active:bg-purple-800'} text-white font-black text-xs rounded-xl shadow-xs transition gap-1.5" title="복귀 출발시간 기록 & 티맵 실행">
+                  <i class="fa-solid fa-location-arrow"></i>
+                  <span>${times.depart ? '티맵 재안내' : '🏢 복귀 티맵'}</span>
+                </button>
+                <button type="button" onclick="startTmapTestRun(${idx})" class="py-1 px-1.5 bg-purple-50 hover:bg-purple-100 active:bg-purple-200 text-purple-700 border border-purple-200 rounded-lg text-[10px] font-black transition flex items-center justify-center gap-1 active:scale-95 shadow-2xs" title="출발시간 기록 없이 순수 티맵 앱만 실행하여 테스트">
+                  <i class="fa-solid fa-flask text-amber-500 text-[9px]"></i>
+                  <span>티맵 테스트</span>
+                </button>
+              </div>
+              <div class="flex flex-col gap-1">
+                <button onclick="recordArrivalMobile(${idx})" class="btn-touch w-full ${times.arrive ? 'bg-emerald-600' : 'bg-slate-100 hover:bg-purple-50 text-slate-700 hover:text-purple-900 border border-slate-200 hover:border-purple-300'} font-black text-xs rounded-xl transition gap-1.5">
+                  <i class="fa-solid fa-building-circle-check ${times.arrive ? 'text-white' : 'text-purple-600'}"></i>
+                  <span>${times.arrive ? '도착완료 ' + times.arrive : '🏢 센터 도착'}</span>
+                </button>
+                <div class="py-1 text-center text-[10px] text-slate-400 font-medium">
+                  ${times.arrive ? '복귀완료' : '센터도착시 터치'}
+                </div>
+              </div>
             </div>
           `;
           container.appendChild(midCard);
@@ -4116,16 +4127,23 @@
               </div>
             ` : `
               <!-- 🚚 일반 직배송: 티맵 안내 / 배송지 도착 -->
-              <div class="col-span-4">
-                <button onclick="startTmapAndRecord(${idx})" class="btn-touch w-full ${!isMyRecord ? 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200' : (times.depart ? 'bg-indigo-600 text-white' : 'bg-rose-500 hover:bg-rose-600 text-white')} font-black text-xs rounded-xl shadow-xs transition gap-1">
+              <div class="col-span-4 flex flex-col gap-1">
+                <button onclick="startTmapAndRecord(${idx})" class="btn-touch w-full ${!isMyRecord ? 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200' : (times.depart ? 'bg-indigo-600 text-white' : 'bg-rose-500 hover:bg-rose-600 text-white')} font-black text-xs rounded-xl shadow-xs transition gap-1" title="실제 배송 출발 (출발시간 DB 자동 기록 & 티맵 실행)">
                   <i class="fa-solid fa-location-arrow"></i> ${times.depart ? '티맵 재실행' : (!isMyRecord ? '티맵 경로보기' : '티맵 안내')}
+                </button>
+                <button type="button" onclick="startTmapTestRun(${idx})" class="py-1 px-1 bg-purple-50 hover:bg-purple-100 active:bg-purple-200 text-purple-700 border border-purple-200 rounded-lg text-[10px] font-black transition flex items-center justify-center gap-1 active:scale-95 shadow-2xs" title="출발시간 기록 없이 순수 티맵 앱만 실행하여 경로/모의주행 테스트">
+                  <i class="fa-solid fa-flask text-amber-500 text-[9px]"></i>
+                  <span>티맵 테스트</span>
                 </button>
               </div>
 
-              <div class="col-span-4">
+              <div class="col-span-4 flex flex-col gap-1">
                 <button onclick="markArrivedAndRecord(${idx})" class="btn-touch w-full ${!isMyRecord ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed' : (isArrived ? 'bg-emerald-600 text-white' : 'bg-slate-100 hover:bg-emerald-50 text-slate-700 hover:text-emerald-700 border border-slate-200 hover:border-emerald-300')} font-black text-xs rounded-xl transition gap-1">
                   <i class="fa-solid fa-flag-checkered"></i> ${isArrived ? '도착 완료' : (!isMyRecord ? '배송지 도착' : '배송지 도착')}
                 </button>
+                <div class="py-1 text-center text-[10px] text-slate-400 font-medium">
+                  ${isArrived ? '도착기록됨' : '현장도착시 터치'}
+                </div>
               </div>
             `}
           </div>
@@ -4436,6 +4454,59 @@
       closeMobileMemoModal();
       showToast('💾 현장 특이사항 및 사진이 안전하게 저장되었습니다!');
       renderCards();
+    }
+
+    // ==========================================
+    // Actions: Tmap Test Run (테스트 운행 - 시간 미기록 순수 티맵 실행)
+    // ==========================================
+    function startTmapTestRun(idx) {
+      var r = driverRecords[idx];
+      if (!r) return;
+      var cleanAddr = (r.address || '').replace(/\([^)]*\)/g, '').trim();
+      var custName = r.customer_name || '도착지';
+      showToast(`🧪 [티맵 테스트] 시간 기록 없이 '${custName}' 티맵을 실행합니다.`);
+      launchMobileNaviApp(cleanAddr, custName, 'tmap');
+    }
+
+    function openMobileTmapTestRoute() {
+      if (!driverRecords || driverRecords.length === 0) {
+        showToast('⚠️ 티맵 안내할 대상 배송건이 없습니다.');
+        return;
+      }
+
+      var target = null;
+      // 1) 체크박스로 선택된 배송지가 있으면 그 중 첫 번째 선택지
+      if (selectedMobileRouteStopKeys && selectedMobileRouteStopKeys.size > 0) {
+        for (var i = 0; i < driverRecords.length; i++) {
+          var k = getMobileRecordStopKey(driverRecords[i]);
+          if (selectedMobileRouteStopKeys.has(k)) {
+            target = driverRecords[i];
+            break;
+          }
+        }
+      }
+
+      // 2) 선택된 배송지가 없으면 아직 도착하지 않은 첫 번째 배송지
+      if (!target) {
+        for (var i = 0; i < driverRecords.length; i++) {
+          var r = driverRecords[i];
+          var times = getMobileStopTimes(r);
+          if (!times.arrive && r.status !== '도착완료') {
+            target = r;
+            break;
+          }
+        }
+      }
+
+      // 3) 없으면 전체 첫 번째 배송지
+      if (!target) {
+        target = driverRecords[0];
+      }
+
+      var cleanAddr = (target.address || '').replace(/\([^)]*\)/g, '').trim();
+      var custName = target.customer_name || '목적지';
+      showToast(`🧪 [티맵 테스트 운행] '${custName}' 목적지로 티맵을 실행합니다. (시간 미기록)`);
+      launchMobileNaviApp(cleanAddr, custName, 'tmap');
     }
 
     // ==========================================
