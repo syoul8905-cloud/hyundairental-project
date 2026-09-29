@@ -121,31 +121,6 @@
           배송 업무 시작하기
         </button>
 
-        <!-- 원클릭 빠른 기사 선택 로그인 -->
-        <div class="pt-3 border-t border-slate-100 space-y-2">
-          <div class="flex items-center justify-between text-[11px] font-bold text-slate-500">
-            <span>⚡ 빠른 선택 로그인 (원터치)</span>
-            <span class="text-indigo-600 text-[10px] font-extrabold">비번 생략</span>
-          </div>
-          <div class="grid grid-cols-2 gap-1.5">
-            <button type="button" onclick="quickLoginAs('최두성')" class="py-2.5 px-2 bg-gradient-to-r from-indigo-50 to-purple-50 hover:from-indigo-100 hover:to-purple-100 text-indigo-900 border border-indigo-200 rounded-xl text-xs font-black transition active:scale-95 flex items-center justify-center gap-1 shadow-2xs">
-              <i class="fa-solid fa-crown text-amber-500 text-[11px]"></i>
-              <span>최두성 (관리자)</span>
-            </button>
-            <button type="button" onclick="quickLoginAs('조경찬')" class="py-2.5 px-2 bg-slate-50 hover:bg-indigo-50 text-slate-800 border border-slate-200 rounded-xl text-xs font-black transition active:scale-95 flex items-center justify-center gap-1 shadow-2xs">
-              <i class="fa-solid fa-truck text-indigo-600 text-[11px]"></i>
-              <span>조경찬 기사</span>
-            </button>
-            <button type="button" onclick="quickLoginAs('김승지')" class="py-2.5 px-2 bg-slate-50 hover:bg-indigo-50 text-slate-800 border border-slate-200 rounded-xl text-xs font-black transition active:scale-95 flex items-center justify-center gap-1 shadow-2xs">
-              <i class="fa-solid fa-truck text-emerald-600 text-[11px]"></i>
-              <span>김승지 기사</span>
-            </button>
-            <button type="button" onclick="quickLoginAs('현민혁')" class="py-2.5 px-2 bg-slate-50 hover:bg-indigo-50 text-slate-800 border border-slate-200 rounded-xl text-xs font-black transition active:scale-95 flex items-center justify-center gap-1 shadow-2xs">
-              <i class="fa-solid fa-truck text-sky-600 text-[11px]"></i>
-              <span>현민혁 기사</span>
-            </button>
-          </div>
-        </div>
       </form>
     </div>
   </div>
@@ -3434,26 +3409,6 @@
     // ==========================================
     // Auth Engine
     // ==========================================
-    function quickLoginAs(name) {
-      if (!name) return;
-      var users = getAuthUsers();
-      var user = users.find(function(u) { return u.id === name; });
-      if (!user) {
-        user = { id: name, role: (name === '최두성' ? 'admin' : 'driver'), pw: (name === '최두성' ? '8905' : '1234') };
-      }
-      currentUser = user;
-      document.getElementById('loginOverlay').classList.add('hidden');
-      document.getElementById('headerDriverName').innerText = (user.role === 'admin' ? user.id + ' (관리자)' : user.id + ' 기사님');
-
-      localStorage.setItem('DELIVERY_SAVED_ID', user.id);
-      localStorage.setItem('DELIVERY_SAVED_PW', user.pw || '1234');
-      localStorage.setItem('DELIVERY_AUTO_LOGIN', 'true');
-
-      currentMobileVehicleNo = isVehicleConfirmedForToday() ? getSavedVehicleNo() : '';
-      updateMobileVehicleWidgetUI();
-      loadMobileData(true);
-      showToast('👋 ' + user.id + (user.role === 'admin' ? ' 관리자님' : ' 기사님') + ' 환영합니다! (원클릭 접속)');
-    }
 
     async function handleMobileLogin(e) {
       if (e && e.preventDefault) e.preventDefault();
@@ -3461,7 +3416,7 @@
       var pw = document.getElementById('loginPassword').value.replace(/[^0-9]/g, '').slice(0, 4);
 
       if (!rawId) {
-        alert('이름을 입력하거나 아래 [빠른 선택 로그인] 버튼을 눌러주세요.');
+        alert('이름 (아이디)을 입력해주세요.');
         return;
       }
 
