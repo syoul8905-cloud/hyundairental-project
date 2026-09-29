@@ -2453,10 +2453,18 @@
                   <div class="truncate max-w-[160px]" title="${leg.memo}">${leg.memo || '-'}</div>
                 </td>
                 <td class="py-2 px-3 text-center whitespace-nowrap">
-                  <button type="button" onclick="openEditStopFeeModal(${log.id}, ${leg.stopIndex})" class="px-2.5 py-1 bg-slate-100 hover:bg-amber-100 text-slate-700 hover:text-amber-900 border border-slate-200 hover:border-amber-300 rounded-lg transition text-[10px] font-bold inline-flex items-center gap-1 shadow-2xs" title="배송지별 주차비/주유비 수정">
-                    <i class="fa-solid fa-receipt text-[10px] text-amber-600"></i>
-                    <span>비용</span>
-                  </button>
+                  <div class="inline-flex items-center gap-1 justify-center">
+                    <button type="button" onclick="openEditStopFeeModal(${log.id}, ${leg.stopIndex})" class="px-2 py-1 bg-slate-100 hover:bg-amber-100 text-slate-700 hover:text-amber-900 border border-slate-200 hover:border-amber-300 rounded-lg transition text-[10px] font-bold inline-flex items-center gap-1 shadow-2xs" title="배송지별 주차비/주유비 수정">
+                      <i class="fa-solid fa-receipt text-[10px] text-amber-600"></i>
+                      <span>비용</span>
+                    </button>
+                    ${!isReturn && !isMidReturn ? `
+                      <button type="button" onclick="deleteDirectStopLeg(${log.id}, ${leg.stopIndex})" class="px-2 py-1 bg-slate-100 hover:bg-rose-100 text-slate-500 hover:text-rose-700 border border-slate-200 hover:border-rose-300 rounded-lg transition text-[10px] font-bold inline-flex items-center gap-1 shadow-2xs" title="해당 배송지 1건 일지에서 삭제">
+                        <i class="fa-solid fa-trash-can text-[10px] text-rose-500"></i>
+                        <span>삭제</span>
+                      </button>
+                    ` : ''}
+                  </div>
                 </td>
               </tr>
             `;
@@ -2667,6 +2675,76 @@
           btn.disabled = false;
           btn.innerHTML = '<i class="fa-solid fa-check"></i> <span>비용 저장</span>';
         }
+      }
+    }
+
+    async function deleteDirectStopLeg(logId, stopIndex) {
+      var log = tripLogs.find(function(l) { return l.id === logId; });
+      if (!log || !log.stops || !log.stops[stopIndex]) {
+        alert('삭제할 경유지 데이터를 찾을 수 없습니다.');
+        return;
+      }
+
+      var stop = log.stops[stopIndex];
+      if (stop.type === 'origin' || stop.type === 'return') {
+        alert('출발지 및 최종 복귀지는 삭제할 수 없습니다.');
+        return;
+      }
+
+      var stopName = stop.name || '해당 경유지';
+      if (!confirm(`⚠️ [${stopName}] 경유지를 ${log.trip_date} 운행일지에서 삭제하시겠습니까?\n\n※ 삭제 후 남은 경유지들의 순번 및 거리가 자동으로 재계산됩니다.`)) {
+        return;
+      }
+
+      try {
+        // Remove the stop
+        log.stops.splice(stopIndex, 1);
+
+        // Renumber orders for delivery/custom stops
+        var curOrder = 0;
+        log.stops.forEach(function(s) {
+          if (s.type !== 'origin' && s.type !== 'return' && s.type !== 'mid_return') {
+            s.order = ++curOrder;
+          }
+        });
+
+        // Recalculate distances for remaining stops if total distance exists
+        var totalDist = log.distance_km || (log.end_km - log.start_km) || 0;
+        var hasOrigin = (log.stops[0] && log.stops[0].type === 'origin');
+        var startIdx = hasOrigin ? 1 : 0;
+        var remLegCount = log.stops.length - startIdx;
+
+        if (remLegCount > 0 && totalDist > 0) {
+          var baseD = Math.floor(totalDist / remLegCount);
+          var remD = totalDist % remLegCount;
+          var curOdo = log.start_km;
+          for (var i = startIdx; i < log.stops.length; i++) {
+            var d = baseD + ((i - startIdx) < remD ? 1 : 0);
+            log.stops[i].distance_km = d;
+            log.stops[i].start_km = curOdo;
+            log.stops[i].end_km = curOdo + d;
+            curOdo += d;
+          }
+        }
+
+        // Save to Supabase
+        var payload = Object.assign({}, log);
+        if (supabaseClient) {
+          var { error } = await supabaseClient
+            .from('delivery_schedules')
+            .update({
+              memo_full: JSON.stringify(payload)
+            })
+            .eq('id', logId);
+
+          if (error) throw error;
+        }
+
+        showToast(`🗑️ [${stopName}] 경유지가 안전하게 삭제되었습니다.`);
+        await loadVehicleData(false);
+      } catch(err) {
+        console.error('Error deleting stop leg:', err);
+        alert('경유지 삭제 오류: ' + (err.message || err));
       }
     }
 
