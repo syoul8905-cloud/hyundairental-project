@@ -2046,12 +2046,9 @@
 
       if (naviType === 'tmap') {
         if (isAndroid) {
-          // Android Intent: 공식 SKT TMAP Intent 형식으로 앱 직행
+          // Android Intent: 공식 SKT TMAP Intent 형식으로 앱 직행 (미설치 시 플레이스토어 자동 연결)
           var intentUrl = 'intent://search?name=' + encodeURIComponent(query) + '#Intent;scheme=tmap;package=com.skt.tmap.ku;end';
           window.location.href = intentUrl;
-          setTimeout(function() {
-            window.open('https://map.kakao.com/link/search/' + encodeURIComponent(query), '_blank');
-          }, 1500);
         } else if (isIOS) {
           var tmapScheme = 'tmap://search?name=' + encodeURIComponent(query);
           window.location.href = tmapScheme;
@@ -2062,7 +2059,7 @@
           try {
             window.location.href = 'tmap://search?name=' + encodeURIComponent(query);
           } catch(e) {}
-          window.open('https://map.kakao.com/link/search/' + encodeURIComponent(query), '_blank');
+          showToast('📱 스마트폰 환경에서 티맵 앱이 바로 실행됩니다.');
         }
         return;
       }
@@ -2554,9 +2551,9 @@
       vehicleActiveUsage[vNo] = { driver: myDriverName, date: currentDate };
       updateMobileVehicleWidgetUI();
       document.getElementById('mobileVehicleSelectModal').classList.add('hidden');
-      showToast(`🚗 오늘 운행 차량이 [${vNo}]로 확정되었습니다. 배송지가 운행일지에 연동됩니다.`);
+      showToast(`🚗 오늘 운행 차량이 [${vNo}]로 확정되었습니다.`);
       await setVehicleActiveUsageOnCloud(vNo, myDriverName);
-      syncTodayScheduleToVehicleLog(vNo);
+      // 단순 차량 선택이나 티맵 테스트 시에는 일지를 쓰지 않고, 실제 [티맵 출발] 또는 [도착 완료] 시에만 일지가 연동됨!
     }
 
     async function unselectMobileVehicle() {
