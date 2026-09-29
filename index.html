@@ -2640,6 +2640,8 @@
     var isRoadRouteMode = false; // 기본값: 직선거리 배정 모드
     var isCalculatingRoute = false;
     var selectedRouteStopKeys = new Set(); // 원하는 배송 건만 선택 실제 경로 모드
+    var isOriginIncludedInRoute = true;    // 경로 계산 시 출발지 포함 여부 (사용자 체크박스 제어)
+    var isDestIncludedInRoute = true;      // 경로 계산 시 도착지(복귀) 포함 여부 (사용자 체크박스 제어)
 
     function getRecordStopKey(r) {
       if (!r) return '';
@@ -2662,8 +2664,24 @@
       renderTable();
     }
 
+    function toggleIncludeOriginInRoute(checked) {
+      isOriginIncludedInRoute = checked;
+      cachedRoadRouteData = null;
+      renderRouteMap();
+      showToast(checked ? '🏢 경로에 [출발지]를 포함합니다.' : '🏢 경로에서 [출발지]를 제외하고 선택 배송지만 계산합니다.');
+    }
+
+    function toggleIncludeDestInRoute(checked) {
+      isDestIncludedInRoute = checked;
+      cachedRoadRouteData = null;
+      renderRouteMap();
+      showToast(checked ? '🏁 경로에 [도착지]를 포함합니다.' : '🏁 경로에서 [도착지]를 제외합니다.');
+    }
+
     function clearSelectedRouteMode() {
       selectedRouteStopKeys.clear();
+      isOriginIncludedInRoute = true;
+      isDestIncludedInRoute = true;
       cachedRoadRouteData = null;
       syncSelectedRouteUI();
       renderRouteMap();
@@ -4909,7 +4927,16 @@
           <div class="p-2.5 rounded-xl bg-gradient-to-r from-emerald-50 via-teal-50 to-slate-50 border-2 border-emerald-300 shadow-xs mb-2 space-y-2" id="timelineOriginCard">
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-1.5 font-black text-emerald-950 flex-wrap">
-                <span class="w-5 h-5 rounded-lg bg-emerald-600 text-white flex items-center justify-center text-[10px] shadow-xs">
+                <!-- 출발지 경로 포함 선택 체크박스 -->
+                <label class="flex items-center gap-1 cursor-pointer select-none bg-white hover:bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-400 shadow-2xs mr-0.5" title="경로 계산 시 출발지(가산센터 등) 포함 여부 선택">
+                  <input type="checkbox" 
+                         id="originRouteCheckbox" 
+                         class="w-4 h-4 rounded text-emerald-600 border-emerald-400 focus:ring-emerald-500 cursor-pointer"
+                         ${isOriginIncludedInRoute ? 'checked' : ''} 
+                         onchange="toggleIncludeOriginInRoute(this.checked)">
+                  <span class="text-[11px] font-black text-emerald-950">경로 포함</span>
+                </label>
+                <span class="w-5 h-5 rounded-lg ${isOriginIncludedInRoute ? 'bg-emerald-600 text-white' : 'bg-slate-400 text-white opacity-60'} flex items-center justify-center text-[10px] shadow-xs">
                   <i class="fa-solid fa-flag"></i>
                 </span>
                 <span class="text-xs">출발지:</span>
@@ -4973,11 +5000,15 @@
       // Add Origin Marker on Kakao Map (담당 기사가 선택된 경우에만 지도에 출발지 핀 표시)
       if (!isAllDrivers && kakaoMap && window.kakao && kakao.maps.CustomOverlay) {
         var originPos = new kakao.maps.LatLng(originCoord.lat, originCoord.lng);
-        linePath.push(originPos);
+        if (isOriginIncludedInRoute) {
+          linePath.push(originPos);
+        }
 
+        var originDimmed = !isOriginIncludedInRoute ? 'opacity-40 grayscale filter' : '';
+        var originExcludedTag = !isOriginIncludedInRoute ? '<span class="text-[9px] bg-slate-700/80 text-white px-1.5 py-0.2 rounded font-normal ml-0.5">경로 제외됨</span>' : '';
         var originContent = `
-          <div class="kakao-pin bg-emerald-600 text-[11px] px-2.5 py-1 rounded-xl shadow-lg border-2 border-white flex items-center gap-1 font-bold">
-            <i class="fa-solid fa-flag"></i> ${originCoord.name || '출발지'}
+          <div class="kakao-pin bg-emerald-600 text-[11px] px-2.5 py-1 rounded-xl shadow-lg border-2 border-white flex items-center gap-1 font-bold ${originDimmed}">
+            <i class="fa-solid fa-flag"></i> ${originCoord.name || '출발지'} ${originExcludedTag}
           </div>
         `;
         var originOverlay = new kakao.maps.CustomOverlay({
@@ -5001,7 +5032,7 @@
       }));
 
       var bounds = (kakaoMap && window.kakao) ? new kakao.maps.LatLngBounds() : null;
-      if (!isAllDrivers && bounds) bounds.extend(new kakao.maps.LatLng(originCoord.lat, originCoord.lng));
+      if (!isAllDrivers && bounds && isOriginIncludedInRoute) bounds.extend(new kakao.maps.LatLng(originCoord.lat, originCoord.lng));
 
       var hasSelectedStops = (selectedRouteStopKeys.size > 0);
       var delivStopCount = 0;
@@ -5373,7 +5404,16 @@
           <div class="p-3 rounded-xl bg-gradient-to-r from-slate-50 via-indigo-50/40 to-slate-50 border-2 border-indigo-200 shadow-xs mt-2 space-y-2" id="timelineArrivalCard">
             <div class="flex items-center justify-between gap-2 flex-wrap">
               <div class="flex items-center gap-1.5 font-black text-slate-900">
-                <span class="w-5 h-5 rounded-lg bg-indigo-600 text-white flex items-center justify-center text-[10px] shadow-xs">
+                <!-- 도착지 경로 포함 선택 체크박스 -->
+                <label class="flex items-center gap-1 cursor-pointer select-none bg-white hover:bg-indigo-50 px-2 py-0.5 rounded-lg border border-indigo-300 shadow-2xs mr-0.5" title="경로 계산 시 도착지(복귀) 포함 여부 선택">
+                  <input type="checkbox" 
+                         id="destRouteCheckbox" 
+                         class="w-4 h-4 rounded text-indigo-600 border-indigo-400 focus:ring-indigo-500 cursor-pointer"
+                         ${isDestIncludedInRoute ? 'checked' : ''} 
+                         onchange="toggleIncludeDestInRoute(this.checked)">
+                  <span class="text-[11px] font-black text-indigo-950">경로 포함</span>
+                </label>
+                <span class="w-5 h-5 rounded-lg ${isDestIncludedInRoute ? 'bg-indigo-600 text-white' : 'bg-slate-400 text-white opacity-60'} flex items-center justify-center text-[10px] shadow-xs">
                   <i class="fa-solid fa-flag-checkered"></i>
                 </span>
                 <span class="text-xs">도착지:</span>
@@ -5428,9 +5468,11 @@
       if (!isAllDrivers && kakaoMap && window.kakao && kakao.maps.CustomOverlay && activeRecords.length > 0) {
         var destPos = new kakao.maps.LatLng(destCoord.lat, destCoord.lng);
         var isGasanDest = (destCoord.name && destCoord.name.indexOf('가산') !== -1) || (destCoord.addr && destCoord.addr.indexOf('벚꽃로 278') !== -1);
+        var destDimmed = !isDestIncludedInRoute ? 'opacity-40 grayscale filter' : '';
+        var destExcludedTag = !isDestIncludedInRoute ? '<span class="text-[9px] bg-slate-700/80 text-white px-1.5 py-0.2 rounded font-normal ml-0.5">경로 제외됨</span>' : '';
         var destContent = `
-          <div class="kakao-pin ${isGasanDest ? 'bg-indigo-700 ring-2 ring-indigo-300' : 'bg-rose-600 ring-2 ring-rose-300'} text-white text-[11px] px-2.5 py-1 rounded-xl shadow-lg border-2 border-white flex items-center gap-1 font-bold cursor-pointer hover:scale-110 transition-transform" title="최종 복귀/도착지: ${destCoord.name}">
-            <i class="fa-solid fa-flag-checkered text-[10px]"></i> ${destCoord.name || '가산 센터 (도착)'}
+          <div class="kakao-pin ${isGasanDest ? 'bg-indigo-700 ring-2 ring-indigo-300' : 'bg-rose-600 ring-2 ring-rose-300'} text-white text-[11px] px-2.5 py-1 rounded-xl shadow-lg border-2 border-white flex items-center gap-1 font-bold cursor-pointer hover:scale-110 transition-transform ${destDimmed}" title="최종 복귀/도착지: ${destCoord.name}">
+            <i class="fa-solid fa-flag-checkered text-[10px]"></i> ${destCoord.name || '가산 센터 (도착)'} ${destExcludedTag}
           </div>
         `;
         var destOverlay = new kakao.maps.CustomOverlay({
@@ -5444,11 +5486,13 @@
 
       if (!isRoadRouteMode) {
         // [기본 모드: 직선거리 배정]
-        if (!isAllDrivers && kakaoMap && window.kakao && kakao.maps.Polyline && linePath.length > 0) {
-          // 도착지 라인패스에 추가
-          var destPos = new kakao.maps.LatLng(destCoord.lat, destCoord.lng);
-          linePath.push(destPos);
-          if (bounds) bounds.extend(destPos);
+        if (!isAllDrivers && kakaoMap && window.kakao && kakao.maps.Polyline) {
+          // 도착지가 경로 포함인 경우에만 linePath 및 bounds에 추가
+          if (isDestIncludedInRoute && activeRecords.length > 0) {
+            var destPos = new kakao.maps.LatLng(destCoord.lat, destCoord.lng);
+            linePath.push(destPos);
+            if (bounds) bounds.extend(destPos);
+          }
 
           if (linePath.length > 1) {
             var straightLine = new kakao.maps.Polyline({
@@ -5463,7 +5507,7 @@
           }
         }
 
-        if (kakaoMap && bounds && fitBounds) {
+        if (kakaoMap && bounds && fitBounds && (!bounds.isEmpty || !bounds.isEmpty())) {
           kakaoMap.setBounds(bounds);
         }
 
@@ -5476,12 +5520,16 @@
         if (calcBtn) calcBtn.classList.replace('bg-emerald-600', 'bg-indigo-600');
 
         if (hasSelectedStops) {
+          var originTxt = isOriginIncludedInRoute ? '출발지 포함' : '출발지 제외';
+          var destTxt = isDestIncludedInRoute ? '도착지 포함' : '도착지 제외';
           document.getElementById('routeSummaryBadge').innerHTML = 
-            `<i class="fa-solid fa-check-double text-indigo-600"></i> 선택 <b>${selectedRouteStopKeys.size}</b>개소 직선 경로 (전체 ${activeRecords.length}곳 중)`;
+            `<i class="fa-solid fa-check-double text-indigo-600"></i> 선택 <b>${selectedRouteStopKeys.size}</b>개소 직선 경로 (${originTxt} · ${destTxt})`;
         } else {
+          var originTxt = isOriginIncludedInRoute ? '출발지 ➔ ' : '';
+          var destTxt = isDestIncludedInRoute ? ' ➔ 도착지' : '';
           document.getElementById('routeSummaryBadge').innerHTML = isAllDrivers
             ? `<i class="fa-solid fa-layer-group text-indigo-600"></i> 총 <b>${activeRecords.length}</b>개소 배송 현황 (전체 관제)`
-            : `<i class="fa-solid fa-car text-indigo-600"></i> 총 <b>${activeRecords.length}</b>개소 배송 동선 (도착지: ${dest.name || '가산 센터'})`;
+            : `<i class="fa-solid fa-car text-indigo-600"></i> 총 <b>${activeRecords.length}</b>개소 배송 동선 (${originTxt}${activeRecords.length}곳 배송${destTxt})`;
         }
       } else {
         // [확장 모드: 실제 도로 경로 계산 (실시간 교통/신호 대기 반영)]
@@ -5511,23 +5559,31 @@
           targetCoords = coords.filter(function(c) { return c && c.lat && c.lng; });
         }
 
-        var routePoints = [{ lat: originCoord.lat, lng: originCoord.lng }].concat(targetCoords);
-
-        // 도착지 포인트 추가
-        routePoints.push({ lat: destCoord.lat, lng: destCoord.lng });
+        var routePoints = [];
+        if (isOriginIncludedInRoute) {
+          routePoints.push({ lat: originCoord.lat, lng: originCoord.lng });
+        }
+        routePoints = routePoints.concat(targetCoords);
+        if (isDestIncludedInRoute && activeRecords.length > 0) {
+          routePoints.push({ lat: destCoord.lat, lng: destCoord.lng });
+        }
 
         if (hasSelectedStops) {
+          var originTxt = isOriginIncludedInRoute ? '출발지 포함' : '출발지 제외';
+          var destTxt = isDestIncludedInRoute ? '도착지 포함' : '도착지 제외';
           document.getElementById('routeSummaryBadge').innerHTML = 
-            `<i class="fa-solid fa-check-double text-indigo-600"></i> 선택 <b>${targetCoords.length}</b>개소 실제 도로 경로 (전체 ${activeRecords.length}곳 중)`;
+            `<i class="fa-solid fa-check-double text-indigo-600"></i> 선택 <b>${targetCoords.length}</b>개소 실제 도로 경로 (${originTxt} · ${destTxt})`;
         } else {
+          var originTxt = isOriginIncludedInRoute ? '출발: ' + (originCoord.name || '가산 센터') + ' ➔ ' : '';
+          var destTxt = isDestIncludedInRoute ? ' ➔ 도착: ' + (dest.name || '가산 센터') : '';
           document.getElementById('routeSummaryBadge').innerHTML = 
-            `<i class="fa-solid fa-car text-indigo-600"></i> 총 <b>${activeRecords.length}</b>개소 실제 도로 경로 (도착지: ${dest.name || '가산 센터'})`;
+            `<i class="fa-solid fa-car text-indigo-600"></i> 총 <b>${activeRecords.length}</b>개소 실제 도로 경로 (${originTxt}${activeRecords.length}곳 배송${destTxt})`;
         }
 
         if (routePoints.length > 1) {
           await renderRealRoadPolyline(routePoints, bounds, fitBounds);
         } else {
-          showToast('⚠️ 배송지가 2개소 이상 필요합니다.');
+          showToast('💡 경로를 확인하려면 [출발지]를 포함하거나 2곳 이상의 배송지를 선택해주세요.');
           switchToStraightRoute();
         }
       }
@@ -5669,9 +5725,20 @@
           durEl.title = `배송지 ${cachedRoadRouteData.stopCount || 0}곳 경유 · 서울 도심 실측 주행 속도(약 17~20km/h) 및 교차로 신호 대기 반영`;
         }
 
-        document.getElementById('routeSummaryBadge').innerHTML = `
-          <i class="fa-solid fa-car text-indigo-600"></i> 총 <b>${points.length - 1}</b>개소 배송 동선 <b>(실제 도로)</b>
-        `;
+        if (selectedRouteStopKeys && selectedRouteStopKeys.size > 0) {
+          var originTxt = isOriginIncludedInRoute ? '출발지 포함' : '출발지 제외';
+          var destTxt = isDestIncludedInRoute ? '도착지 포함' : '도착지 제외';
+          document.getElementById('routeSummaryBadge').innerHTML = `
+            <i class="fa-solid fa-check-double text-indigo-600"></i> 선택 <b>${selectedRouteStopKeys.size}</b>개소 실제 도로 (${originTxt} · ${destTxt})
+          `;
+        } else {
+          var originTxt = isOriginIncludedInRoute ? '출발지 ➔ ' : '';
+          var destTxt = isDestIncludedInRoute ? ' ➔ 도착지' : '';
+          var stopCountBadge = Math.max(0, points.length - (isOriginIncludedInRoute ? 1 : 0) - (isDestIncludedInRoute ? 1 : 0));
+          document.getElementById('routeSummaryBadge').innerHTML = `
+            <i class="fa-solid fa-car text-indigo-600"></i> 총 <b>${stopCountBadge}</b>개소 배송 동선 <b>(실제 도로)</b>
+          `;
+        }
 
         if (bounds && fitBounds) {
           cachedRoadRouteData.roadLatLngs.forEach(function(ll, idx) {
@@ -5703,21 +5770,28 @@
       var originCoord = getDriverOrigin(currDriver);
       var destCoord = getDriverDestination(currDriver);
 
-      // 출발지 -> 경유지들 -> 도착지
+      // 출발지 -> 경유지들 -> 도착지 (체크박스 및 부분 선택 상태 완벽 반영)
       var waypoints = [];
-      waypoints.push({ name: originCoord.name || '출발지', lat: originCoord.lat, lng: originCoord.lng });
+      if (isOriginIncludedInRoute) {
+        waypoints.push({ name: originCoord.name || '출발지', lat: originCoord.lat, lng: originCoord.lng });
+      }
 
+      var hasSelectedStops = (selectedRouteStopKeys.size > 0);
       activeRecords.forEach(function(r, idx) {
+        var k = getRecordStopKey(r);
+        if (hasSelectedStops && !selectedRouteStopKeys.has(k)) return;
         var coord = getCoordsForRecord(r);
         if (coord && coord.lat && coord.lng) {
           waypoints.push({ name: r.고객사 || ('배송지_' + (idx + 1)), lat: coord.lat, lng: coord.lng });
         }
       });
 
-      waypoints.push({ name: destCoord.name || '가산_센터', lat: destCoord.lat, lng: destCoord.lng });
+      if (isDestIncludedInRoute) {
+        waypoints.push({ name: destCoord.name || '가산_센터', lat: destCoord.lat, lng: destCoord.lng });
+      }
 
       if (waypoints.length < 2) {
-        alert('길찾기를 위한 배송지가 부족합니다.');
+        alert('길찾기를 위한 배송지가 부족합니다. [출발지]를 포함하거나 2곳 이상의 배송지를 선택해주세요.');
         return;
       }
 
