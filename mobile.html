@@ -2020,7 +2020,7 @@
       showToast('🏢 도착지가 기본값(가산 센터)으로 복원되었습니다.');
     }
 
-    function launchMobileNaviApp(targetAddr, targetName, naviType) {
+    function launchMobileNaviApp(targetAddr, targetName) {
       if (!isVehicleConfirmedForToday()) {
         alert('🚗 [차량 선택 필요]\n내비게이션 길안내 및 운행을 시작하려면 오늘 운행할 법인차량을 먼저 선택해주세요.');
         openMobileVehicleSelectModal(true);
@@ -2032,36 +2032,22 @@
       var isAndroid = /Android/i.test(navigator.userAgent);
       var isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
 
-      if (naviType === 'kakao') {
-        if (isAndroid || isIOS) {
-          window.location.href = 'kakaonavi://search?q=' + encodeURIComponent(query);
-          setTimeout(function() {
-            window.open('https://map.kakao.com/link/search/' + encodeURIComponent(query), '_blank');
-          }, 1500);
-        } else {
-          window.open('https://map.kakao.com/link/search/' + encodeURIComponent(query), '_blank');
-        }
-        return;
-      }
-
-      if (naviType === 'tmap') {
-        if (isAndroid) {
-          // Android Intent: 공식 SKT TMAP Intent 형식으로 앱 직행 (미설치 시 플레이스토어 자동 연결)
-          var intentUrl = 'intent://search?name=' + encodeURIComponent(query) + '#Intent;scheme=tmap;package=com.skt.tmap.ku;end';
-          window.location.href = intentUrl;
-        } else if (isIOS) {
-          var tmapScheme = 'tmap://search?name=' + encodeURIComponent(query);
-          window.location.href = tmapScheme;
-          setTimeout(function() {
-            window.open('https://apps.apple.com/kr/app/t-map/id431589174', '_blank');
-          }, 1500);
-        } else {
-          try {
-            window.location.href = 'tmap://search?name=' + encodeURIComponent(query);
-          } catch(e) {}
-          showToast('📱 스마트폰 환경에서 티맵 앱이 바로 실행됩니다.');
-        }
-        return;
+      // 티맵(TMAP) 100% 단일화 직행 실행
+      if (isAndroid) {
+        // Android Intent: 공식 SKT TMAP Intent 형식으로 앱 직행 (미설치 시 구글 플레이스토어로 자동 유도)
+        var intentUrl = 'intent://search?name=' + encodeURIComponent(query) + '#Intent;scheme=tmap;package=com.skt.tmap.ku;end';
+        window.location.href = intentUrl;
+      } else if (isIOS) {
+        var tmapScheme = 'tmap://search?name=' + encodeURIComponent(query);
+        window.location.href = tmapScheme;
+        setTimeout(function() {
+          window.open('https://apps.apple.com/kr/app/t-map/id431589174', '_blank');
+        }, 1500);
+      } else {
+        try {
+          window.location.href = 'tmap://search?name=' + encodeURIComponent(query);
+        } catch(e) {}
+        showToast('📱 스마트폰 환경에서 티맵 앱이 바로 실행됩니다.');
       }
     }
 
