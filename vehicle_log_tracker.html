@@ -1812,8 +1812,9 @@
                   dateSchedules.forEach(function(ds) {
                     var isMid = (ds.category === 'mid_return' || (ds.customer_name && ds.customer_name.indexOf('(중간 복귀)') !== -1));
                     var matched = log.stops.find(function(st) {
-                      return (st.id && (st.id === 'stop_deliv_' + ds.id || st.id === ds.id)) ||
-                             (st.name && ds.customer_name && st.name.trim() === ds.customer_name.trim());
+                      var stIdStr = String(st.id || '');
+                      var dsIdStr = String(ds.id || '');
+                      return stIdStr === 'stop_deliv_' + dsIdStr || stIdStr === dsIdStr;
                     });
 
                     var dep = '', arr = '';
@@ -1867,10 +1868,14 @@
                     }
                   });
 
-                  // 2) 관제 스케줄 외 사용자가 일지에 수동 추가했던 경유지가 있다면 유지
+                  // 2) 관제 스케줄 외 사용자가 일지에 수동 추가했던 경유지가 있다면 유지 (ID 정규화로 중복 완벽 방지)
                   log.stops.forEach(function(st) {
                     if (st.type !== 'origin' && st.type !== 'return') {
-                      var alreadyIn = mergedStops.some(function(ms) { return ms.id === st.id; });
+                      var stNorm = String(st.id || '').replace('stop_deliv_', '');
+                      var alreadyIn = mergedStops.some(function(ms) {
+                        var msNorm = String(ms.id || '').replace('stop_deliv_', '');
+                        return msNorm === stNorm || (st.name && ms.name === st.name && st.order === ms.order);
+                      });
                       if (!alreadyIn) {
                         mergedStops.push(st);
                         stopsChanged = true;
@@ -1878,55 +1883,29 @@
                     }
                   });
 
-                  // 3) 최종 복귀지 상태 및 시간 동기화 (시간 역전 방지)
+                  // 3) 최종 복귀지 상태 및 시간 동기화 (가짜 복귀시간 임의 주입 방지)
                   if (returnStop) {
                     var lastStop = mergedStops.length > 0 ? mergedStops[mergedStops.length - 1] : null;
                     var lastTimeStr = lastStop ? (lastStop.arrive || lastStop.depart || '') : '';
-                    var lastMin = parseTimeToMinutes(lastTimeStr);
 
-                    // 복귀 출발 시간: 직전 경유지 도착/출발 시각 이후여야 함
-                    var curDepMin = parseTimeToMinutes(returnStop.depart);
-                    if (!returnStop.depart || (lastMin !== null && curDepMin !== null && curDepMin < lastMin)) {
-                      returnStop.depart = lastTimeStr;
-                    }
-
-                    // 복귀 도착 시간: 직전 경유지 및 복귀 출발 시각보다 빠를 수 없음 (아침의 낡은 마감시각 역전 방지)
-                    var depMin = parseTimeToMinutes(returnStop.depart);
-                    var curArrMin = parseTimeToMinutes(returnStop.arrive);
-                    if (curArrMin !== null && ((lastMin !== null && curArrMin < lastMin) || (depMin !== null && curArrMin < depMin))) {
-                      // 낡은 과거 마감시간 무효화 후 이동시간(약 45분) 감안하여 갱신
-                      var baseM = (depMin !== null ? depMin : lastMin) || 960;
-                      var newArrM = baseM + 45;
-                      var nH = Math.floor(newArrM / 60) % 24;
-                      var nM = newArrM % 60;
-                      returnStop.arrive = String(nH).padStart(2, '0') + ':' + String(nM).padStart(2, '0');
-                    } else if (!returnStop.arrive) {
+                    if (!log.is_closed) {
+                      // 기사님이 아직 복귀/마감하지 않은 상태: 가짜 도착 시간을 생성하지 않고 복귀대기 상태 유지
+                      returnStop.status = '복귀대기';
+                      returnStop.depart = lastTimeStr || '';
+                      returnStop.arrive = '';
+                    } else {
+                      returnStop.status = '도착완료';
+                      returnStop.depart = lastTimeStr || '';
                       if (log.closed_at) {
-                        var cMin = parseTimeToMinutes(log.closed_at);
-                        if (cMin !== null && lastMin !== null && cMin >= lastMin) {
-                          returnStop.arrive = log.closed_at;
-                        }
-                      }
-                      if (!returnStop.arrive && log.memo_special) {
+                        returnStop.arrive = log.closed_at;
+                      } else if (log.memo_special) {
                         try {
                           var sp = JSON.parse(log.memo_special);
-                          if (sp.arrive) {
-                            var spM = parseTimeToMinutes(sp.arrive);
-                            if (spM !== null && lastMin !== null && spM >= lastMin) {
-                              returnStop.arrive = sp.arrive;
-                            }
-                          }
+                          if (sp.arrive) returnStop.arrive = sp.arrive;
                         } catch(e) {}
                       }
-                    }
-
-                    if (log.is_closed) {
-                      returnStop.status = '도착완료';
                       if (!returnStop.arrive && returnStop.time && returnStop.time !== '18:00') {
-                        var rTimeM = parseTimeToMinutes(returnStop.time);
-                        if (rTimeM !== null && lastMin !== null && rTimeM >= lastMin) {
-                          returnStop.arrive = returnStop.time;
-                        }
+                        returnStop.arrive = returnStop.time;
                       }
                     }
                   }
@@ -2445,7 +2424,7 @@
                       <span class="truncate max-w-[200px]" title="${leg.name}">${leg.name}</span>
                       ${leg.depart ? `<span class="px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 text-[10px] font-bold border border-blue-200">🚀 출발 ${leg.depart}</span>` : ''}
                       ${leg.arrive ? `<span class="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 text-[10px] font-bold border border-emerald-200">🏁 도착 ${leg.arrive}</span>` : ''}
-                      ${leg.status === '도착완료' || leg.status === '완료' || leg.status === '배송완료' ? `<span class="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[9.5px] font-bold">완료</span>` : (leg.status === '운행중' ? `<span class="px-1.5 py-0.5 rounded bg-blue-100 text-blue-800 text-[9.5px] font-bold">운행중</span>` : '')}
+                      ${leg.status === '도착완료' || leg.status === '완료' || leg.status === '배송완료' ? `<span class="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[9.5px] font-bold">완료</span>` : (leg.status === '운행중' ? `<span class="px-1.5 py-0.5 rounded bg-blue-100 text-blue-800 text-[9.5px] font-bold">운행중</span>` : (leg.status === '복귀대기' || leg.status === '복귀중' ? `<span class="px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 text-[9.5px] font-bold border border-amber-200">복귀대기</span>` : ''))}
                     </div>
                     <div class="flex items-center gap-1 text-[11px] text-slate-500 font-mono">
                       <i class="fa-solid fa-location-dot text-indigo-400 text-[10px] shrink-0"></i>
