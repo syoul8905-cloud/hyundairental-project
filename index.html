@@ -3,7 +3,22 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>배송스케줄 통합 관제 시스템 (단독 웹 / Supabase Cloud)</title>
+  <title>배송스케줄 통합 관제 시스템</title>
+  <script>
+    (function() {
+      var isLocal = (location.hostname === 'localhost' || location.hostname === '127.0.0.1' || location.hostname.startsWith('10.') || location.hostname.startsWith('192.168.'));
+      if (isLocal) {
+        document.title = '배송스케줄 통합 테스트 서버';
+      }
+      document.addEventListener('DOMContentLoaded', function() {
+        var badge = document.getElementById('serverEnvBadge');
+        if (badge) {
+          badge.style.display = isLocal ? 'inline-block' : 'none';
+        }
+      });
+    })();
+  </script>
+
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="./icons/icon-192.png">
   <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
@@ -89,6 +104,7 @@
         <div>
           <div class="flex items-center gap-1.5">
             <h1 class="text-sm font-black text-slate-900 whitespace-nowrap">배송스케줄 관제</h1>
+            <span id="serverEnvBadge" class="px-1.5 py-0.5 bg-amber-100 text-amber-900 text-[9px] font-black rounded-md border border-amber-300 shadow-2xs whitespace-nowrap">🧪 테스트 서버</span>
             <span id="syncBadge" class="bg-emerald-100 text-emerald-700 text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-1 border border-emerald-200 whitespace-nowrap">
               <span id="syncPulse" class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
               <span id="syncStatusText">⚡ 클라우드</span>
@@ -6888,6 +6904,7 @@
 
         var stopKey = getRecordStopKey(r);
         var isStopSelected = selectedRouteStopKeys.has(stopKey);
+        var histInfo = getContractPastHistoryInfo(r.계약번호, r.ID, r.배송일자);
 
         tr.innerHTML = `
           <td class="py-2.5 px-3 text-center">
@@ -6907,7 +6924,7 @@
                 </button>
               ` : ''}
             </div>
-            ${histInfo.count > 0 ? `
+            ${(histInfo && histInfo.count > 0) ? `
               <div class="mt-1">
                 <button type="button" onclick="openContractHistoryModal('${r.계약번호}')" class="px-1.5 py-0.5 bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 rounded font-black text-[9.5px] inline-flex items-center gap-1 transition shadow-2xs cursor-pointer" title="과거 출고/배송 이력 ${histInfo.count}건 존재 (클릭 시 상세 이력 조회)">
                   <i class="fa-solid fa-clock-rotate-left text-amber-700 text-[8.5px]"></i>

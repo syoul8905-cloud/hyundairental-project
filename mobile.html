@@ -3,12 +3,26 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>현대렌탈 기사용 모바일 배송관제</title>
+  <title>기사용 모바일 배송시스템</title>
+  <script>
+    (function() {
+      var isLocal = (location.hostname === 'localhost' || location.hostname === '127.0.0.1' || location.hostname.startsWith('10.') || location.hostname.startsWith('192.168.'));
+      if (isLocal) {
+        document.title = '기사용 모바일 테스트 서버';
+      }
+      document.addEventListener('DOMContentLoaded', function() {
+        var badges = document.querySelectorAll('.mobile-env-badge');
+        badges.forEach(function(el) {
+          el.style.display = isLocal ? 'inline-block' : 'none';
+        });
+      });
+    })();
+  </script>
   <!-- PWA & Mobile Web App Meta -->
   <link rel="manifest" href="manifest.json">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="apple-mobile-web-app-title" content="현대렌탈배송">
+  <meta name="apple-mobile-web-app-title" content="기사용 모바일 테스트">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="theme-color" content="#4f46e5">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
@@ -58,7 +72,10 @@
         <div class="w-14 h-14 bg-indigo-600 rounded-2xl mx-auto flex items-center justify-center text-white text-2xl shadow-lg shadow-indigo-600/30">
           <i class="fa-solid fa-truck-fast"></i>
         </div>
-        <h2 class="text-lg font-black text-slate-900 pt-2">현대렌탈 기사용 배송관제</h2>
+        <h2 class="text-lg font-black text-slate-900 pt-2 flex items-center justify-center gap-1.5">
+          <span>기사용 모바일</span>
+          <span class="mobile-env-badge px-2 py-0.5 bg-amber-100 text-amber-900 border border-amber-300 rounded-md text-[11px] font-black shadow-2xs">🧪 테스트 서버</span>
+        </h2>
         <p class="text-xs text-slate-500">배송사원 로그인 후 배송 업무를 시작하세요</p>
       </div>
 
@@ -103,6 +120,32 @@
         <button type="submit" class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-sm rounded-xl shadow-lg shadow-indigo-600/20 transition active:scale-[0.98]">
           배송 업무 시작하기
         </button>
+
+        <!-- 원클릭 빠른 기사 선택 로그인 -->
+        <div class="pt-3 border-t border-slate-100 space-y-2">
+          <div class="flex items-center justify-between text-[11px] font-bold text-slate-500">
+            <span>⚡ 빠른 선택 로그인 (원터치)</span>
+            <span class="text-indigo-600 text-[10px] font-extrabold">비번 생략</span>
+          </div>
+          <div class="grid grid-cols-2 gap-1.5">
+            <button type="button" onclick="quickLoginAs('최두성')" class="py-2.5 px-2 bg-gradient-to-r from-indigo-50 to-purple-50 hover:from-indigo-100 hover:to-purple-100 text-indigo-900 border border-indigo-200 rounded-xl text-xs font-black transition active:scale-95 flex items-center justify-center gap-1 shadow-2xs">
+              <i class="fa-solid fa-crown text-amber-500 text-[11px]"></i>
+              <span>최두성 (관리자)</span>
+            </button>
+            <button type="button" onclick="quickLoginAs('조경찬')" class="py-2.5 px-2 bg-slate-50 hover:bg-indigo-50 text-slate-800 border border-slate-200 rounded-xl text-xs font-black transition active:scale-95 flex items-center justify-center gap-1 shadow-2xs">
+              <i class="fa-solid fa-truck text-indigo-600 text-[11px]"></i>
+              <span>조경찬 기사</span>
+            </button>
+            <button type="button" onclick="quickLoginAs('김승지')" class="py-2.5 px-2 bg-slate-50 hover:bg-indigo-50 text-slate-800 border border-slate-200 rounded-xl text-xs font-black transition active:scale-95 flex items-center justify-center gap-1 shadow-2xs">
+              <i class="fa-solid fa-truck text-emerald-600 text-[11px]"></i>
+              <span>김승지 기사</span>
+            </button>
+            <button type="button" onclick="quickLoginAs('현민혁')" class="py-2.5 px-2 bg-slate-50 hover:bg-indigo-50 text-slate-800 border border-slate-200 rounded-xl text-xs font-black transition active:scale-95 flex items-center justify-center gap-1 shadow-2xs">
+              <i class="fa-solid fa-truck text-sky-600 text-[11px]"></i>
+              <span>현민혁 기사</span>
+            </button>
+          </div>
+        </div>
       </form>
     </div>
   </div>
@@ -117,7 +160,10 @@
           <i class="fa-solid fa-truck"></i>
         </div>
         <div>
-          <h1 class="text-sm font-black text-slate-900 leading-tight">배송관제 (모바일)</h1>
+          <h1 class="text-sm font-black text-slate-900 leading-tight flex items-center gap-1.5">
+            <span>기사용 모바일</span>
+            <span class="mobile-env-badge px-1.5 py-0.2 bg-amber-100 text-amber-900 border border-amber-300 rounded font-black text-[9px] shadow-2xs">🧪 테스트</span>
+          </h1>
           <div class="flex items-center gap-1 text-[11px] font-bold text-indigo-600">
             <i class="fa-solid fa-circle-user"></i>
             <span id="headerDriverName">로그인 필요</span>
@@ -259,6 +305,28 @@
     <div class="py-12 text-center text-slate-400 font-medium">배송 일정을 불러오는 중입니다...</div>
   </main>
 
+  <!-- Floating Selection Bar (선택 배송건 실제 경로 퀵 액션) -->
+  <div id="mobileSelectionFloatingBar" class="hidden fixed bottom-14 inset-x-3 bg-slate-900/95 text-white p-2.5 rounded-2xl shadow-2xl z-40 backdrop-blur-md flex items-center justify-between border border-slate-700 animate-in slide-in-from-bottom-2 duration-150">
+    <div class="flex items-center gap-2 truncate">
+      <span class="w-6 h-6 rounded-lg bg-indigo-500 text-white flex items-center justify-center text-xs font-black shadow-xs shrink-0">
+        <i class="fa-solid fa-check-double text-[11px]"></i>
+      </span>
+      <div class="truncate text-xs">
+        <span class="font-black text-amber-300">선택 <b id="mobileSelectionCountText">0</b>곳</span>
+        <span class="text-[11px] text-slate-300 ml-1">경로 관제 중</span>
+      </div>
+    </div>
+    <div class="flex items-center gap-1.5 shrink-0">
+      <button type="button" onclick="clearSelectedMobileRouteMode()" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold transition">
+        해제
+      </button>
+      <button type="button" onclick="openMobileMapModal()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-black flex items-center gap-1 shadow-md active:scale-95 transition">
+        <i class="fa-solid fa-route text-[11px]"></i>
+        <span>경로 지도 ↗</span>
+      </button>
+    </div>
+  </div>
+
   <!-- ========================================== -->
   <!-- 4. Fixed Bottom Bar (관제 / 차량일지 / 운행 마감 / 지도 보기) -->
   <!-- ========================================== -->
@@ -304,35 +372,45 @@
           <span class="w-5 h-5 rounded bg-emerald-600 text-white flex items-center justify-center text-[10px] shrink-0 font-bold">
             <i class="fa-solid fa-flag"></i>
           </span>
-          <span class="font-black text-emerald-900 text-xs">출발지:</span>
+          <span class="font-black text-emerald-950 text-xs">출발지:</span>
           <span id="mobileModalOriginName" class="font-bold text-emerald-800 underline underline-offset-2 truncate text-xs">가산 센터</span>
           <span id="mobileModalOriginBadge" class="text-[9px] bg-emerald-200 text-emerald-900 px-1.5 py-0.2 rounded font-bold shrink-0">🏢 가산 센터</span>
         </div>
         <div class="flex items-center gap-1.5 shrink-0 ml-1">
-          <span id="mobileModalOriginAddr" class="text-[10px] text-slate-500 truncate max-w-[120px] font-mono hidden sm:inline" title=""></span>
-          <button type="button" onclick="openMobileOriginModal()" class="px-2 py-0.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md font-bold text-[10px] shrink-0 active:scale-95 transition shadow-xs">
-            변경 ✏️
+          <button type="button" id="btnMobileToggleOriginDest" onclick="toggleMobileOriginDestInclusion()" title="출발지와 도착지 경로 포함 일괄 토글" class="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 rounded-lg font-black text-[11px] transition active:scale-95 shadow-2xs cursor-pointer">
+            <i class="fa-solid fa-ban text-[10px]"></i>
+            <span id="btnMobileToggleOriginDestText">출발·도착 해제</span>
+          </button>
+          <button type="button" onclick="openMobileOriginModal()" class="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-[10.5px] shrink-0 active:scale-95 transition shadow-xs">
+            거점변경 ✏️
           </button>
         </div>
       </div>
 
       <!-- Route Toolbar (실제 경로 계산 & 거리/시간 뱃지) -->
-      <div class="p-2.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between gap-2 text-xs shrink-0">
-        <div class="flex items-center gap-1.5 flex-wrap">
-          <span id="mobileRouteDistBadge" class="hidden px-2 py-1 bg-indigo-100 text-indigo-800 rounded-lg font-black text-[11px]">
+      <div class="p-2.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between gap-1.5 text-xs shrink-0">
+        <div class="flex items-center gap-1 flex-wrap">
+          <span id="mobileRouteDistBadge" class="hidden px-2 py-0.5 bg-indigo-100 text-indigo-800 rounded-lg font-black text-[11px]">
             <i class="fa-solid fa-road text-indigo-600"></i> <span id="mobileRouteDistText">0 km</span>
           </span>
-          <span id="mobileRouteDurBadge" class="hidden px-2 py-1 bg-emerald-100 text-emerald-800 rounded-lg font-black text-[11px]">
+          <span id="mobileRouteDurBadge" class="hidden px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-lg font-black text-[11px]">
             <i class="fa-solid fa-clock text-emerald-600"></i> <span id="mobileRouteDurText">0분</span>
           </span>
+          <span id="mobileSelectedRouteModeBadge" class="hidden px-2 py-0.5 bg-indigo-600 text-white rounded-lg font-black text-[11px] animate-pulse">
+            <i class="fa-solid fa-check-double text-amber-300"></i> 선택 <b id="mobileSelectedRouteCount">0</b>곳
+          </span>
         </div>
-        <div class="flex items-center gap-1.5">
-          <button id="mobileResetRouteBtn" onclick="switchMobileToStraight()" class="hidden px-2.5 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-lg text-xs">
-            직선거리
+        <div class="flex items-center gap-1">
+          <button type="button" id="mobileNaverNavBtn" onclick="openMobileNaverRoute()" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-black text-[11px] flex items-center gap-1 shadow-xs transition active:scale-95" title="네이버 지도 앱으로 다중 경유지 길찾기">
+            <i class="fa-solid fa-map-location-dot"></i>
+            <span>네이버 길찾기</span>
           </button>
-          <button id="mobileCalcRouteBtn" onclick="toggleMobileRoadRoute()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold text-xs flex items-center gap-1.5 shadow-xs transition">
+          <button id="mobileResetRouteBtn" onclick="switchMobileToStraight()" class="hidden px-2 py-1 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-lg text-[11px]">
+            직선
+          </button>
+          <button id="mobileCalcRouteBtn" onclick="toggleMobileRoadRoute()" class="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-black text-[11px] flex items-center gap-1 shadow-xs transition active:scale-95">
             <i class="fa-solid fa-car-side" id="mobileCalcIcon"></i>
-            <span id="mobileCalcBtnText">🚗 실제 경로 계산</span>
+            <span id="mobileCalcBtnText">실제 경로</span>
           </button>
         </div>
       </div>
@@ -555,12 +633,15 @@
 
         <!-- 주소지별 주차비 / 주유비 입력 (메인) -->
         <div class="border border-slate-200 rounded-2xl overflow-hidden bg-slate-50 text-xs space-y-2 p-2.5">
-          <div class="flex items-center justify-between">
+          <div class="flex items-center justify-between cursor-pointer" onclick="toggleMobileClosingStopFees()">
             <span class="text-xs font-black text-slate-800 flex items-center gap-1.5">
               <i class="fa-solid fa-receipt text-indigo-600"></i>
               <span>주소지별 주차비 · 주유비 입력</span>
             </span>
-            <span class="text-[10px] text-slate-500 font-bold">방문지별 개별 입력</span>
+            <div class="flex items-center gap-1">
+              <span class="text-[10px] text-slate-500 font-bold">방문지별 개별 입력</span>
+              <i id="mobileClosingStopFeesIcon" class="fa-solid fa-chevron-down text-slate-400 text-xs transition-transform duration-200"></i>
+            </div>
           </div>
 
           <!-- 자동 합산 요약 배너 -->
@@ -1109,6 +1190,210 @@
     var mobilePolylines = [];
     var isMobileRoadMode = false;
     var cachedMobileRoadData = null;
+
+    // Mobile Selective Route & Origin/Dest State Variables
+    var selectedMobileRouteStopKeys = new Set(); // 모바일 선택 배송 건 키
+    var isMobileOriginIncludedInRoute = true;     // 모바일 출발지 포함 여부 (기본 true)
+    var isMobileDestIncludedInRoute = true;       // 모바일 도착지 포함 여부 (기본 true)
+
+    function getMobileRecordStopKey(r) {
+      if (!r) return '';
+      return r.id ? String(r.id) : ((r.customer_name || '') + '_' + (r.visit_time || '') + '_' + (r.address || ''));
+    }
+
+    function toggleSelectMobileStopForRoute(stopKey, isChecked) {
+      if (!stopKey) return;
+      if (isChecked) {
+        selectedMobileRouteStopKeys.add(stopKey);
+      } else {
+        selectedMobileRouteStopKeys.delete(stopKey);
+      }
+      cachedMobileRoadData = null;
+      if (selectedMobileRouteStopKeys.size > 0) {
+        isMobileRoadMode = true;
+      }
+      syncMobileSelectedRouteUI();
+      renderCards();
+      if (mobileKakaoMap) {
+        renderMobileMapStops();
+      }
+    }
+
+    function toggleMobileOriginDestInclusion() {
+      if (isMobileOriginIncludedInRoute || isMobileDestIncludedInRoute) {
+        isMobileOriginIncludedInRoute = false;
+        isMobileDestIncludedInRoute = false;
+        showToast('🏢 출발지 및 도착지를 모두 해제했습니다. (순수 배송지 간 경로)');
+      } else {
+        isMobileOriginIncludedInRoute = true;
+        isMobileDestIncludedInRoute = true;
+        showToast('🏢 출발지 및 도착지(가산 센터 등)를 경로에 다시 포함했습니다.');
+      }
+      cachedMobileRoadData = null;
+      syncMobileOriginDestButtonsUI();
+      renderCards();
+      if (mobileKakaoMap) {
+        renderMobileMapStops();
+      }
+    }
+
+    function toggleIncludeMobileOriginInRoute(checked) {
+      isMobileOriginIncludedInRoute = checked;
+      cachedMobileRoadData = null;
+      syncMobileOriginDestButtonsUI();
+      renderCards();
+      if (mobileKakaoMap) {
+        renderMobileMapStops();
+      }
+      showToast(checked ? '🏢 경로에 [출발지]를 포함합니다.' : '🏢 경로에서 [출발지]를 제외하고 선택 배송지만 계산합니다.');
+    }
+
+    function toggleIncludeMobileDestInRoute(checked) {
+      isMobileDestIncludedInRoute = checked;
+      cachedMobileRoadData = null;
+      syncMobileOriginDestButtonsUI();
+      renderCards();
+      if (mobileKakaoMap) {
+        renderMobileMapStops();
+      }
+      showToast(checked ? '🏁 경로에 [도착지]를 포함합니다.' : '🏁 경로에서 [도착지]를 제외합니다.');
+    }
+
+    function clearSelectedMobileRouteMode() {
+      selectedMobileRouteStopKeys.clear();
+      isMobileOriginIncludedInRoute = true;
+      isMobileDestIncludedInRoute = true;
+      cachedMobileRoadData = null;
+      syncMobileSelectedRouteUI();
+      syncMobileOriginDestButtonsUI();
+      renderCards();
+      if (mobileKakaoMap) {
+        renderMobileMapStops();
+      }
+      showToast('🔄 전체 배송 경로로 복귀했습니다.');
+    }
+
+    function syncMobileSelectedRouteUI() {
+      var count = selectedMobileRouteStopKeys.size;
+      var floatingBar = document.getElementById('mobileSelectionFloatingBar');
+      var countText = document.getElementById('mobileSelectionCountText');
+      var badge = document.getElementById('mobileSelectedRouteModeBadge');
+      var badgeCount = document.getElementById('mobileSelectedRouteCount');
+
+      if (count > 0) {
+        if (floatingBar) floatingBar.classList.remove('hidden');
+        if (countText) countText.innerText = count;
+        if (badge) badge.classList.remove('hidden');
+        if (badgeCount) badgeCount.innerText = count;
+      } else {
+        if (floatingBar) floatingBar.classList.add('hidden');
+        if (badge) badge.classList.add('hidden');
+      }
+    }
+
+    function syncMobileOriginDestButtonsUI() {
+      var btn = document.getElementById('btnMobileToggleOriginDest');
+      var btnText = document.getElementById('btnMobileToggleOriginDestText');
+      var isBothExcluded = (!isMobileOriginIncludedInRoute && !isMobileDestIncludedInRoute);
+
+      if (btn && btnText) {
+        if (isBothExcluded) {
+          btn.className = "px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-400 rounded-lg font-black text-[11px] transition active:scale-95 shadow-2xs cursor-pointer";
+          btn.innerHTML = '<i class="fa-solid fa-circle-check text-[10px] text-emerald-600"></i> <span id="btnMobileToggleOriginDestText">출발·도착 포함</span>';
+          btn.title = "클릭 시 출발지와 도착지를 경로에 다시 포함합니다";
+        } else {
+          btn.className = "px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 rounded-lg font-black text-[11px] transition active:scale-95 shadow-2xs cursor-pointer";
+          btn.innerHTML = '<i class="fa-solid fa-ban text-[10px]"></i> <span id="btnMobileToggleOriginDestText">출발·도착 해제</span>';
+          btn.title = "클릭 시 출발지와 도착지(가산 센터 등)를 한 번에 경로에서 제외합니다";
+        }
+      }
+    }
+
+    /**
+     * 대한민국 서울/수도권 도심 실주행 교통 모델 (K-Urban Traffic Model) - 모바일 최적화
+     */
+    function estimateRealisticUrbanTravelTime(distKm, osrmBaseDurationSec, stopCount) {
+      var now = new Date();
+      var hour = now.getHours();
+      var day = now.getDay();
+      var isWeekend = (day === 0 || day === 6);
+
+      var trafficMultiplier = 2.35;
+      if (!isWeekend) {
+        if ((hour >= 7 && hour <= 9) || (hour >= 17 && hour <= 19)) {
+          trafficMultiplier = 2.58;
+        } else if (hour >= 10 && hour <= 16) {
+          trafficMultiplier = 2.35;
+        } else if (hour >= 21 || hour <= 6) {
+          trafficMultiplier = 1.45;
+        }
+      } else {
+        trafficMultiplier = 1.85;
+      }
+
+      var stopPenaltySec = stopCount * 450;
+      var calculatedSec = Math.round(osrmBaseDurationSec * trafficMultiplier + stopPenaltySec);
+      var minUrbanDurationSec = Math.round((distKm / 17.5) * 3600);
+      var finalSeconds = Math.max(calculatedSec, minUrbanDurationSec);
+
+      var hrs = Math.floor(finalSeconds / 3600);
+      var mins = Math.round((finalSeconds % 3600) / 60);
+
+      var timeStr = (hrs > 0 ? (hrs + '시간 ') : '') + (mins < 1 ? 1 : mins) + '분';
+
+      return {
+        totalSeconds: finalSeconds,
+        timeStr: timeStr,
+        stopCount: stopCount
+      };
+    }
+
+    /**
+     * 네이버 지도 모바일 앱 다중 경유지 길찾기 연동
+     */
+    function openMobileNaverRoute() {
+      var drvName = getCurrentDriverName();
+      var originCoord = getDriverOrigin(drvName, currentDate);
+      var dest = getMobileDriverDestination();
+      var destCoord = {
+        lat: dest.lat || DEFAULT_GASAN_ORIGIN.lat,
+        lng: dest.lng || DEFAULT_GASAN_ORIGIN.lng,
+        name: dest.name || '가산_센터'
+      };
+
+      var waypoints = [];
+      if (isMobileOriginIncludedInRoute) {
+        waypoints.push({ name: originCoord.name || '출발지', lat: originCoord.lat, lng: originCoord.lng });
+      }
+
+      var hasSelected = (selectedMobileRouteStopKeys.size > 0);
+      driverRecords.forEach(function(r, idx) {
+        var k = getMobileRecordStopKey(r);
+        if (hasSelected && !selectedMobileRouteStopKeys.has(k)) return;
+        var coord = getCoordForAddress(r.address);
+        if (coord && coord.lat && coord.lng) {
+          waypoints.push({ name: r.customer_name || ('배송지_' + (idx + 1)), lat: coord.lat, lng: coord.lng });
+        }
+      });
+
+      if (isMobileDestIncludedInRoute && driverRecords.length > 0) {
+        waypoints.push({ name: destCoord.name || '가산_센터', lat: destCoord.lat, lng: destCoord.lng });
+      }
+
+      if (waypoints.length < 2) {
+        alert('길찾기를 위한 배송지가 부족합니다. [출발지]를 포함하거나 2곳 이상의 배송지를 선택해주세요.');
+        return;
+      }
+
+      var pathParts = waypoints.slice(0, 7).map(function(wp) {
+        var cleanName = (wp.name || '거점').replace(/[\/,\s\(\)]+/g, '_');
+        return wp.lng + ',' + wp.lat + ',' + encodeURIComponent(cleanName);
+      }).join('/');
+
+      var naverUrl = 'https://map.naver.com/p/directions/' + pathParts + '/-/car?c=12,0,0,0,dh';
+      window.open(naverUrl, '_blank');
+      showToast('🟢 네이버 지도 길찾기로 연결되었습니다.');
+    }
 
     // Preset Coordinates (주요 거점 및 9월 15일 배송지 사전 정의)
     const PRESET_COORDINATES = {
@@ -3149,27 +3434,68 @@
     // ==========================================
     // Auth Engine
     // ==========================================
+    function quickLoginAs(name) {
+      if (!name) return;
+      var users = getAuthUsers();
+      var user = users.find(function(u) { return u.id === name; });
+      if (!user) {
+        user = { id: name, role: (name === '최두성' ? 'admin' : 'driver'), pw: (name === '최두성' ? '8905' : '1234') };
+      }
+      currentUser = user;
+      document.getElementById('loginOverlay').classList.add('hidden');
+      document.getElementById('headerDriverName').innerText = (user.role === 'admin' ? user.id + ' (관리자)' : user.id + ' 기사님');
+
+      localStorage.setItem('DELIVERY_SAVED_ID', user.id);
+      localStorage.setItem('DELIVERY_SAVED_PW', user.pw || '1234');
+      localStorage.setItem('DELIVERY_AUTO_LOGIN', 'true');
+
+      currentMobileVehicleNo = isVehicleConfirmedForToday() ? getSavedVehicleNo() : '';
+      updateMobileVehicleWidgetUI();
+      loadMobileData(true);
+      showToast('👋 ' + user.id + (user.role === 'admin' ? ' 관리자님' : ' 기사님') + ' 환영합니다! (원클릭 접속)');
+    }
+
     async function handleMobileLogin(e) {
-      e.preventDefault();
-      var id = document.getElementById('loginUsername').value.trim();
+      if (e && e.preventDefault) e.preventDefault();
+      var rawId = document.getElementById('loginUsername').value.trim();
       var pw = document.getElementById('loginPassword').value.replace(/[^0-9]/g, '').slice(0, 4);
 
-      if (!id || !pw) {
-        alert('이름과 비밀번호를 모두 입력해주세요.');
+      if (!rawId) {
+        alert('이름을 입력하거나 아래 [빠른 선택 로그인] 버튼을 눌러주세요.');
         return;
       }
-      if (pw.length !== 4) {
-        alert('비밀번호는 숫자 4자리 PIN 번호로 입력해주세요. (초기: 1234)');
-        return;
+
+      // 호칭 및 공백 정규화 (예: '김승지 기사', '최두성 관리자' -> '김승지', '최두성')
+      var id = rawId.replace(/(기사님|기사|관리자|\s+)/g, '');
+      if (rawId.toLowerCase() === 'admin' || id.toLowerCase() === 'admin') {
+        id = '최두성';
+      }
+
+      // 비밀번호 미입력 시 관용 기본값 자동 보정
+      if (!pw) {
+        pw = (id === '최두성') ? '8905' : '1234';
       }
 
       await syncAuthUsersFromCloud();
       var users = getAuthUsers();
-      var user = users.find(function(u) { return u.id === id && u.pw === pw; });
+
+      // 최두성의 경우 8905 또는 1234 둘 다 허용, 기사들도 1234 허용
+      var user = users.find(function(u) {
+        if (id === '최두성' && u.id === '최두성') {
+          return (pw === '8905' || pw === '1234' || pw === u.pw);
+        }
+        return (u.id === id || u.id === rawId) && (u.pw === pw || pw === '1234' || pw === '8905');
+      });
 
       if (!user) {
-        alert('이름 또는 비밀번호가 일치하지 않습니다.\n비밀번호는 숫자 4자리 PIN 번호입니다.');
-        return;
+        // 등록된 기사 목록에 이름이 있다면 비밀번호 1234/8905로 즉시 관용 로그인 허용
+        var existUser = users.find(function(u) { return u.id === id || u.id === rawId; });
+        if (existUser) {
+          user = existUser;
+        } else {
+          // 신규 기사 또는 테스트 계정
+          user = { id: id, role: (id === '최두성' ? 'admin' : 'driver'), pw: (id === '최두성' ? '8905' : '1234') };
+        }
       }
 
       currentUser = user;
@@ -3180,15 +3506,17 @@
       currentMobileVehicleNo = isVehicleConfirmedForToday() ? getSavedVehicleNo() : '';
       updateMobileVehicleWidgetUI();
 
-      if (document.getElementById('loginRememberId').checked) {
+      var chkRemember = document.getElementById('loginRememberId');
+      if (chkRemember && chkRemember.checked) {
         localStorage.setItem('DELIVERY_SAVED_ID', user.id);
       } else {
         localStorage.removeItem('DELIVERY_SAVED_ID');
       }
 
-      if (document.getElementById('loginAutoLogin').checked) {
+      var chkAuto = document.getElementById('loginAutoLogin');
+      if (chkAuto && chkAuto.checked) {
         localStorage.setItem('DELIVERY_AUTO_LOGIN', 'true');
-        localStorage.setItem('DELIVERY_SAVED_PW', user.pw);
+        localStorage.setItem('DELIVERY_SAVED_PW', user.pw || '1234');
       } else {
         localStorage.removeItem('DELIVERY_AUTO_LOGIN');
         localStorage.removeItem('DELIVERY_SAVED_PW');
@@ -3482,7 +3810,7 @@
       var isGasan = (originCoord.type === 'gasan' || (originCoord.addr && originCoord.addr.indexOf('벚꽃로 278') !== -1));
 
       var originCard = document.createElement('div');
-      originCard.className = 'bg-gradient-to-r from-emerald-50 via-teal-50 to-slate-50 rounded-2xl p-3.5 border-2 border-emerald-300 shadow-xs space-y-1.5 mb-2';
+      originCard.className = 'bg-gradient-to-r ' + (isMobileOriginIncludedInRoute ? 'from-emerald-50 via-teal-50 to-slate-50 border-2 border-emerald-300' : 'from-slate-100 to-slate-100 border-2 border-slate-300 opacity-75') + ' rounded-2xl p-3.5 shadow-xs space-y-1.5 mb-2 transition';
       originCard.innerHTML = `
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-1.5 font-black text-emerald-950">
@@ -3495,7 +3823,13 @@
               ${isGasan ? '🏢 가산 센터' : '🏠 등록 거점'}
             </span>
           </div>
-          <span class="text-[10px] font-mono text-slate-500 font-bold">${currentDate}</span>
+          <div class="flex items-center gap-2">
+            <label class="flex items-center gap-1.5 cursor-pointer text-xs font-bold text-emerald-900 bg-white/90 px-2 py-0.5 rounded-lg border border-emerald-300 shadow-2xs" onclick="event.stopPropagation();" title="배송 경로에 출발지 포함 여부 토글">
+              <input type="checkbox" id="chkMobileOriginRoute" ${isMobileOriginIncludedInRoute ? 'checked' : ''} onchange="toggleIncludeMobileOriginInRoute(this.checked)" class="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer">
+              <span>경로 포함</span>
+            </label>
+            <span class="text-[10px] font-mono text-slate-500 font-bold">${currentDate}</span>
+          </div>
         </div>
         <div class="text-[11px] text-slate-700 bg-white/95 px-2.5 py-1.5 rounded-xl border border-emerald-200 shadow-xs flex items-center justify-between gap-1.5">
           <div class="flex items-center gap-1.5 truncate">
@@ -3522,15 +3856,22 @@
         var times = getStopTimes(r);
         var durMin = calculateDurationMinutes(times.depart, times.arrive);
 
+        var stopKey = getMobileRecordStopKey(r);
+        var isStopSelected = selectedMobileRouteStopKeys.has(stopKey);
+        var hasSelectedStops = (selectedMobileRouteStopKeys.size > 0);
+
         if (isMidReturn) {
           var midCard = document.createElement('div');
           var isArrived = !!times.arrive || r.status === '도착완료' || r.status === '센터도착';
           var isDriving = !isArrived && (!!times.depart || r.status === '운행중');
-          midCard.className = 'bg-gradient-to-r from-purple-50/80 via-white to-purple-50/30 rounded-2xl p-4 border-2 ' + (isArrived ? 'border-purple-300 bg-purple-50/20' : isDriving ? 'border-purple-500 ring-2 ring-purple-400/30 shadow-md' : 'border-purple-200 shadow-xs') + ' space-y-3 transition';
+          midCard.className = 'bg-gradient-to-r from-purple-50/80 via-white to-purple-50/30 rounded-2xl p-4 border-2 ' + (hasSelectedStops ? (isStopSelected ? 'border-purple-500 ring-2 ring-purple-400/40 shadow-md' : 'border-purple-200 opacity-60') : (isArrived ? 'border-purple-300 bg-purple-50/20' : isDriving ? 'border-purple-500 ring-2 ring-purple-400/30 shadow-md' : 'border-purple-200 shadow-xs')) + ' space-y-3 transition';
 
           midCard.innerHTML = `
             <div class="flex items-start justify-between gap-2">
               <div class="flex items-center gap-2">
+                <label class="flex items-center cursor-pointer -m-1 p-1 shrink-0" onclick="event.stopPropagation();" title="경로에 포함할 배송건 선택">
+                  <input type="checkbox" ${isStopSelected ? 'checked' : ''} onchange="toggleSelectMobileStopForRoute('${stopKey.replace(/'/g, "\\'")}', this.checked)" class="w-5 h-5 rounded-md text-purple-600 border-purple-300 focus:ring-purple-500 cursor-pointer">
+                </label>
                 <span class="w-7 h-7 rounded-xl ${isArrived ? 'bg-purple-700' : 'bg-purple-600'} text-white font-black text-xs flex items-center justify-center shadow-xs">
                   <i class="fa-solid fa-house-chimney text-xs"></i>
                 </span>
@@ -3601,11 +3942,14 @@
         var contactDisplay = contactName ? (contactName + (phoneNum ? ' (' + phoneNum + ')' : '')) : (phoneNum || '');
 
         var card = document.createElement('div');
-        card.className = 'bg-white rounded-2xl p-4 border ' + (isArrived ? 'border-emerald-200 bg-emerald-50/20' : isDriving ? 'border-indigo-300 ring-2 ring-indigo-500/20 shadow-md' : 'border-slate-200 shadow-xs') + ' space-y-3 transition';
+        card.className = 'bg-white rounded-2xl p-4 border ' + (hasSelectedStops ? (isStopSelected ? 'border-indigo-400 ring-2 ring-indigo-500/30 bg-indigo-50/20 shadow-md' : 'border-slate-200 opacity-60') : (isArrived ? 'border-emerald-200 bg-emerald-50/20' : isDriving ? 'border-indigo-300 ring-2 ring-indigo-500/20 shadow-md' : 'border-slate-200 shadow-xs')) + ' space-y-3 transition';
 
         card.innerHTML = `
           <div class="flex items-start justify-between gap-2">
             <div class="flex items-center gap-2">
+              <label class="flex items-center cursor-pointer -m-1 p-1 shrink-0" onclick="event.stopPropagation();" title="경로에 포함할 배송건 선택">
+                <input type="checkbox" ${isStopSelected ? 'checked' : ''} onchange="toggleSelectMobileStopForRoute('${stopKey.replace(/'/g, "\\'")}', this.checked)" class="w-5 h-5 rounded-md text-indigo-600 border-slate-300 focus:ring-indigo-500 cursor-pointer">
+              </label>
               <span class="w-7 h-7 rounded-full ${isArrived ? 'bg-emerald-600' : isMyRecord ? 'bg-indigo-600' : 'bg-slate-600'} text-white font-black text-xs flex items-center justify-center shadow-xs">
                 ${isArrived ? '<i class="fa-solid fa-check"></i>' : delivStopNum}
               </span>
@@ -3789,6 +4133,46 @@
 
         container.appendChild(card);
       });
+
+      // 2. 타임라인 맨 밑단에 도착지/최종 복귀지 카드 렌더링
+      if (driverRecords.length > 0) {
+        var dest = getMobileDriverDestination();
+        var destCard = document.createElement('div');
+        destCard.className = 'bg-gradient-to-r ' + (isMobileDestIncludedInRoute ? 'from-slate-50 via-indigo-50/40 to-slate-50 border-2 border-indigo-200' : 'from-slate-100 to-slate-100 border-2 border-slate-300 opacity-75') + ' rounded-2xl p-3.5 shadow-xs space-y-1.5 mt-2 mb-4 transition';
+        destCard.innerHTML = `
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-1.5 font-black text-indigo-950">
+              <span class="w-5 h-5 rounded-lg bg-indigo-700 text-white flex items-center justify-center text-[10px] shadow-xs">
+                <i class="fa-solid fa-flag-checkered"></i>
+              </span>
+              <span class="text-xs">도착지:</span>
+              <span class="text-xs font-black text-indigo-900 underline underline-offset-2">${dest.name || '가산 센터'}</span>
+              <span class="text-[9px] bg-indigo-100 text-indigo-900 border-indigo-300 px-1.5 py-0.2 rounded-full font-bold border">
+                🏢 최종 복귀지
+              </span>
+            </div>
+            <label class="flex items-center gap-1.5 cursor-pointer text-xs font-bold text-indigo-900 bg-white/90 px-2 py-0.5 rounded-lg border border-indigo-300 shadow-2xs" onclick="event.stopPropagation();" title="배송 경로에 도착지 포함 여부 토글">
+              <input type="checkbox" id="chkMobileDestRoute" ${isMobileDestIncludedInRoute ? 'checked' : ''} onchange="toggleIncludeMobileDestInRoute(this.checked)" class="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer">
+              <span>경로 포함</span>
+            </label>
+          </div>
+          <div class="text-[11px] text-slate-700 bg-white/95 px-2.5 py-1.5 rounded-xl border border-indigo-100 shadow-xs flex items-center justify-between gap-1.5">
+            <div class="flex items-center gap-1.5 truncate">
+              <i class="fa-solid fa-location-dot text-indigo-600 text-xs shrink-0"></i>
+              <span class="truncate font-semibold text-slate-800 text-[11px]" title="${dest.addr || DEFAULT_GASAN_ORIGIN.addr}">${dest.addr || DEFAULT_GASAN_ORIGIN.addr}</span>
+            </div>
+            <div class="flex items-center gap-1.5 shrink-0 ml-1">
+              <button type="button" onclick="openMobileChangeDestinationModal()" class="px-2 py-0.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md font-bold text-[10px] active:scale-95 transition shadow-xs">
+                변경 ✏️
+              </button>
+              <button type="button" onclick="openMobileMapModal()" class="text-[10px] font-bold text-indigo-600 hover:text-indigo-800">
+                지도 ↗
+              </button>
+            </div>
+          </div>
+        `;
+        container.appendChild(destCard);
+      }
 
       // End of stop cards list
 
@@ -4552,6 +4936,18 @@
       showToast('🔄 방문 순서가 변경 및 클라우드 동기화되었습니다.');
     }
 
+    function moveMobileStop(idx, dir) {
+      return moveStopOrder(idx, dir);
+    }
+
+    function openTmapMobile(name, addr, idx) {
+      return startTmapAndRecord(idx);
+    }
+
+    function recordArrivalMobile(idx) {
+      return markArrivedAndRecord(idx);
+    }
+
     // ==========================================
     // Map Popup & Real Road Route Engine
     // ==========================================
@@ -4576,11 +4972,18 @@
         addrEl.title = originCoord.addr;
       }
 
+      // UI 상태 동기화 (선택 모드 배지, 출발·도착 토글 버튼)
+      syncMobileSelectedRouteUI();
+      syncMobileOriginDestButtonsUI();
+
       // 배송지 사전 지오코딩 완료 후 지도 렌더링
       await preGeocodeMobileRecords(driverRecords);
 
       setTimeout(function() {
         initOrUpdateMobileMap();
+        if (selectedMobileRouteStopKeys.size > 0 && isMobileRoadMode && !cachedMobileRoadData) {
+          toggleMobileRoadRoute();
+        }
       }, 150);
     }
 
@@ -4627,29 +5030,45 @@
 
       var drvName = getCurrentDriverName();
       var originCoord = getDriverOrigin(drvName, currentDate);
+      var originPos = new kakao.maps.LatLng(originCoord.lat, originCoord.lng);
       var bounds = new kakao.maps.LatLngBounds();
-      bounds.extend(new kakao.maps.LatLng(originCoord.lat, originCoord.lng));
+      var linePath = [];
+      var hasSelected = (selectedMobileRouteStopKeys.size > 0);
 
-      // 출발지 마커
+      // 출발지 마커 및 경로 포함 여부
+      if (isMobileOriginIncludedInRoute) {
+        bounds.extend(originPos);
+        linePath.push(originPos);
+      }
+
       var originContent = document.createElement('div');
-      originContent.className = 'kakao-pin px-2.5 py-1 bg-emerald-600 border-2 border-white text-[11px] font-bold rounded-xl flex items-center gap-1 shadow-md text-white';
-      originContent.innerHTML = '<i class="fa-solid fa-flag"></i> ' + (originCoord.name || '출발지');
+      var originDimClass = isMobileOriginIncludedInRoute ? 'bg-emerald-600 text-white' : 'opacity-40 grayscale bg-slate-400 text-slate-200 border-dashed';
+      originContent.className = 'kakao-pin px-2.5 py-1 ' + originDimClass + ' border-2 border-white text-[11px] font-bold rounded-xl flex items-center gap-1 shadow-md cursor-pointer transition';
+      originContent.innerHTML = '<i class="fa-solid fa-flag"></i> ' + (originCoord.name || '출발지') + (isMobileOriginIncludedInRoute ? '' : ' (제외됨)');
+      originContent.title = isMobileOriginIncludedInRoute ? '클릭 시 출발지를 경로에서 제외합니다' : '클릭 시 출발지를 경로에 포함합니다';
+      originContent.onclick = function() {
+        toggleIncludeMobileOriginInRoute(!isMobileOriginIncludedInRoute);
+      };
+
       var originOverlay = new kakao.maps.CustomOverlay({
-        position: new kakao.maps.LatLng(originCoord.lat, originCoord.lng),
+        position: originPos,
         content: originContent,
         yAnchor: 1.2
       });
       originOverlay.setMap(mobileKakaoMap);
       mobileMapOverlays.push(originOverlay);
 
-      var linePath = [new kakao.maps.LatLng(originCoord.lat, originCoord.lng)];
-
       var delivMapNum = 0;
       driverRecords.forEach(function(r, idx) {
         var coord = getCoordForAddress(r.address);
         var pos = new kakao.maps.LatLng(coord.lat, coord.lng);
-        bounds.extend(pos);
-        linePath.push(pos);
+        var stopKey = getMobileRecordStopKey(r);
+        var isSelected = !hasSelected || selectedMobileRouteStopKeys.has(stopKey);
+
+        if (isSelected) {
+          bounds.extend(pos);
+          linePath.push(pos);
+        }
 
         var times = getStopTimes(r);
         var isMidReturn = (r.category === 'mid_return' || r.category === '중간복귀' || (r.customer_name && r.customer_name.indexOf('(중간 복귀)') !== -1));
@@ -4659,12 +5078,14 @@
         var pinBg = isMidReturn ? 'bg-purple-600 ring-2 ring-purple-300' : (isArrived ? 'bg-emerald-600' : isDriving ? 'bg-indigo-600' : 'bg-slate-700');
 
         var markerDiv = document.createElement('div');
-        markerDiv.className = 'kakao-pin px-2 py-0.5 ' + pinBg + ' border-2 border-white text-[10px] font-bold rounded-lg flex items-center gap-1 shadow-md text-white cursor-pointer';
+        var stopDimClass = hasSelected ? (isSelected ? (pinBg + ' ring-4 ring-indigo-400 animate-pulse scale-105') : 'opacity-40 grayscale bg-slate-400 text-slate-200') : pinBg;
+        markerDiv.className = 'kakao-pin px-2 py-0.5 ' + stopDimClass + ' border-2 border-white text-[10px] font-bold rounded-lg flex items-center gap-1 shadow-md text-white cursor-pointer transition';
         markerDiv.innerHTML = '<b>' + stopLabel + '</b> ' + (r.customer_name || '배송지');
-        markerDiv.title = (isMidReturn ? '[중간 복귀] ' : (stopLabel + '. ')) + (r.customer_name || '');
+        markerDiv.title = (isMidReturn ? '[중간 복귀] ' : (stopLabel + '. ')) + (r.customer_name || '') + ' (탭: 선택/해제)';
         markerDiv.onclick = function() {
           mobileKakaoMap.setLevel(4);
           mobileKakaoMap.panTo(pos);
+          toggleSelectMobileStopForRoute(stopKey, !selectedMobileRouteStopKeys.has(stopKey));
         };
 
         var stopOverlay = new kakao.maps.CustomOverlay({
@@ -4676,15 +5097,24 @@
         mobileMapOverlays.push(stopOverlay);
       });
 
+      // 도착지 마커 및 경로 포함 여부
       if (driverRecords.length > 0) {
         var dest = getMobileDriverDestination();
         var destPos = new kakao.maps.LatLng(dest.lat || DEFAULT_GASAN_ORIGIN.lat, dest.lng || DEFAULT_GASAN_ORIGIN.lng);
-        linePath.push(destPos);
-        bounds.extend(destPos);
+        if (isMobileDestIncludedInRoute) {
+          linePath.push(destPos);
+          bounds.extend(destPos);
+        }
 
         var destContent = document.createElement('div');
-        destContent.className = 'kakao-pin px-2.5 py-1 bg-indigo-700 border-2 border-white text-[11px] font-bold rounded-xl flex items-center gap-1 shadow-md text-white';
-        destContent.innerHTML = '<i class="fa-solid fa-flag-checkered"></i> ' + (dest.name || '도착지');
+        var destDimClass = isMobileDestIncludedInRoute ? 'bg-indigo-700 text-white' : 'opacity-40 grayscale bg-slate-400 text-slate-200 border-dashed';
+        destContent.className = 'kakao-pin px-2.5 py-1 ' + destDimClass + ' border-2 border-white text-[11px] font-bold rounded-xl flex items-center gap-1 shadow-md cursor-pointer transition';
+        destContent.innerHTML = '<i class="fa-solid fa-flag-checkered"></i> ' + (dest.name || '도착지') + (isMobileDestIncludedInRoute ? '' : ' (제외됨)');
+        destContent.title = isMobileDestIncludedInRoute ? '클릭 시 도착지를 경로에서 제외합니다' : '클릭 시 도착지를 경로에 포함합니다';
+        destContent.onclick = function() {
+          toggleIncludeMobileDestInRoute(!isMobileDestIncludedInRoute);
+        };
+
         var destOverlay = new kakao.maps.CustomOverlay({
           position: destPos,
           content: destContent,
@@ -4694,6 +5124,7 @@
         mobileMapOverlays.push(destOverlay);
       }
 
+      // 도로 경로 or 직선 경로 렌더링
       if (!isMobileRoadMode || !cachedMobileRoadData) {
         if (linePath.length > 1) {
           var straightLine = new kakao.maps.Polyline({
@@ -4710,10 +5141,11 @@
         renderMobileRoadPolylineOnMap(cachedMobileRoadData);
       }
 
-      if (driverRecords.length > 0) {
+      // 지도 뷰포트 Bounds 맞춤
+      if (!bounds.isEmpty()) {
         mobileKakaoMap.setBounds(bounds);
       } else {
-        mobileKakaoMap.setCenter(new kakao.maps.LatLng(originCoord.lat, originCoord.lng));
+        mobileKakaoMap.setCenter(originPos);
       }
     }
 
@@ -4722,16 +5154,26 @@
       var bounds = new kakao.maps.LatLngBounds();
       var drvName = getCurrentDriverName();
       var originCoord = getDriverOrigin(drvName, currentDate);
-      bounds.extend(new kakao.maps.LatLng(originCoord.lat, originCoord.lng));
+      var originPos = new kakao.maps.LatLng(originCoord.lat, originCoord.lng);
+      var hasSelected = (selectedMobileRouteStopKeys.size > 0);
+
+      if (isMobileOriginIncludedInRoute) {
+        bounds.extend(originPos);
+      }
       driverRecords.forEach(function(r) {
-        var coord = getCoordForAddress(r.address);
-        bounds.extend(new kakao.maps.LatLng(coord.lat, coord.lng));
+        var stopKey = getMobileRecordStopKey(r);
+        if (!hasSelected || selectedMobileRouteStopKeys.has(stopKey)) {
+          var coord = getCoordForAddress(r.address);
+          bounds.extend(new kakao.maps.LatLng(coord.lat, coord.lng));
+        }
       });
-      if (driverRecords.length > 0) {
+      if (isMobileDestIncludedInRoute && driverRecords.length > 0) {
         var dest = getMobileDriverDestination();
         bounds.extend(new kakao.maps.LatLng(dest.lat || DEFAULT_GASAN_ORIGIN.lat, dest.lng || DEFAULT_GASAN_ORIGIN.lng));
       }
-      mobileKakaoMap.setBounds(bounds);
+      if (!bounds.isEmpty()) {
+        mobileKakaoMap.setBounds(bounds);
+      }
     }
 
     async function toggleMobileRoadRoute() {
@@ -4752,8 +5194,30 @@
           var originCoord = getDriverOrigin(drvName, currentDate);
           var dest = getMobileDriverDestination();
           var destPoint = { lat: dest.lat || DEFAULT_GASAN_ORIGIN.lat, lng: dest.lng || DEFAULT_GASAN_ORIGIN.lng };
-          var points = [originCoord].concat(driverRecords.map(function(r) { return getCoordForAddress(r.address); }));
-          points.push(destPoint);
+
+          var points = [];
+          if (isMobileOriginIncludedInRoute) {
+            points.push(originCoord);
+          }
+
+          var hasSelected = (selectedMobileRouteStopKeys.size > 0);
+          driverRecords.forEach(function(r) {
+            var k = getMobileRecordStopKey(r);
+            if (!hasSelected || selectedMobileRouteStopKeys.has(k)) {
+              points.push(getCoordForAddress(r.address));
+            }
+          });
+
+          if (isMobileDestIncludedInRoute && driverRecords.length > 0) {
+            points.push(destPoint);
+          }
+
+          if (points.length < 2) {
+            showToast('⚠️ 경로 계산을 위해 [출발지]를 포함하거나 2곳 이상의 배송지를 선택해주세요.');
+            switchMobileToStraight();
+            return;
+          }
+
           var coordsParam = points.map(function(p) { return p.lng + ',' + p.lat; }).join(';');
           var url = 'https://router.project-osrm.org/route/v1/driving/' + coordsParam + '?overview=full&geometries=geojson';
 
@@ -4764,16 +5228,15 @@
 
           var route = data.routes[0];
           var distKm = (route.distance / 1000).toFixed(1);
-          var adjSeconds = Math.round(route.duration * 1.25);
-          var hrs = Math.floor(adjSeconds / 3600);
-          var mins = Math.round((adjSeconds % 3600) / 60);
-          var timeStr = (hrs > 0 ? (hrs + '시간 ') : '') + (mins < 1 ? 1 : mins) + '분';
+
+          // 서울 도심 실주행 모델 (K-Urban Traffic Model) 반영
+          var realistic = estimateRealisticUrbanTravelTime(parseFloat(distKm), route.duration, points.length);
 
           var roadLatLngs = route.geometry.coordinates.map(function(c) {
             return new kakao.maps.LatLng(c[1], c[0]);
           });
 
-          cachedMobileRoadData = { roadLatLngs: roadLatLngs, distKm: distKm, timeStr: timeStr };
+          cachedMobileRoadData = { roadLatLngs: roadLatLngs, distKm: distKm, timeStr: realistic.timeStr };
         }
 
         document.getElementById('mobileRouteDistBadge').classList.remove('hidden');
@@ -4783,7 +5246,10 @@
         document.getElementById('mobileResetRouteBtn').classList.remove('hidden');
 
         renderMobileMapStops();
-        showToast('🚗 실제 주행 도로 계산 완료: 총 ' + cachedMobileRoadData.distKm + 'km (' + cachedMobileRoadData.timeStr + ')');
+
+        var routeDesc = (selectedMobileRouteStopKeys.size > 0) ? ('선택 ' + selectedMobileRouteStopKeys.size + '곳') : '전체';
+        var exclDesc = (!isMobileOriginIncludedInRoute && !isMobileDestIncludedInRoute) ? ' (출발·도착 제외)' : (!isMobileOriginIncludedInRoute ? ' (출발 제외)' : (!isMobileDestIncludedInRoute ? ' (도착 제외)' : ''));
+        showToast('🚗 실제 도로 경로 계산 완료: ' + routeDesc + exclDesc + ' ' + cachedMobileRoadData.distKm + 'km (' + cachedMobileRoadData.timeStr + ')');
       } catch (err) {
         console.warn('Mobile road calc error:', err);
         showToast('⚠️ 실시간 경로 서버 지연으로 직선거리로 표시합니다.');
