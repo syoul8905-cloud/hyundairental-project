@@ -427,10 +427,22 @@
           <i class="fa-solid fa-clock text-indigo-600"></i>
           <span id="routeDurationText">0분</span>
         </span>
+        <!-- 신규: 선택 배송건 전용 실제 경로 뱃지 -->
+        <span id="selectedRouteModeBadge" class="hidden text-xs bg-indigo-600 text-white px-3 py-1 rounded-lg font-black flex items-center gap-1.5 shadow-sm animate-pulse">
+          <i class="fa-solid fa-check-double text-amber-300"></i>
+          <span>선택 경로 관제 (<b id="selectedRouteCountText" class="text-amber-200">0</b>곳)</span>
+        </span>
       </div>
 
       <!-- 경로 모드 전환 버튼들 -->
-      <div class="flex items-center gap-2">
+      <div class="flex items-center gap-2 flex-wrap">
+        <!-- 신규: 선택 경로 해제 및 전체 복귀 버튼 -->
+        <button id="clearSelectedRouteBtn" onclick="clearSelectedRouteMode()" 
+                class="hidden px-3 py-1.5 bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white font-bold rounded-xl text-xs transition flex items-center gap-1.5 shadow-sm active:scale-95 cursor-pointer"
+                title="선택된 배송 건을 해제하고 전체 배송 경로로 복귀합니다">
+          <i class="fa-solid fa-rotate-left"></i>
+          <span>↩ 전체 경로 복귀</span>
+        </button>
         <button id="openNaverRouteBtn" onclick="openNaverMultiRoute()" 
                 class="hidden px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs transition flex items-center gap-1.5 shadow-sm"
                 title="네이버 지도에서 실시간 교통 전체 경로 및 소요시간 확인">
@@ -461,7 +473,7 @@
               <i class="fa-solid fa-list-ol text-indigo-600"></i> 방문 순서별 배송지 (<span id="timelineCount">0</span>)
             </h3>
             <span class="text-[10px] text-indigo-600 font-semibold flex items-center gap-1 mt-0.5">
-              <i class="fa-solid fa-arrows-up-down"></i> 드래그 또는 ▲▼ 로 순서 변경 (지도 즉시 반영)
+              <i class="fa-solid fa-arrows-up-down"></i> 드래그 순서 변경 · 체크박스로 부분 경로 선택
             </span>
           </div>
           <div class="flex items-center gap-1 flex-wrap">
@@ -476,6 +488,21 @@
             </button>
           </div>
         </div>
+
+        <!-- Selection Quick Control Bar -->
+        <div id="timelineSelectionBar" class="hidden px-2.5 py-1.5 bg-gradient-to-r from-indigo-50 via-teal-50/50 to-indigo-50 border border-indigo-200 rounded-lg flex items-center justify-between text-xs select-none shadow-2xs">
+          <div class="flex items-center gap-1.5 font-bold text-indigo-950">
+            <i class="fa-solid fa-check-double text-indigo-600"></i>
+            <span>선택 <b id="timelineSelectionCount" class="text-indigo-700 font-black">0</b>곳 실제 경로 관제 중</span>
+          </div>
+          <div class="flex items-center gap-1">
+            <button type="button" onclick="clearSelectedRouteMode()" class="px-2 py-0.5 bg-white hover:bg-rose-50 text-rose-700 border border-rose-200 rounded text-[10.5px] font-bold transition flex items-center gap-1 shadow-2xs cursor-pointer">
+              <i class="fa-solid fa-xmark text-[9.5px]"></i>
+              <span>선택 해제</span>
+            </button>
+          </div>
+        </div>
+
         <div id="routeTimeline" class="space-y-1.5 max-h-[460px] overflow-y-auto custom-scroll pr-1"></div>
       </div>
 
@@ -2611,8 +2638,65 @@
     var kakaoOverlays = [];
     var kakaoPolylines = [];
     var isRoadRouteMode = false; // 기본값: 직선거리 배정 모드
-    var cachedRoadRouteData = null; // 실제 도로 경로 데이터 캐시
     var isCalculatingRoute = false;
+    var selectedRouteStopKeys = new Set(); // 원하는 배송 건만 선택 실제 경로 모드
+
+    function getRecordStopKey(r) {
+      if (!r) return '';
+      return r.ID ? String(r.ID) : ((r.고객사 || '') + '_' + (r.방문시간 || '') + '_' + (r.주소 || ''));
+    }
+
+    function toggleSelectStopForRoute(stopKey, isChecked) {
+      if (!stopKey) return;
+      if (isChecked) {
+        selectedRouteStopKeys.add(stopKey);
+      } else {
+        selectedRouteStopKeys.delete(stopKey);
+      }
+      cachedRoadRouteData = null; // 선택 변경 시 도로 경로 캐시 무효화
+      if (selectedRouteStopKeys.size > 0) {
+        isRoadRouteMode = true; // 1건 이상 선택 시 자동 실제 도로 경로 활성화
+      }
+      syncSelectedRouteUI();
+      renderRouteMap();
+      renderTable();
+    }
+
+    function clearSelectedRouteMode() {
+      selectedRouteStopKeys.clear();
+      cachedRoadRouteData = null;
+      syncSelectedRouteUI();
+      renderRouteMap();
+      renderTable();
+      showToast('🔄 전체 배송 경로로 복귀했습니다.');
+    }
+
+    function syncSelectedRouteUI() {
+      var count = selectedRouteStopKeys.size;
+      var badge = document.getElementById('selectedRouteModeBadge');
+      var countText = document.getElementById('selectedRouteCountText');
+      var clearBtn = document.getElementById('clearSelectedRouteBtn');
+      var timelineBar = document.getElementById('timelineSelectionBar');
+      var timelineCount = document.getElementById('timelineSelectionCount');
+
+      if (count > 0) {
+        if (badge) badge.classList.remove('hidden');
+        if (countText) countText.innerText = count;
+        if (clearBtn) clearBtn.classList.remove('hidden');
+        if (timelineBar) {
+          timelineBar.classList.remove('hidden');
+          timelineBar.classList.add('flex');
+        }
+        if (timelineCount) timelineCount.innerText = count;
+      } else {
+        if (badge) badge.classList.add('hidden');
+        if (clearBtn) clearBtn.classList.add('hidden');
+        if (timelineBar) {
+          timelineBar.classList.add('hidden');
+          timelineBar.classList.remove('flex');
+        }
+      }
+    }
 
     // 사전 정밀 검증 GPS 좌표 프리셋 (카카오 공식 정밀 검증 좌표: SJ테크노빌 37.479493, 126.884635)
     var PRESET_COORDINATES = {
@@ -4919,10 +5003,13 @@
       var bounds = (kakaoMap && window.kakao) ? new kakao.maps.LatLngBounds() : null;
       if (!isAllDrivers && bounds) bounds.extend(new kakao.maps.LatLng(originCoord.lat, originCoord.lng));
 
+      var hasSelectedStops = (selectedRouteStopKeys.size > 0);
       var delivStopCount = 0;
       for (var subIdx = 0; subIdx < activeRecords.length; subIdx++) {
         var r = activeRecords[subIdx];
         var realIdx = records.indexOf(r);
+        var stopKey = getRecordStopKey(r);
+        var isStopSelected = hasSelectedStops ? selectedRouteStopKeys.has(stopKey) : true;
         var isMidReturn = (r.구분 === 'mid_return' || r.category === 'mid_return' || (r.고객사 && r.고객사.indexOf('(중간 복귀)') !== -1));
         var stopNumber = isMidReturn ? '🏢' : (++delivStopCount);
         var isRecov = !isMidReturn && (r.구분 && r.구분.indexOf('회수') !== -1);
@@ -4937,25 +5024,57 @@
         // Kakao Map Overlay
         if (kakaoMap && window.kakao && kakao.maps.CustomOverlay) {
           var stopPos = new kakao.maps.LatLng(coord.lat, coord.lng);
-          linePath.push(stopPos);
-          if (bounds) bounds.extend(stopPos);
+          
+          // 선택 경로 모드일 때는 선택된 건만 Polyline 경로 및 지도 Bounds에 추가
+          if (!hasSelectedStops || isStopSelected) {
+            linePath.push(stopPos);
+            if (bounds) bounds.extend(stopPos);
+          }
 
           var isRecov = !isMidReturn && (r.구분 && r.구분.indexOf('회수') !== -1);
           var pinBg = isRecov ? 'bg-purple-600' : 'bg-indigo-600';
           var markerTitle = isMidReturn ? `[중간 복귀] ${r.고객사}` : `${stopNumber}. ${r.고객사}`;
           var markerContent = '';
-          if (isMidReturn) {
+
+          if (hasSelectedStops && !isStopSelected) {
+            // 미선택 배송지: 은은한 반투명 딤드 처리 (클릭 시 선택 추가)
             markerContent = `
-              <div class="kakao-pin bg-purple-600 ring-2 ring-purple-300 text-white text-[11px] px-2.5 py-1 rounded-xl shadow-lg border-2 border-white flex items-center gap-1 font-black cursor-pointer hover:scale-110 transition-transform" title="${markerTitle}">
-                <i class="fa-solid fa-house-chimney text-[10px]"></i> ${r.고객사 || '가산 센터 (중간 복귀)'}
-              </div>
-            `;
-          } else {
-            markerContent = `
-              <div class="kakao-pin ${pinBg} w-7 h-7 text-xs border-2 border-white flex items-center justify-center font-black shadow-md rounded-full" title="${markerTitle}">
+              <div class="kakao-pin bg-slate-400 text-white w-6 h-6 text-[9.5px] border border-white flex items-center justify-center font-bold shadow-xs rounded-full opacity-40 grayscale cursor-pointer hover:opacity-100 transition-opacity" 
+                   title="${markerTitle} (클릭 시 선택에 추가)"
+                   onclick="toggleSelectStopForRoute('${stopKey}', true)">
                 ${stopNumber}
               </div>
             `;
+          } else if (hasSelectedStops && isStopSelected) {
+            // 선택된 배송지: 시선 집중 하이라이트 펄스 마커
+            if (isMidReturn) {
+              markerContent = `
+                <div class="kakao-pin bg-purple-600 ring-4 ring-purple-300 text-white text-[11px] px-2.5 py-1 rounded-xl shadow-xl border-2 border-white flex items-center gap-1 font-black cursor-pointer hover:scale-110 transition-transform scale-110 z-30" title="[선택] ${markerTitle}">
+                  <i class="fa-solid fa-house-chimney text-[10px]"></i> ${r.고객사 || '가산 센터 (중간 복귀)'}
+                </div>
+              `;
+            } else {
+              markerContent = `
+                <div class="kakao-pin ${pinBg} ring-4 ring-indigo-400 text-white w-8 h-8 text-xs border-2 border-white flex items-center justify-center font-black shadow-xl rounded-full scale-110 z-30 animate-pulse" title="[선택됨] ${markerTitle}">
+                  ${stopNumber}
+                </div>
+              `;
+            }
+          } else {
+            // 기본 전체 관제 모드
+            if (isMidReturn) {
+              markerContent = `
+                <div class="kakao-pin bg-purple-600 ring-2 ring-purple-300 text-white text-[11px] px-2.5 py-1 rounded-xl shadow-lg border-2 border-white flex items-center gap-1 font-black cursor-pointer hover:scale-110 transition-transform" title="${markerTitle}">
+                  <i class="fa-solid fa-house-chimney text-[10px]"></i> ${r.고객사 || '가산 센터 (중간 복귀)'}
+                </div>
+              `;
+            } else {
+              markerContent = `
+                <div class="kakao-pin ${pinBg} w-7 h-7 text-xs border-2 border-white flex items-center justify-center font-black shadow-md rounded-full" title="${markerTitle}">
+                  ${stopNumber}
+                </div>
+              `;
+            }
           }
           var stopOverlay = new kakao.maps.CustomOverlay({
             position: stopPos,
@@ -4976,7 +5095,7 @@
 
         if (isMidReturn) {
           timelineBox.innerHTML += `
-            <div class="p-2.5 rounded-xl bg-gradient-to-r from-purple-50/90 via-white to-purple-50/40 border-2 border-purple-300 hover:border-purple-500 transition cursor-pointer space-y-2 shadow-xs group"
+            <div class="p-2.5 rounded-xl ${isStopSelected && hasSelectedStops ? 'bg-purple-100/90 border-2 border-purple-600 ring-2 ring-purple-300 shadow-md' : 'bg-gradient-to-r from-purple-50/90 via-white to-purple-50/40 border-2 border-purple-300'} hover:border-purple-500 transition cursor-pointer space-y-2 shadow-xs group"
                  draggable="true"
                  ondragstart="onDragStart(event, ${realIdx})"
                  ondragover="onDragOver(event)"
@@ -4986,6 +5105,13 @@
               
               <div class="flex items-center justify-between">
                 <div class="flex items-center gap-1.5 font-bold text-purple-950">
+                  <label class="flex items-center cursor-pointer shrink-0" onclick="event.stopPropagation();" title="체크하여 이 배송지만 실제 도로 경로 보기">
+                    <input type="checkbox" 
+                           class="stop-select-checkbox w-4 h-4 rounded text-purple-600 border-purple-300 focus:ring-purple-500 cursor-pointer"
+                           data-stopkey="${stopKey}"
+                           ${isStopSelected && hasSelectedStops ? 'checked' : ''}
+                           onchange="toggleSelectStopForRoute('${stopKey}', this.checked)">
+                  </label>
                   <span class="cursor-grab active:cursor-grabbing text-purple-400 group-hover:text-purple-700 px-0.5" title="끌어서 순서 변경">
                     <i class="fa-solid fa-grip-vertical text-xs"></i>
                   </span>
@@ -5071,7 +5197,7 @@
 
         // Timeline Card with Drag & Drop and Mobile Quick Actions
         timelineBox.innerHTML += `
-          <div class="p-2.5 rounded-xl bg-white border border-slate-200 hover:border-indigo-400 transition cursor-pointer space-y-2 shadow-xs group"
+          <div class="p-2.5 rounded-xl ${isStopSelected && hasSelectedStops ? 'bg-indigo-50/80 border-2 border-indigo-600 ring-2 ring-indigo-200 shadow-md' : 'bg-white border border-slate-200 hover:border-indigo-400'} transition cursor-pointer space-y-2 shadow-xs group"
                draggable="true"
                ondragstart="onDragStart(event, ${realIdx})"
                ondragover="onDragOver(event)"
@@ -5081,6 +5207,13 @@
             
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-1.5 font-bold text-slate-800 min-w-0">
+                <label class="flex items-center cursor-pointer shrink-0" onclick="event.stopPropagation();" title="체크하여 이 배송지만 실제 도로 경로 보기">
+                  <input type="checkbox" 
+                         class="stop-select-checkbox w-4 h-4 rounded text-indigo-600 border-slate-300 focus:ring-indigo-500 cursor-pointer"
+                         data-stopkey="${stopKey}"
+                         ${isStopSelected && hasSelectedStops ? 'checked' : ''}
+                         onchange="toggleSelectStopForRoute('${stopKey}', this.checked)">
+                </label>
                 <span class="cursor-grab active:cursor-grabbing text-slate-300 group-hover:text-indigo-600 px-0.5 shrink-0" title="끌어서 순서 변경">
                   <i class="fa-solid fa-grip-vertical text-xs"></i>
                 </span>
@@ -5342,9 +5475,14 @@
         if (calcIcon) calcIcon.className = 'fa-solid fa-car-side';
         if (calcBtn) calcBtn.classList.replace('bg-emerald-600', 'bg-indigo-600');
 
-        document.getElementById('routeSummaryBadge').innerHTML = isAllDrivers
-          ? `<i class="fa-solid fa-layer-group text-indigo-600"></i> 총 <b>${activeRecords.length}</b>개소 배송 현황 (전체 관제)`
-          : `<i class="fa-solid fa-car text-indigo-600"></i> 총 <b>${activeRecords.length}</b>개소 배송 동선 (도착지: ${dest.name || '가산 센터'})`;
+        if (hasSelectedStops) {
+          document.getElementById('routeSummaryBadge').innerHTML = 
+            `<i class="fa-solid fa-check-double text-indigo-600"></i> 선택 <b>${selectedRouteStopKeys.size}</b>개소 직선 경로 (전체 ${activeRecords.length}곳 중)`;
+        } else {
+          document.getElementById('routeSummaryBadge').innerHTML = isAllDrivers
+            ? `<i class="fa-solid fa-layer-group text-indigo-600"></i> 총 <b>${activeRecords.length}</b>개소 배송 현황 (전체 관제)`
+            : `<i class="fa-solid fa-car text-indigo-600"></i> 총 <b>${activeRecords.length}</b>개소 배송 동선 (도착지: ${dest.name || '가산 센터'})`;
+        }
       } else {
         // [확장 모드: 실제 도로 경로 계산 (실시간 교통/신호 대기 반영)]
         if (isAllDrivers) {
@@ -5360,11 +5498,31 @@
         if (calcBtn) calcBtn.classList.replace('bg-indigo-600', 'bg-emerald-600');
         if (calcText) calcText.innerText = '🔄 실제 경로 재계산';
 
-        var validCoords = coords.filter(function(c) { return c && c.lat && c.lng; });
-        var routePoints = [{ lat: originCoord.lat, lng: originCoord.lng }].concat(validCoords);
+        var targetCoords = [];
+        if (hasSelectedStops) {
+          activeRecords.forEach(function(r, idx) {
+            var k = getRecordStopKey(r);
+            if (selectedRouteStopKeys.has(k)) {
+              var c = coords[idx];
+              if (c && c.lat && c.lng) targetCoords.push(c);
+            }
+          });
+        } else {
+          targetCoords = coords.filter(function(c) { return c && c.lat && c.lng; });
+        }
+
+        var routePoints = [{ lat: originCoord.lat, lng: originCoord.lng }].concat(targetCoords);
 
         // 도착지 포인트 추가
         routePoints.push({ lat: destCoord.lat, lng: destCoord.lng });
+
+        if (hasSelectedStops) {
+          document.getElementById('routeSummaryBadge').innerHTML = 
+            `<i class="fa-solid fa-check-double text-indigo-600"></i> 선택 <b>${targetCoords.length}</b>개소 실제 도로 경로 (전체 ${activeRecords.length}곳 중)`;
+        } else {
+          document.getElementById('routeSummaryBadge').innerHTML = 
+            `<i class="fa-solid fa-car text-indigo-600"></i> 총 <b>${activeRecords.length}</b>개소 실제 도로 경로 (도착지: ${dest.name || '가산 센터'})`;
+        }
 
         if (routePoints.length > 1) {
           await renderRealRoadPolyline(routePoints, bounds, fitBounds);
@@ -5373,6 +5531,9 @@
           switchToStraightRoute();
         }
       }
+
+      // UI 뱃지 및 제어바 상태 최종 동기화
+      syncSelectedRouteUI();
     }
 
     /**
@@ -6594,11 +6755,12 @@
           </select>
         `;
 
-        var histInfo = getContractPastHistoryInfo(r.계약번호, r.ID, r.배송일자);
+        var stopKey = getRecordStopKey(r);
+        var isStopSelected = selectedRouteStopKeys.has(stopKey);
 
         tr.innerHTML = `
           <td class="py-2.5 px-3 text-center">
-            <input type="checkbox" class="row-checkbox w-4 h-4 rounded text-indigo-600 ${isDriverUser ? 'cursor-not-allowed opacity-30' : 'cursor-pointer'}" ${isDriverUser ? 'disabled' : ''} data-id="${r.ID || ''}" data-idx="${realIdx}" onchange="onRowCheckboxChange()">
+            <input type="checkbox" class="row-checkbox w-4 h-4 rounded text-indigo-600 cursor-pointer" data-id="${r.ID || ''}" data-idx="${realIdx}" data-stopkey="${stopKey}" ${isStopSelected ? 'checked' : ''} onchange="onRowCheckboxChange(this)" title="체크하여 이 배송지만 실제 도로 경로 보기">
           </td>
           <td class="py-2.5 px-3 font-mono">
             <div class="flex items-center gap-1.5 group/contract">
@@ -7502,11 +7664,31 @@
       var checkboxes = document.querySelectorAll('.row-checkbox');
       checkboxes.forEach(function(cb) {
         cb.checked = checked;
+        var sk = cb.getAttribute('data-stopkey');
+        if (sk) {
+          if (checked) selectedRouteStopKeys.add(sk);
+          else selectedRouteStopKeys.delete(sk);
+        }
       });
+      cachedRoadRouteData = null;
+      if (checked && selectedRouteStopKeys.size > 0) isRoadRouteMode = true;
+      syncSelectedRouteUI();
+      renderRouteMap();
       updateBatchAssignToolbar();
     }
 
-    function onRowCheckboxChange() {
+    function onRowCheckboxChange(changedEl) {
+      if (changedEl && changedEl.getAttribute) {
+        var sk = changedEl.getAttribute('data-stopkey');
+        if (sk) {
+          if (changedEl.checked) selectedRouteStopKeys.add(sk);
+          else selectedRouteStopKeys.delete(sk);
+          cachedRoadRouteData = null;
+          if (selectedRouteStopKeys.size > 0) isRoadRouteMode = true;
+          syncSelectedRouteUI();
+          renderRouteMap();
+        }
+      }
       var checkboxes = document.querySelectorAll('.row-checkbox');
       var total = checkboxes.length;
       var checkedCount = 0;
