@@ -483,6 +483,10 @@
             <button onclick="saveCurrentStopOrderToCloud()" title="현재 정렬된 순서를 클라우드에 영구 저장 및 모든 기사/관리자에게 실시간 동기화" class="text-[11px] bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white px-2.5 py-1 rounded-lg font-black transition flex items-center gap-1 shadow-xs">
               <i class="fa-solid fa-cloud-arrow-up text-[10px]"></i> 순서 확정
             </button>
+            <button id="btnToggleOriginDest" type="button" onclick="toggleOriginDestInclusion()" title="출발지 및 도착지(가산 센터 등) 경로 포함 체크박스를 한 번에 해제하거나 다시 포함합니다" class="text-[11px] bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 px-2.5 py-1 rounded-lg font-black transition flex items-center gap-1 shadow-xs cursor-pointer">
+              <i class="fa-solid fa-ban text-[10px]"></i>
+              <span id="btnToggleOriginDestText">출발·도착 해제</span>
+            </button>
             <button onclick="resetOrder()" title="원래 시간순으로 복원" class="text-[10px] bg-slate-200 hover:bg-slate-300 text-slate-700 px-2 py-1 rounded font-bold transition flex items-center gap-1">
               <i class="fa-solid fa-rotate-left text-[10px]"></i> 복원
             </button>
@@ -495,7 +499,11 @@
             <i class="fa-solid fa-check-double text-indigo-600"></i>
             <span>선택 <b id="timelineSelectionCount" class="text-indigo-700 font-black">0</b>곳 실제 경로 관제 중</span>
           </div>
-          <div class="flex items-center gap-1">
+          <div class="flex items-center gap-1.5">
+            <button type="button" id="selectionBarOriginDestBtn" onclick="toggleOriginDestInclusion()" class="px-2 py-0.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 rounded text-[10.5px] font-bold transition flex items-center gap-1 shadow-2xs cursor-pointer" title="출발지/도착지 포함 여부 토글">
+              <i class="fa-solid fa-ban text-[9px]"></i>
+              <span>출발·도착 해제</span>
+            </button>
             <button type="button" onclick="clearSelectedRouteMode()" class="px-2 py-0.5 bg-white hover:bg-rose-50 text-rose-700 border border-rose-200 rounded text-[10.5px] font-bold transition flex items-center gap-1 shadow-2xs cursor-pointer">
               <i class="fa-solid fa-xmark text-[9.5px]"></i>
               <span>선택 해제</span>
@@ -2667,6 +2675,7 @@
     function toggleIncludeOriginInRoute(checked) {
       isOriginIncludedInRoute = checked;
       cachedRoadRouteData = null;
+      syncOriginDestButtonsUI();
       renderRouteMap();
       showToast(checked ? '🏢 경로에 [출발지]를 포함합니다.' : '🏢 경로에서 [출발지]를 제외하고 선택 배송지만 계산합니다.');
     }
@@ -2674,8 +2683,54 @@
     function toggleIncludeDestInRoute(checked) {
       isDestIncludedInRoute = checked;
       cachedRoadRouteData = null;
+      syncOriginDestButtonsUI();
       renderRouteMap();
       showToast(checked ? '🏁 경로에 [도착지]를 포함합니다.' : '🏁 경로에서 [도착지]를 제외합니다.');
+    }
+
+    function toggleOriginDestInclusion() {
+      // 만약 둘 중 하나라도 포함되어 있다면 -> 둘 다 해제(false)
+      // 둘 다 이미 해제되어 있다면 -> 둘 다 다시 포함(true)
+      if (isOriginIncludedInRoute || isDestIncludedInRoute) {
+        isOriginIncludedInRoute = false;
+        isDestIncludedInRoute = false;
+        showToast('🏢 출발지 및 도착지(가산 센터 등)를 모두 해제했습니다. (순수 배송지 간 경로)');
+      } else {
+        isOriginIncludedInRoute = true;
+        isDestIncludedInRoute = true;
+        showToast('🏢 출발지 및 도착지를 경로에 다시 포함했습니다.');
+      }
+      cachedRoadRouteData = null;
+      syncOriginDestButtonsUI();
+      renderRouteMap();
+    }
+
+    function syncOriginDestButtonsUI() {
+      var btn = document.getElementById('btnToggleOriginDest');
+      var selBtn = document.getElementById('selectionBarOriginDestBtn');
+      var isBothExcluded = (!isOriginIncludedInRoute && !isDestIncludedInRoute);
+
+      if (btn) {
+        if (isBothExcluded) {
+          btn.className = "text-[11px] bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-400 px-2.5 py-1 rounded-lg font-black transition flex items-center gap-1 shadow-xs cursor-pointer";
+          btn.innerHTML = '<i class="fa-solid fa-circle-check text-[10px] text-emerald-600"></i> <span id="btnToggleOriginDestText">출발·도착 포함</span>';
+          btn.title = "클릭 시 출발지와 도착지를 경로에 다시 포함합니다";
+        } else {
+          btn.className = "text-[11px] bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 px-2.5 py-1 rounded-lg font-black transition flex items-center gap-1 shadow-xs cursor-pointer";
+          btn.innerHTML = '<i class="fa-solid fa-ban text-[10px]"></i> <span id="btnToggleOriginDestText">출발·도착 해제</span>';
+          btn.title = "클릭 시 출발지와 도착지(가산 센터 등) 경로 포함 체크박스를 한 번에 해제합니다";
+        }
+      }
+
+      if (selBtn) {
+        if (isBothExcluded) {
+          selBtn.className = "px-2 py-0.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 rounded text-[10.5px] font-bold transition flex items-center gap-1 shadow-2xs cursor-pointer";
+          selBtn.innerHTML = '<i class="fa-solid fa-circle-check text-[9px] text-emerald-600"></i> <span>출발·도착 포함</span>';
+        } else {
+          selBtn.className = "px-2 py-0.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 rounded text-[10.5px] font-bold transition flex items-center gap-1 shadow-2xs cursor-pointer";
+          selBtn.innerHTML = '<i class="fa-solid fa-ban text-[9px]"></i> <span>출발·도착 해제</span>';
+        }
+      }
     }
 
     function clearSelectedRouteMode() {
@@ -2684,6 +2739,7 @@
       isDestIncludedInRoute = true;
       cachedRoadRouteData = null;
       syncSelectedRouteUI();
+      syncOriginDestButtonsUI();
       renderRouteMap();
       renderTable();
       showToast('🔄 전체 배송 경로로 복귀했습니다.');
@@ -5590,6 +5646,7 @@
 
       // UI 뱃지 및 제어바 상태 최종 동기화
       syncSelectedRouteUI();
+      syncOriginDestButtonsUI();
     }
 
     /**
