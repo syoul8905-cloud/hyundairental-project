@@ -6088,6 +6088,7 @@
 
     function closeCsvModal() {
       document.getElementById('csvModal').classList.add('hidden');
+      isCsvImporting = false;
     }
 
     function handleCsvDrop(e) {
@@ -6385,11 +6386,23 @@
 
 
 
+    var isCsvImporting = false;
+
     async function confirmCsvImport() {
+      if (isCsvImporting) return;
       if (!parsedCsvPendingData || parsedCsvPendingData.length === 0) return;
 
-      var targetDate = (parsedCsvPendingData[0] && parsedCsvPendingData[0].배송일자)
-                        || (document.getElementById('csvTargetDateInput') && document.getElementById('csvTargetDateInput').value);
+      var confirmBtn = document.getElementById('csvConfirmBtn');
+      var originalBtnHtml = confirmBtn ? confirmBtn.innerHTML : '';
+      if (confirmBtn) {
+        confirmBtn.disabled = true;
+        confirmBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 등록 처리 중...';
+      }
+      isCsvImporting = true;
+
+      try {
+        var targetDate = (parsedCsvPendingData[0] && parsedCsvPendingData[0].배송일자)
+                          || (document.getElementById('csvTargetDateInput') && document.getElementById('csvTargetDateInput').value);
 
       var keepManual = document.getElementById('csvKeepManualStops') ? document.getElementById('csvKeepManualStops').checked : true;
       var merged = parsedCsvPendingData.slice();
@@ -6753,8 +6766,15 @@
             await loadAvailableDates();
             await triggerSync(true);
           }
-        } catch(e) {
-          console.error(e);
+          } catch(e) {
+            console.error(e);
+          }
+        }
+      } finally {
+        isCsvImporting = false;
+        if (confirmBtn) {
+          confirmBtn.disabled = false;
+          confirmBtn.innerHTML = originalBtnHtml;
         }
       }
     }
