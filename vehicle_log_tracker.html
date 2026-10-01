@@ -14,6 +14,15 @@
   <script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=500cdd195811a28981f211d6641c3aca&libraries=services"></script>
   <!-- Daum 우편번호 서비스 (도로명 주소 검색) -->
   <script src="https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"></script>
+  <!-- 공통 모듈화 스크립트 (Phase 1, Phase 2, Phase 3: Zero-Downtime 안전 로드) -->
+  <script src="js/constants-master.js"></script>
+  <script src="js/supabase-config.js"></script>
+  <script src="js/time-utils.js"></script>
+  <script src="js/geo-utils.js"></script>
+  <script src="js/audit-service.js"></script>
+  <script src="js/schedule-service.js"></script>
+  <script src="js/vehicle-service.js"></script>
+  <script src="js/vehicle-tracker-ui.js"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700;800;900&display=swap');
     body { font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif; }
@@ -1786,7 +1795,7 @@
                   if (s.delivery_date !== log.trip_date) return false;
                   if (logDrivers.length === 0 || log.driver_name === '미운행') return false;
                   var isQuick = (s.delivery_method === '퀵배송' || s.delivery_method === '퀵' || s.driver_name === '퀵' || (s.category && s.category.indexOf('퀵') !== -1));
-                  var isPickup = (s.delivery_method === '방문수령' || s.driver_name === '방문수령' || s.category === '수령');
+                  var isPickup = (s.delivery_method === '방문수령' || s.driver_name === '방문수령' || (s.category === '수령' && s.delivery_method !== '직배송'));
                   var isParcel = (s.delivery_method === '택배' || s.driver_name === '택배');
                   if (isQuick || isPickup || isParcel) return false;
                   return logDrivers.indexOf((s.driver_name || '').trim()) !== -1;
@@ -3130,7 +3139,7 @@
             // 해당 차량 운행자의 직배송 건만 엄격 필터링 (퀵, 방문수령, 택배 및 타 차량 배송지 100% 배제)
             var eligibleRows = res.data.filter(function(r) {
               var isQuick = (r.delivery_method === '퀵배송' || r.delivery_method === '퀵' || r.driver_name === '퀵' || (r.category && r.category.indexOf('퀵') !== -1));
-              var isPickup = (r.delivery_method === '방문수령' || r.driver_name === '방문수령' || r.category === '수령');
+              var isPickup = (r.delivery_method === '방문수령' || r.driver_name === '방문수령' || (r.category === '수령' && r.delivery_method !== '직배송'));
               var isParcel = (r.delivery_method === '택배' || r.driver_name === '택배');
               if (isQuick || isPickup || isParcel) return false;
 

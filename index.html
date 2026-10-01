@@ -31,6 +31,15 @@
   <script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=500cdd195811a28981f211d6641c3aca&libraries=services,clusterer"></script>
   <!-- Daum 우편번호 서비스 (도로명 주소 검색) -->
   <script src="https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"></script>
+  <!-- 공통 모듈화 스크립트 (Phase 1 & Phase 2: Zero-Downtime 안전 로드) -->
+  <script src="js/constants-master.js"></script>
+  <script src="js/supabase-config.js"></script>
+  <script src="js/time-utils.js"></script>
+  <script src="js/geo-utils.js"></script>
+  <script src="js/audit-service.js"></script>
+  <script src="js/schedule-service.js"></script>
+  <script src="js/vehicle-service.js"></script>
+  <script src="js/dashboard-ui.js"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700;800;900&display=swap');
     body { font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif; }
@@ -150,6 +159,13 @@
         <button id="csvUploadBtn" onclick="openCsvModal()" class="px-2.5 py-1 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-bold rounded-lg transition flex items-center gap-1 shadow-sm text-xs whitespace-nowrap">
           <i class="fa-solid fa-file-csv"></i>
           <span>CSV 등록</span>
+        </button>
+
+        <!-- Direct Dispatch Button -->
+        <button id="btnDirectDispatch" onclick="openDirectDispatchModal()" title="당일 배송기사 차량 배차 및 법인차량 운행일지 일괄 자동 생성" class="relative px-2.5 py-1 bg-gradient-to-r from-blue-700 to-indigo-700 hover:from-blue-600 hover:to-indigo-600 text-white font-bold rounded-lg transition flex items-center gap-1.5 shadow-sm text-xs whitespace-nowrap cursor-pointer">
+          <i class="fa-solid fa-truck-ramp-box"></i>
+          <span>직접 배차</span>
+          <span id="dispatchBadge" class="hidden px-1.5 py-0.2 text-[10px] bg-amber-400 text-slate-900 rounded-full font-black animate-pulse">0</span>
         </button>
 
         <!-- Corporate Vehicle Log Tracker Button -->
@@ -1454,6 +1470,73 @@
         <button type="button" onclick="saveEditMidReturnStop()" class="px-4 py-1.5 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl text-xs transition flex items-center gap-1.5 shadow-sm active:scale-95">
           <i class="fa-solid fa-check"></i> 수정사항 저장
         </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- Modal: Direct Vehicle Dispatch & Trip Logs -->
+  <!-- ========================================== -->
+  <div id="modalDirectDispatch" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50" onclick="if(event.target===this)closeDirectDispatchModal()">
+    <div class="bg-white rounded-3xl max-w-xl w-full p-5 sm:p-6 shadow-2xl border border-slate-200 space-y-4 animate-in zoom-in-95 duration-150">
+      <!-- Header -->
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 text-white flex items-center justify-center text-base shadow-sm">
+            <i class="fa-solid fa-truck-ramp-box"></i>
+          </div>
+          <div>
+            <h3 class="font-black text-sm sm:text-base text-slate-900 flex items-center gap-2">
+              <span>당일 기사 직접 배차 및 운행일지 자동 생성</span>
+            </h3>
+            <p class="text-[11px] text-slate-500">
+              배정 기준일: <b id="dispatchModalDate" class="text-indigo-600 font-mono"></b> · 배차 시 법인차량 운행일지가 일괄 생성됩니다.
+            </p>
+          </div>
+        </div>
+        <button onclick="closeDirectDispatchModal()" class="text-slate-400 hover:text-slate-600 text-lg transition p-1 cursor-pointer">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <!-- Content Area -->
+      <div class="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
+        <div class="p-3 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
+          <div class="flex items-center justify-between text-xs font-bold text-slate-700">
+            <span>📋 당일 스케줄 배정 기사 목록</span>
+            <span id="dispatchDriverCount" class="text-[11px] text-indigo-600 font-black">0명 배정됨</span>
+          </div>
+          <div id="dispatchDriverListContainer" class="space-y-2 pt-1">
+            <!-- Dynamic driver dispatch rows -->
+          </div>
+        </div>
+
+        <!-- Information Notice Box -->
+        <div class="p-3 bg-blue-50/70 border border-blue-200 rounded-2xl text-[11.5px] text-blue-900 space-y-1 leading-relaxed">
+          <div class="font-bold flex items-center gap-1.5 text-blue-950">
+            <i class="fa-solid fa-circle-info text-blue-600"></i> 배차 안내 사항
+          </div>
+          <ul class="list-disc list-inside space-y-0.5 text-slate-600 text-[11px]">
+            <li>배차 확정 시, 해당 기사의 당일 배송 주소지(출발 가산 ➔ 배송지 N곳 ➔ 복귀 가산)가 해당 법인차량의 <b>운행일지로 일괄 자동 등록</b>됩니다.</li>
+            <li>스케줄이 변경되거나 경유지가 추가/삭제되어도 운행일지에 <b>실시간 자동 반영</b>됩니다.</li>
+            <li>기사용 모바일 웹에서는 차량 수동 선택 없이 배차된 차량으로 즉시 연동됩니다.</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Footer Buttons -->
+      <div class="flex items-center justify-between pt-3 border-t border-slate-100">
+        <button type="button" onclick="resetAllDispatchesForToday()" class="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold rounded-xl text-xs transition border border-rose-200 flex items-center gap-1 cursor-pointer">
+          <i class="fa-solid fa-rotate-left"></i> 전체 배차 해제
+        </button>
+        <div class="flex items-center gap-2">
+          <button type="button" onclick="closeDirectDispatchModal()" class="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-xl text-xs transition cursor-pointer">
+            닫기
+          </button>
+          <button id="btnSubmitDispatch" type="button" onclick="submitDirectDispatch()" class="px-4 py-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold rounded-xl text-xs transition flex items-center gap-1.5 shadow-sm active:scale-95 cursor-pointer">
+            <i class="fa-solid fa-check"></i> 배차 확정 및 일지 생성
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -3120,11 +3203,11 @@
     // 현재 보고 있는 배송일자 (YYYY-MM-DD)
     function getCurrentViewingDate() {
       var dateInp = document.getElementById('calendarDateInput');
-      if (dateInp && dateInp.value && dateInp.value !== 'all') return dateInp.value;
+      if (dateInp && dateInp.value && dateInp.value !== 'all') return dateInp.value.replace(/\./g, '-');
       var selectInp = document.getElementById('sheetDateSelect');
-      if (selectInp && selectInp.value && selectInp.value !== 'all') return selectInp.value;
+      if (selectInp && selectInp.value && selectInp.value !== 'all') return selectInp.value.replace(/\./g, '-');
       var saved = localStorage.getItem('DELIVERY_VIEWING_DATE_V1');
-      if (saved && saved !== 'all') return saved;
+      if (saved && saved !== 'all') return saved.replace(/\./g, '-');
       return getTodayLocalDate();
     }
 
@@ -3532,6 +3615,9 @@
       }
 
       triggerSync(false);
+      if (typeof updateDispatchBadgeUI === 'function') {
+        updateDispatchBadgeUI();
+      }
     }
 
     function shiftDate(days) {
@@ -3923,6 +4009,9 @@
         } else {
           kpiEl.innerText = driverVal + ' (' + realDeliveries.length + '건)';
         }
+      }
+      if (typeof updateDispatchBadgeUI === 'function') {
+        updateDispatchBadgeUI();
       }
     }
 
@@ -5940,6 +6029,9 @@
         });
 
         await Promise.all(updates);
+        if (window.VehicleService && typeof window.VehicleService.autoSyncTripLogsAfterScheduleChange === 'function') {
+          VehicleService.autoSyncTripLogsAfterScheduleChange(getCurrentViewingDate());
+        }
         if (!isSilent) {
           showToast('☁️ 방문 순서 ' + records.length + '건이 클라우드에 영구 저장 및 실시간 동기화되었습니다!');
           var currDriver = getCurrentViewingDriver();
@@ -8075,6 +8167,9 @@
           var res = await supabaseClient.from('delivery_schedules').update({ driver_name: newDriver }).eq('id', r.ID);
           if (res.error) throw res.error;
           lastDataHash = '';
+          if (window.VehicleService && typeof window.VehicleService.autoSyncTripLogsAfterScheduleChange === 'function') {
+            VehicleService.autoSyncTripLogsAfterScheduleChange(r.배송일자 || getCurrentViewingDate());
+          }
         } catch(err) {
           console.error('DB Update error:', err);
           r.담당기사 = oldDriver;
@@ -8251,6 +8346,9 @@
           if (res.error) throw res.error;
           lastDataHash = '';
           showToast('💾 Supabase DB에 성공적으로 저장되었습니다!');
+          if (window.VehicleService && typeof window.VehicleService.autoSyncTripLogsAfterScheduleChange === 'function') {
+            VehicleService.autoSyncTripLogsAfterScheduleChange(r.배송일자 || getCurrentViewingDate());
+          }
           // 2초 후 잠금 해제 (폴링이 DB 저장 직후 이전 값으로 덮어쓰는 것 방지)
           setTimeout(function() { pendingSyncIds.delete(r.ID); }, 2000);
         } catch(err) {
@@ -8493,6 +8591,12 @@
           if (res.error) console.error('DB Insert error:', res.error);
         });
       }
+
+      if (window.VehicleService && typeof window.VehicleService.autoSyncTripLogsAfterScheduleChange === 'function') {
+        setTimeout(function() {
+          VehicleService.autoSyncTripLogsAfterScheduleChange(newRecord.배송일자 || chosenDate);
+        }, 500);
+      }
     }
 
     function deleteStop(idx) {
@@ -8515,6 +8619,12 @@
         renderRouteMap();
         renderTable();
         showToast('🗑️ [' + target.고객사 + '] 건이 삭제되었습니다.');
+        var delDate = target.배송일자 || getCurrentViewingDate();
+        if (window.VehicleService && typeof window.VehicleService.autoSyncTripLogsAfterScheduleChange === 'function') {
+          setTimeout(function() {
+            VehicleService.autoSyncTripLogsAfterScheduleChange(delDate);
+          }, 500);
+        }
       }
     }
 
@@ -8686,6 +8796,9 @@
       renderRouteMap();
       renderTable();
       showToast('🏢 중간 복귀지 정보가 수정되었습니다.');
+      if (window.VehicleService && typeof window.VehicleService.autoSyncTripLogsAfterScheduleChange === 'function') {
+        VehicleService.autoSyncTripLogsAfterScheduleChange(r.배송일자 || getCurrentViewingDate());
+      }
     }
 
     function resetMidReturnModalToGasan(isEdit) {
@@ -8714,6 +8827,350 @@
         });
       }
       showToast('🗑️ 중간 복귀 일정이 삭제되었습니다.');
+    }
+
+    // ==========================================
+    // Direct Vehicle Dispatch & Trip Logs Engine
+    // ==========================================
+    var currentDispatchVehiclesList = [];
+
+    async function openDirectDispatchModal() {
+      var dateStr = getCurrentViewingDate().replace(/\./g, '-');
+      var dateEl = document.getElementById('dispatchModalDate');
+      if (dateEl) dateEl.innerText = dateStr;
+
+      var container = document.getElementById('dispatchDriverListContainer');
+      var countEl = document.getElementById('dispatchDriverCount');
+      if (!container) return;
+
+      container.innerHTML = '<div class="py-6 text-center text-slate-400 text-xs flex items-center justify-center gap-2"><i class="fa-solid fa-spinner fa-spin text-indigo-600"></i> 배차 목록 불러오는 중...</div>';
+      document.getElementById('modalDirectDispatch').classList.remove('hidden');
+
+      // 1. 차량 마스터 및 현재 활성 배차 정보 로드
+      var cfgRes = await VehicleService.fetchVehiclesConfig();
+      var cfg = (cfgRes && cfgRes.data) ? cfgRes.data : {};
+      var activeUsage = cfg.active_usage || {};
+      var vehicles = (cfg.vehicles && cfg.vehicles.length > 0) ? cfg.vehicles : (window.ConstantsMaster ? window.ConstantsMaster.DEFAULT_CORPORATE_VEHICLES : []);
+
+      // 차량 번호 정규화 및 활성 차량 필터링
+      currentDispatchVehiclesList = vehicles.filter(function(v) { return v.is_active !== false; }).map(function(v) {
+        var vNo = v.vehicle_no || '';
+        if (vNo.includes('?') || vNo.startsWith('801')) vNo = '801부8744';
+        else if (vNo.includes('?') || vNo.startsWith('826')) vNo = '826라8911';
+        return Object.assign({}, v, { vehicle_no: vNo, model_name: v.model_name || '스타리아' });
+      });
+
+      // 2. 당일 배송 스케줄 로드 (메모리 records + Supabase DB 실시간 병합)
+      var candidateRecords = [];
+      if (Array.isArray(records) && records.length > 0) {
+        candidateRecords = records.filter(function(r) {
+          var rd = (r.배송일자 || r.delivery_date || '').replace(/\./g, '-');
+          return rd === dateStr;
+        });
+      }
+
+      if (supabaseClient) {
+        try {
+          var dotDate = dateStr.replace(/-/g, '.');
+          var dbRes = await supabaseClient.from('delivery_schedules')
+            .select('*')
+            .or('delivery_date.eq.' + dateStr + ',delivery_date.eq.' + dotDate + ',source_sheet.eq.' + dateStr + ',source_sheet.eq.' + dotDate);
+          if (dbRes.data && dbRes.data.length > 0) {
+            var localMap = new Map();
+            candidateRecords.forEach(function(r) { if (r.ID) localMap.set(r.ID, r); });
+            dbRes.data.forEach(function(row) {
+              if (!localMap.has(row.id)) {
+                candidateRecords.push({
+                  ID: row.id,
+                  배송일자: (row.delivery_date || '').replace(/\./g, '-'),
+                  계약번호: row.contract_no || '',
+                  구분: row.category || '배송',
+                  담당기사: row.driver_name || '',
+                  고객사: row.customer_name || '',
+                  배송방법: row.delivery_method || '직배송',
+                  source_sheet: row.source_sheet || '',
+                  category: row.category || '배송',
+                  driver_name: row.driver_name || ''
+                });
+              } else {
+                // 사용자가 방금 화면에서 배정한 담당기사 정보 보존
+                var mr = localMap.get(row.id);
+                if (mr.담당기사) row.driver_name = mr.담당기사;
+              }
+            });
+          }
+        } catch(e) {
+          console.warn('직접 배차 모달 Supabase 일정 조회 보조 처리:', e);
+        }
+      }
+
+      // 3. 당일 배송 기사별 배송건수 집계
+      var driverDeliveries = {};
+      var driverMidReturns = {};
+
+      candidateRecords.forEach(function(r) {
+        var rDate = (r.배송일자 || r.delivery_date || '').replace(/\./g, '-');
+        if (rDate !== dateStr) return;
+        var src = (r.source_sheet || r.원본시트 || '').trim();
+        var cust = (r.고객사 || r.customer_name || '').trim();
+        var contract = (r.계약번호 || r.contract_no || '').trim();
+        if (src === 'AS_RECORDS' || src.startsWith('SYSTEM_CONFIG') || src === 'VEHICLE_TRIP_LOGS' || cust.startsWith('SYSTEM_CONFIG') || contract === 'HANDOVER_CONFIG') return;
+
+        var method = (r.배송방법 || r.delivery_method || '직배송').trim();
+        var drv = (r.담당기사 || r.driver_name || '').trim();
+        var cat = (r.구분 || r.category || '배송').trim();
+
+        var isQuick = (method === '퀵배송' || method === '퀵' || drv === '퀵');
+        var isPickup = (method === '방문수령' || drv === '방문수령' || (cat === '수령' && method !== '직배송' && !drv));
+        var isParcel = (method === '택배' || drv === '택배');
+        if (isQuick || isPickup || isParcel) return;
+
+        if (!drv || drv === '미배정' || drv === 'all') return;
+
+        var isMid = (cat === 'mid_return' || cat === '중간복귀' || cust.indexOf('(중간 복귀)') !== -1);
+        if (isMid) {
+          driverMidReturns[drv] = (driverMidReturns[drv] || 0) + 1;
+        } else {
+          driverDeliveries[drv] = (driverDeliveries[drv] || 0) + 1;
+        }
+      });
+
+      var scheduledDrivers = Array.from(new Set(Object.keys(driverDeliveries).concat(Object.keys(driverMidReturns)))).sort();
+
+      if (countEl) countEl.innerText = scheduledDrivers.length + '명 배정됨';
+
+      // 4. 기사별 행 생성 (섹션 1: 스케줄 배정 기사 + 섹션 2: 1팀 현민혁 고정 배차)
+      var html = '';
+
+      // [섹션 1: 당일 스케줄 배정 기사 목록]
+      if (scheduledDrivers.length > 0) {
+        html += '<div class="space-y-2">';
+        scheduledDrivers.forEach(function(drv) {
+          var dCount = driverDeliveries[drv] || 0;
+          var mCount = driverMidReturns[drv] || 0;
+          var totalStops = dCount + mCount;
+
+          var assignedVeh = 'NONE';
+          Object.keys(activeUsage).forEach(function(vKey) {
+            var u = activeUsage[vKey];
+            var uDate = (u && u.date) ? u.date.replace(/\./g, '-') : '';
+            if (u && u.driver === drv && (uDate === dateStr || !uDate)) {
+              if (vKey.startsWith('PERSONAL')) assignedVeh = 'PERSONAL';
+              else assignedVeh = vKey;
+            }
+          });
+
+          html += `
+            <div class="p-3 bg-white rounded-xl border border-slate-200/90 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+              <div class="flex items-center gap-2.5">
+                <div class="w-9 h-9 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-700 flex items-center justify-center font-black text-xs shrink-0">
+                  ${drv.substring(0, 2)}
+                </div>
+                <div>
+                  <div class="flex items-center gap-1.5">
+                    <span class="font-black text-slate-900 text-xs">${drv} 기사</span>
+                    <span class="text-[10px] px-1.5 py-0.2 bg-slate-100 text-slate-600 rounded font-bold">총 ${totalStops}곳</span>
+                  </div>
+                  <div class="text-[11px] text-slate-400 mt-0.5">
+                    직배송 <b class="text-slate-700">${dCount}건</b>${mCount > 0 ? `, 중간복귀 <b class="text-purple-600">${mCount}건</b>` : ''}
+                  </div>
+                </div>
+              </div>
+
+              <div class="flex items-center gap-2 shrink-0">
+                <select data-driver="${drv}" class="dispatch-vehicle-select px-2.5 py-1.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:border-indigo-500 cursor-pointer">
+                  <option value="NONE" ${assignedVeh === 'NONE' ? 'selected' : ''}>❌ 미배차</option>
+                  ${currentDispatchVehiclesList.map(function(v) {
+                    return `<option value="${v.vehicle_no}" ${assignedVeh === v.vehicle_no ? 'selected' : ''}>🚗 ${v.vehicle_no} (${v.model_name})</option>`;
+                  }).join('')}
+                  <option value="PERSONAL" ${assignedVeh === 'PERSONAL' ? 'selected' : ''}>🚙 개인 자차 운행</option>
+                </select>
+              </div>
+            </div>
+          `;
+        });
+        html += '</div>';
+      } else {
+        html += '<div class="py-4 px-3 bg-white rounded-xl border border-dashed border-slate-200 text-center text-slate-400 text-xs font-medium">선택된 날짜(' + dateStr + ')에 배정된 직배송 기사 일정이 없습니다.</div>';
+      }
+
+      // [섹션 2: 1팀 업무 배차 (스케줄 외 인원 - 현민혁 1명 고정)]
+      var assignedVehMinHyuk = 'NONE';
+      Object.keys(activeUsage).forEach(function(vKey) {
+        var u = activeUsage[vKey];
+        var uDate = (u && u.date) ? u.date.replace(/\./g, '-') : '';
+        if (u && (u.driver === '현민혁' || u.driver === '한민혁') && (uDate === dateStr || !uDate)) {
+          if (vKey.startsWith('PERSONAL')) assignedVehMinHyuk = 'PERSONAL';
+          else assignedVehMinHyuk = vKey;
+        }
+      });
+
+      html += `
+        <div class="pt-3 mt-3 border-t border-slate-200/90">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+              <i class="fa-solid fa-building text-purple-600"></i>
+              <span>🏢 1팀 업무 배차 (스케줄 외 인원)</span>
+            </span>
+            <span class="text-[10px] bg-purple-100 text-purple-800 font-bold px-2 py-0.5 rounded-full border border-purple-200">1팀 1명 고정</span>
+          </div>
+
+          <div class="p-3 bg-gradient-to-r from-purple-50/70 via-purple-50/30 to-white rounded-xl border border-purple-200 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+            <div class="flex items-center gap-2.5">
+              <div class="w-9 h-9 rounded-xl bg-purple-100 border border-purple-200 text-purple-700 flex items-center justify-center font-black text-xs shrink-0">
+                현민
+              </div>
+              <div>
+                <div class="flex items-center gap-1.5">
+                  <span class="font-black text-slate-900 text-xs">현민혁</span>
+                  <span class="text-[10px] px-1.5 py-0.2 bg-purple-100 text-purple-800 rounded font-bold">1팀</span>
+                </div>
+                <div class="text-[11px] text-slate-400 mt-0.5">
+                  1팀 외근 / 업무 지원 <span class="text-slate-500 font-medium">(스케줄 등록 없이 배차)</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-2 shrink-0">
+              <select data-driver="현민혁" class="dispatch-vehicle-select px-2.5 py-1.5 bg-white border border-purple-300 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:border-purple-500 cursor-pointer">
+                <option value="NONE" ${assignedVehMinHyuk === 'NONE' ? 'selected' : ''}>❌ 미배차</option>
+                ${currentDispatchVehiclesList.map(function(v) {
+                  return `<option value="${v.vehicle_no}" ${assignedVehMinHyuk === v.vehicle_no ? 'selected' : ''}>🚗 ${v.vehicle_no} (${v.model_name})</option>`;
+                }).join('')}
+                <option value="PERSONAL" ${assignedVehMinHyuk === 'PERSONAL' ? 'selected' : ''}>🚙 개인 자차 운행</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      `;
+
+      container.innerHTML = html;
+    }
+
+    function closeDirectDispatchModal() {
+      var modal = document.getElementById('modalDirectDispatch');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    async function submitDirectDispatch() {
+      var dateStr = getCurrentViewingDate().replace(/\./g, '-');
+      var selects = document.querySelectorAll('.dispatch-vehicle-select');
+      if (!selects || selects.length === 0) {
+        showToast('⚠️ 배차할 기사가 없습니다.');
+        return;
+      }
+
+      var assignments = [];
+      var usedCorporate = {};
+      var hasDuplicate = false;
+      var dupVeh = '';
+
+      selects.forEach(function(sel) {
+        var drv = sel.getAttribute('data-driver');
+        var veh = sel.value;
+        if (veh && veh !== 'NONE') {
+          if (veh !== 'PERSONAL') {
+            if (usedCorporate[veh]) {
+              hasDuplicate = true;
+              dupVeh = veh;
+            }
+            usedCorporate[veh] = drv;
+          }
+          assignments.push({ driver: drv, vehicle: veh });
+        }
+      });
+
+      if (hasDuplicate) {
+        alert('⚠️ [중복 배차 오류]\n법인차량 [' + dupVeh + ']이 여러 기사에게 중복 선택되었습니다.\n법인차량은 1인 1차량만 지정 가능합니다.');
+        return;
+      }
+
+      if (assignments.length === 0) {
+        alert('⚠️ 배차할 차량을 1대 이상 선택해주세요.\n현재 모든 기사가 [미배차] 상태입니다. 각 기사에게 운행할 차량을 선택한 후 배차를 진행해주세요.');
+        return;
+      }
+
+      var btn = document.getElementById('btnSubmitDispatch');
+      var originalText = btn ? btn.innerHTML : '';
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 배차 처리 및 일지 생성 중...';
+      }
+
+      try {
+        var res = await VehicleService.confirmDispatchAndGenerateLogs(dateStr, assignments);
+        if (res.success) {
+          showToast('🎉 ' + dateStr + ' 배차 확정 및 법인차량 운행일지 자동 생성이 완료되었습니다!');
+          closeDirectDispatchModal();
+          updateDispatchBadgeUI();
+        } else {
+          alert('❌ 배차 생성 실패: ' + (res.error || '알 수 없는 오류'));
+        }
+      } catch(err) {
+        console.error('submitDirectDispatch 에러:', err);
+        alert('❌ 배차 처리 중 예외가 발생했습니다: ' + (err.message || err));
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = originalText;
+        }
+      }
+    }
+
+    async function resetAllDispatchesForToday() {
+      var dateStr = getCurrentViewingDate().replace(/\./g, '-');
+      if (!confirm('🚗 [' + dateStr + '] 해당 날짜의 모든 차량 배차 및 락을 해제하시겠습니까?\n\n(이미 생성된 운행일지 기록은 보존되며 잠금 상태만 해제됩니다.)')) {
+        return;
+      }
+
+      try {
+        var cfgRes = await VehicleService.fetchVehiclesConfig();
+        var cfg = cfgRes.data || {};
+        if (cfg.active_usage) {
+          Object.keys(cfg.active_usage).forEach(function(k) {
+            var u = cfg.active_usage[k];
+            var uDate = (u && u.date) ? u.date.replace(/\./g, '-') : '';
+            if (u && (uDate === dateStr || !uDate)) {
+              delete cfg.active_usage[k];
+            }
+          });
+          await VehicleService.saveVehiclesConfig(cfg, cfgRes.recordId);
+        }
+        showToast('🔄 [' + dateStr + '] 차량 배차가 성공적으로 초기화되었습니다.');
+        openDirectDispatchModal();
+        updateDispatchBadgeUI();
+      } catch(err) {
+        console.error('resetAllDispatchesForToday 에러:', err);
+        showToast('❌ 배차 해제 실패: ' + (err.message || err));
+      }
+    }
+
+    async function updateDispatchBadgeUI() {
+      var badge = document.getElementById('dispatchBadge');
+      if (!badge) return;
+      var dateStr = getCurrentViewingDate().replace(/\./g, '-');
+
+      try {
+        var cfgRes = await VehicleService.fetchVehiclesConfig();
+        var cfg = (cfgRes && cfgRes.data) ? cfgRes.data : {};
+        var activeUsage = cfg.active_usage || {};
+
+        var count = 0;
+        Object.keys(activeUsage).forEach(function(k) {
+          var u = activeUsage[k];
+          var uDate = (u && u.date) ? u.date.replace(/\./g, '-') : '';
+          if (u && (uDate === dateStr || !uDate) && u.driver) count++;
+        });
+
+        if (count > 0) {
+          badge.innerText = count + '대 배차';
+          badge.classList.remove('hidden');
+        } else {
+          badge.classList.add('hidden');
+        }
+      } catch(e) {
+        // Silent fail
+      }
     }
 
     // ==========================================
