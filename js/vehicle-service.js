@@ -265,7 +265,7 @@
    * @param {string} dateStr 'YYYY-MM-DD'
    * @param {Array<{driver: string, vehicle: string}>} assignments
    */
-  async function confirmDispatchAndGenerateLogs(dateStr, assignments) {
+  async function confirmDispatchAndGenerateLogs(dateStr, assignments, unassignedDrivers) {
     var client = getClient();
     if (!client) return { success: false, error: 'Supabase 클라이언트 미초기화' };
     if (!Array.isArray(assignments)) return { success: false, error: '배차 데이터 누락' };
@@ -279,12 +279,14 @@
       if (!cfg.active_usage) cfg.active_usage = {};
 
       var assignedDrivers = assignments.map(function(a) { return (a.driver || '').trim(); }).filter(Boolean);
+      var unassignedList = Array.isArray(unassignedDrivers) ? unassignedDrivers.map(function(d) { return (d || '').trim(); }).filter(Boolean) : [];
+      var targetDriversToClear = Array.from(new Set(assignedDrivers.concat(unassignedList)));
 
-      // 1. 기존 active_usage 중 해당 날짜의 해당 기사 이전 배차 정리
+      // 1. 기존 active_usage 중 해당 날짜의 대상 기사들 배차 정리 (미배차 기사 포함)
       Object.keys(cfg.active_usage).forEach(function(vKey) {
         var u = cfg.active_usage[vKey];
         var uDate = (u && u.date) ? u.date.replace(/\./g, '-') : '';
-        if (u && (uDate === cleanDate || !uDate) && assignedDrivers.indexOf((u.driver || '').trim()) !== -1) {
+        if (u && (uDate === cleanDate || !uDate) && targetDriversToClear.indexOf((u.driver || '').trim()) !== -1) {
           delete cfg.active_usage[vKey];
         }
       });
@@ -302,6 +304,28 @@
         }
       });
       await saveVehiclesConfig(cfg, cfgRes.recordId);
+
+      // 2-1. 미배차(NONE)로 변경된 기사의 0건 단순 업무 일지(가산 센터 ➔ 가산 센터) 정리
+      if (unassignedList.length > 0) {
+        for (var uIdx = 0; uIdx < unassignedList.length; uIdx++) {
+          var unDrv = unassignedList[uIdx];
+          var unLogRes = await client.from('delivery_schedules')
+            .select('id, memo_full')
+            .eq('source_sheet', 'VEHICLE_TRIP_LOGS')
+            .eq('driver_name', unDrv)
+            .or('delivery_date.eq.' + cleanDate + ',delivery_date.eq.' + dotDate);
+          if (unLogRes.data && unLogRes.data.length > 0) {
+            for (var l = 0; l < unLogRes.data.length; l++) {
+              var logRow = unLogRes.data[l];
+              var p = {};
+              try { p = JSON.parse(logRow.memo_full || '{}'); } catch(e) {}
+              if (!p.stops || p.stops.length <= 2) {
+                await client.from('delivery_schedules').delete().eq('id', logRow.id);
+              }
+            }
+          }
+        }
+      }
 
       // 3. 당일 전체 배송 스케줄 로드 (YYYY-MM-DD 및 YYYY.MM.DD 포맷 모두 포괄)
       var schedRes = await client.from('delivery_schedules')
