@@ -11,8 +11,20 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <!-- Lucide Icons -->
   <script src="https://unpkg.com/lucide@latest"></script>
-  <!-- SheetJS (Excel) -->
-  <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+  <!-- SheetJS (Excel) - 다중 CDN 안전 로드 -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script>
+    if (typeof XLSX === 'undefined') {
+      const s1 = document.createElement('script');
+      s1.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+      s1.onerror = function() {
+        const s2 = document.createElement('script');
+        s2.src = 'https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js';
+        document.head.appendChild(s2);
+      };
+      document.head.appendChild(s1);
+    }
+  </script>
   <!-- ZXing Barcode Library (Fallback) -->
   <script src="https://unpkg.com/@zxing/library@latest/umd/index.min.js"></script>
 
@@ -314,6 +326,18 @@
         </div>
       </div>
 
+      <!-- 실사 완료 후 빠른 엑셀 다운로드 & 보고서 탭 이동 바 -->
+      <div class="flex items-center gap-2 pt-1">
+        <button id="btnQuickExportExcel" class="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white rounded-xl font-bold text-xs shadow-sm transition">
+          <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
+          <span>📥 실사 결과 엑셀(.xlsx) 다운로드</span>
+        </button>
+        <button id="btnGoToReportTab" class="px-3.5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-semibold shadow-sm transition flex items-center gap-1.5" title="상세 보고서 탭으로 이동">
+          <i data-lucide="file-text" class="w-3.5 h-3.5 text-blue-400"></i>
+          <span>보고서 보기</span>
+        </button>
+      </div>
+
     </section>
 
     <!-- ==================== 탭 2: 사후 일괄 복붙 대조 ==================== -->
@@ -372,9 +396,12 @@
           </div>
         </div>
 
-        <p class="text-[12px] text-slate-500 text-center">
-          상세 내역은 <strong>[미실사 목록]</strong> 또는 <strong>[보고서 내보내기]</strong> 탭에서 확인 및 엑셀 다운로드가 가능합니다.
-        </p>
+        <div class="pt-1 flex items-center justify-center">
+          <button id="btnBatchExportExcel" class="w-full sm:w-auto px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs shadow-sm transition flex items-center justify-center gap-2">
+            <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
+            <span>📥 일괄 대조 결과 엑셀(.xlsx) 다운로드</span>
+          </button>
+        </div>
       </div>
     </section>
 
@@ -411,8 +438,14 @@
         </div>
 
         <div class="flex items-center justify-between text-[11px] pt-1 text-slate-500 border-t border-slate-100">
-          <span>필터링된 미실사: <strong id="txtFilteredMissingCount" class="text-rose-600 font-bold">0</strong>건</span>
-          <span>합계 장부가: <strong id="txtFilteredMissingBookValue" class="text-slate-800 font-bold">₩0</strong></span>
+          <div>
+            <span>필터링된 미실사: <strong id="txtFilteredMissingCount" class="text-rose-600 font-bold">0</strong>건</span>
+            <span class="ml-2">합계: <strong id="txtFilteredMissingBookValue" class="text-slate-800 font-bold">₩0</strong></span>
+          </div>
+          <button id="btnMissingExportExcel" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-bold shadow-sm transition flex items-center gap-1">
+            <i data-lucide="file-spreadsheet" class="w-3.5 h-3.5"></i>
+            <span>엑셀 다운로드</span>
+          </button>
         </div>
       </div>
 
@@ -1638,106 +1671,193 @@
     // ==========================================
     // 8. 보고서 엑셀 내보내기 & 텍스트 요약
     // ==========================================
-    function exportToExcel() {
-      if (masterAssets.size === 0) {
-        alert('내보낼 데이터가 없습니다. 먼저 CSV를 로드해주세요.');
+    // [공통 엑셀 안전 다운로드 엔진 - 모바일/데스크톱/사파리/크롬 100% 호환]
+    function saveWorkbookWithFallback(wb, filename) {
+      if (typeof XLSX === 'undefined') {
+        alert('엑셀 라이브러리를 불러오는 중입니다. 인터넷 연결을 확인하시거나 1~2초 후 다시 시도해주세요.');
         return;
       }
 
-      const wb = XLSX.utils.book_new();
-      const nowStr = new Date().toISOString().slice(0, 10);
+      try {
+        // 1순위: Blob 기반 가상 링크 다운로드 (모바일 크롬, 사파리, 웨일, 데스크톱 전 브라우저 안정 호환)
+        const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+        const blob = new Blob([wbout], {
+          type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=UTF-8'
+        });
 
-      // Sheet 1: 실사종합요약
-      const totalCount = masterAssets.size;
-      const scannedCount = scannedAssets.size;
-      const missingCount = Math.max(0, totalCount - scannedCount);
-      const extraCount = extraAssets.size;
-
-      let totalBookVal = 0;
-      let scannedBookVal = 0;
-      let missingBookVal = 0;
-
-      masterAssets.forEach((asset, assetNo) => {
-        totalBookVal += asset.bookValue;
-        if (scannedAssets.has(assetNo)) scannedBookVal += asset.bookValue;
-        else missingBookVal += asset.bookValue;
-      });
-
-      const summaryData = [
-        ['현대렌탈 자산 실사 종합 보고서'],
-        ['작성일시', new Date().toLocaleString()],
-        ['기준 마스터 파일', currentFileName],
-        [],
-        ['구분', '수량(건)', '장부가액 합계(원)', '비율(%)'],
-        ['전체 대상 자산', totalCount, totalBookVal, '100%'],
-        ['실사 완료 자산', scannedCount, scannedBookVal, `${totalCount ? Math.round((scannedCount/totalCount)*100) : 0}%`],
-        ['미실사 누락 자산 (분실/망실의심)', missingCount, missingBookVal, `${totalCount ? Math.round((missingCount/totalCount)*100) : 0}%`],
-        ['미등록 초과 스캔 자산', extraCount, 0, '-']
-      ];
-      const wsSummary = XLSX.utils.aoa_to_sheet(summaryData);
-      XLSX.utils.book_append_sheet(wb, wsSummary, '실사종합요약');
-
-      // Sheet 2: 미실사 누락 자산 상세
-      const missingData = [
-        ['자산번호', '중분류', '제품명', '모델명', '제조사', '선반번호(위치)', '시리얼번호', '장부가', '자산상태']
-      ];
-      masterAssets.forEach((asset, assetNo) => {
-        if (!scannedAssets.has(assetNo)) {
-          missingData.push([
-            asset.assetNo,
-            asset.category,
-            asset.productName,
-            asset.modelName,
-            asset.manufacturer,
-            asset.shelfNo,
-            asset.serialNo,
-            asset.bookValue,
-            asset.status
-          ]);
+        if (window.navigator && window.navigator.msSaveOrOpenBlob) {
+          window.navigator.msSaveOrOpenBlob(blob, filename);
+          feedback('SUCCESS');
+          showFooterMessage(`${filename} 다운로드 완료!`);
+          return;
         }
-      });
-      const wsMissing = XLSX.utils.aoa_to_sheet(missingData);
-      XLSX.utils.book_append_sheet(wb, wsMissing, '미실사누락자산');
 
-      // Sheet 3: 실사 완료 자산 상세
-      const scannedData = [
-        ['자산번호', '중분류', '제품명', '모델명', '선반번호', '시리얼번호', '장부가', '스캔일시', '스캔횟수']
-      ];
-      scannedAssets.forEach(item => {
-        scannedData.push([
-          item.assetNo,
-          item.category,
-          item.productName,
-          item.modelName,
-          item.shelfNo,
-          item.serialNo,
-          item.bookValue,
-          item.firstScannedTime || '',
-          item.count || 1
-        ]);
-      });
-      const wsScanned = XLSX.utils.aoa_to_sheet(scannedData);
-      XLSX.utils.book_append_sheet(wb, wsScanned, '실사완료자산');
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
 
-      // Sheet 4: 미등록 초과 자산 상세
-      const extraData = [
-        ['자산번호', '스캔일시', '스캔횟수', '조사필요사항']
-      ];
-      extraAssets.forEach(item => {
-        extraData.push([
-          item.assetNo,
-          item.scannedAt ? item.scannedAt.toLocaleTimeString() : '',
-          item.count,
-          '마스터 대장에 없는 자산 (타 창고 혼입 또는 신규 확인 요망)'
-        ]);
-      });
-      const wsExtra = XLSX.utils.aoa_to_sheet(extraData);
-      XLSX.utils.book_append_sheet(wb, wsExtra, '미등록초과자산');
+        setTimeout(() => {
+          document.body.removeChild(a);
+          window.URL.revokeObjectURL(url);
+        }, 2000);
 
-      // 다운로드 파일명
-      const outFilename = `자산실사보고서_${nowStr}.xlsx`;
-      XLSX.writeFile(wb, outFilename);
-      showFooterMessage(`${outFilename} 다운로드 완료!`);
+        feedback('SUCCESS');
+        showFooterMessage(`${filename} 다운로드 완료!`);
+      } catch (blobErr) {
+        console.warn('Blob download failed, trying XLSX.writeFile:', blobErr);
+        try {
+          // 2순위: SheetJS 내장 writeFile 폴백
+          XLSX.writeFile(wb, filename);
+          feedback('SUCCESS');
+          showFooterMessage(`${filename} 다운로드 완료!`);
+        } catch (writeErr) {
+          console.error('All excel download methods failed:', writeErr);
+          alert('엑셀 파일 다운로드 중 오류가 발생했습니다:\n' + (writeErr.message || writeErr));
+        }
+      }
+    }
+
+    function exportToExcel() {
+      try {
+        if (typeof XLSX === 'undefined') {
+          alert('엑셀 라이브러리가 로드 중입니다. 잠시 후 다시 클릭해주세요.');
+          return;
+        }
+
+        if (masterAssets.size === 0) {
+          if (inboundSerials && inboundSerials.length > 0) {
+            if (confirm(`기준 자산 마스터 데이터가 없으나, [입고 시리얼 채번] 데이터(${inboundSerials.length}건)가 있습니다.\n입고 시리얼 엑셀을 다운로드하시겠습니까?`)) {
+              exportInboundExcel();
+              return;
+            }
+          }
+          alert('내보낼 실사 데이터가 없습니다.\n먼저 상단 [PC의 CSV / 엑셀 업로드]를 통해 마스터 파일을 로드해주세요.');
+          return;
+        }
+
+        const wb = XLSX.utils.book_new();
+        const now = new Date();
+        const nowStr = now.toISOString().slice(0, 10);
+
+        // Sheet 1: 실사종합요약
+        const totalCount = masterAssets.size;
+        const scannedCount = scannedAssets.size;
+        const missingCount = Math.max(0, totalCount - scannedCount);
+        const extraCount = extraAssets.size;
+
+        let totalBookVal = 0;
+        let scannedBookVal = 0;
+        let missingBookVal = 0;
+
+        masterAssets.forEach((asset, assetNo) => {
+          const bVal = Number(asset.bookValue) || 0;
+          totalBookVal += bVal;
+          if (scannedAssets.has(assetNo)) scannedBookVal += bVal;
+          else missingBookVal += bVal;
+        });
+
+        const summaryData = [
+          ['현대렌탈 자산 실사 종합 보고서'],
+          ['작성일시', now.toLocaleString()],
+          ['기준 마스터 파일', currentFileName || '클라우드_동기화_데이터'],
+          [],
+          ['구분', '수량(건)', '장부가액 합계(원)', '비율(%)'],
+          ['전체 대상 자산', totalCount, totalBookVal, '100%'],
+          ['실사 완료 자산', scannedCount, scannedBookVal, `${totalCount ? Math.round((scannedCount / totalCount) * 100) : 0}%`],
+          ['미실사 누락 자산 (분실/망실의심)', missingCount, missingBookVal, `${totalCount ? Math.round((missingCount / totalCount) * 100) : 0}%`],
+          ['미등록 초과 스캔 자산', extraCount, 0, '-']
+        ];
+        const wsSummary = XLSX.utils.aoa_to_sheet(summaryData);
+        XLSX.utils.book_append_sheet(wb, wsSummary, '실사종합요약');
+
+        // Sheet 2: 미실사 누락 자산 상세
+        const missingData = [
+          ['자산번호', '중분류', '제품명', '모델명', '제조사', '선반번호(위치)', '시리얼번호', '장부가', '자산상태']
+        ];
+        masterAssets.forEach((asset, assetNo) => {
+          if (!scannedAssets.has(assetNo)) {
+            missingData.push([
+              asset.assetNo || '',
+              asset.category || '',
+              asset.productName || '',
+              asset.modelName || '',
+              asset.manufacturer || '',
+              asset.shelfNo || '',
+              asset.serialNo || '',
+              Number(asset.bookValue) || 0,
+              asset.status || ''
+            ]);
+          }
+        });
+        const wsMissing = XLSX.utils.aoa_to_sheet(missingData);
+        XLSX.utils.book_append_sheet(wb, wsMissing, '미실사누락자산');
+
+        // Sheet 3: 실사 완료 자산 상세
+        const scannedData = [
+          ['자산번호', '중분류', '제품명', '모델명', '선반번호', '시리얼번호', '장부가', '스캔일시', '스캔횟수']
+        ];
+        scannedAssets.forEach(item => {
+          let scannedTime = item.firstScannedTime || '';
+          if (!scannedTime && item.scannedAt) {
+            try {
+              scannedTime = (typeof item.scannedAt === 'object' && item.scannedAt.toLocaleTimeString)
+                ? item.scannedAt.toLocaleTimeString()
+                : new Date(item.scannedAt).toLocaleTimeString();
+            } catch (e) {
+              scannedTime = String(item.scannedAt);
+            }
+          }
+          scannedData.push([
+            item.assetNo || '',
+            item.category || '',
+            item.productName || '',
+            item.modelName || '',
+            item.shelfNo || '',
+            item.serialNo || '',
+            Number(item.bookValue) || 0,
+            scannedTime,
+            item.count || 1
+          ]);
+        });
+        const wsScanned = XLSX.utils.aoa_to_sheet(scannedData);
+        XLSX.utils.book_append_sheet(wb, wsScanned, '실사완료자산');
+
+        // Sheet 4: 미등록 초과 자산 상세
+        const extraData = [
+          ['자산번호', '스캔일시', '스캔횟수', '조사필요사항']
+        ];
+        extraAssets.forEach(item => {
+          let scannedTime = '';
+          if (item.scannedAt) {
+            try {
+              scannedTime = (typeof item.scannedAt === 'object' && item.scannedAt.toLocaleTimeString)
+                ? item.scannedAt.toLocaleTimeString()
+                : new Date(item.scannedAt).toLocaleTimeString();
+            } catch (e) {
+              scannedTime = String(item.scannedAt);
+            }
+          }
+          extraData.push([
+            item.assetNo || '',
+            scannedTime,
+            item.count || 1,
+            '마스터 대장에 없는 자산 (타 창고 혼입 또는 신규 확인 요망)'
+          ]);
+        });
+        const wsExtra = XLSX.utils.aoa_to_sheet(extraData);
+        XLSX.utils.book_append_sheet(wb, wsExtra, '미등록초과자산');
+
+        // 다운로드 실행 (안전 Blob 엔진)
+        const outFilename = `자산실사보고서_${nowStr}.xlsx`;
+        saveWorkbookWithFallback(wb, outFilename);
+      } catch (err) {
+        console.error('exportToExcel error:', err);
+        alert('엑셀 보고서 생성 중 오류가 발생했습니다:\n' + err.message);
+      }
     }
 
     function renderReportPreview(total, scanned, missing, extra, totalVal, missingVal, pct) {
@@ -2048,38 +2168,47 @@
     }
 
     function exportInboundExcel() {
-      if (inboundSerials.length === 0) {
-        alert('내보낼 시리얼 데이터가 없습니다.');
-        return;
+      try {
+        if (typeof XLSX === 'undefined') {
+          alert('엑셀 라이브러리가 로드 중입니다. 잠시 후 다시 시도해주세요.');
+          return;
+        }
+
+        if (inboundSerials.length === 0) {
+          alert('내보낼 시리얼 데이터가 없습니다.');
+          return;
+        }
+
+        const prodName = (document.getElementById('inputInboundProdName')?.value || '').trim();
+        const safeProdName = prodName.replace(/[\/\\:*?"<>|]/g, '_');
+        const memo = (document.getElementById('inputInboundMemo')?.value || '').trim();
+        const nowStr = new Date().toISOString().slice(0, 10);
+
+        const wb = XLSX.utils.book_new();
+        const rows = [
+          ['순번', '시리얼넘버(S/N)', '상품명', '메모/거래처', '채번일시']
+        ];
+
+        const sortedList = inboundSerials.slice().reverse();
+        sortedList.forEach(item => {
+          rows.push([
+            item.index,
+            item.serialNo,
+            item.productName || prodName || '-',
+            item.memo || memo || '-',
+            item.time
+          ]);
+        });
+
+        const ws = XLSX.utils.aoa_to_sheet(rows);
+        XLSX.utils.book_append_sheet(wb, ws, '입고시리얼대장');
+
+        const fileName = `입고시리얼채번_${safeProdName ? safeProdName + '_' : ''}${nowStr}.xlsx`;
+        saveWorkbookWithFallback(wb, fileName);
+      } catch (err) {
+        console.error('exportInboundExcel error:', err);
+        alert('입고 시리얼 엑셀 다운로드 중 오류가 발생했습니다:\n' + err.message);
       }
-
-      const prodName = (document.getElementById('inputInboundProdName')?.value || '').trim();
-      const memo = (document.getElementById('inputInboundMemo')?.value || '').trim();
-      const nowStr = new Date().toISOString().slice(0, 10);
-
-      const wb = XLSX.utils.book_new();
-      const rows = [
-        ['순번', '시리얼넘버(S/N)', '상품명', '메모/거래처', '채번일시']
-      ];
-
-      const sortedList = inboundSerials.slice().reverse();
-      sortedList.forEach(item => {
-        rows.push([
-          item.index,
-          item.serialNo,
-          item.productName || prodName || '-',
-          item.memo || memo || '-',
-          item.time
-        ]);
-      });
-
-      const ws = XLSX.utils.aoa_to_sheet(rows);
-      XLSX.utils.book_append_sheet(wb, ws, '입고시리얼대장');
-
-      const fileName = `입고시리얼채번_${prodName ? prodName + '_' : ''}${nowStr}.xlsx`;
-      XLSX.writeFile(wb, fileName);
-      feedback('SUCCESS');
-      showFooterMessage(`${fileName} 다운로드 완료!`);
     }
 
     function clearInboundSession() {
@@ -2597,8 +2726,25 @@
       document.getElementById('inputSearchMissing').addEventListener('input', renderMissingList);
 
       // 엑셀 내보내기 & 텍스트 복사
-      document.getElementById('btnExportExcel').addEventListener('click', exportToExcel);
-      document.getElementById('btnCopyReportText').addEventListener('click', copyReportText);
+      const btnExportExcel = document.getElementById('btnExportExcel');
+      if (btnExportExcel) btnExportExcel.addEventListener('click', exportToExcel);
+      const btnCopyReportText = document.getElementById('btnCopyReportText');
+      if (btnCopyReportText) btnCopyReportText.addEventListener('click', copyReportText);
+
+      // [신규] 빠른 엑셀 다운로드 (실시간 스캔 탭, 일괄 대조 탭, 미실사 탭)
+      const btnQuickExport = document.getElementById('btnQuickExportExcel');
+      if (btnQuickExport) btnQuickExport.addEventListener('click', exportToExcel);
+      const btnGoToReport = document.getElementById('btnGoToReportTab');
+      if (btnGoToReport) {
+        btnGoToReport.addEventListener('click', () => {
+          const tabBtn = document.getElementById('tabBtnReport');
+          if (tabBtn) tabBtn.click();
+        });
+      }
+      const btnBatchExport = document.getElementById('btnBatchExportExcel');
+      if (btnBatchExport) btnBatchExport.addEventListener('click', exportToExcel);
+      const btnMissingExport = document.getElementById('btnMissingExportExcel');
+      if (btnMissingExport) btnMissingExport.addEventListener('click', exportToExcel);
 
       // 사운드 & 진동 토글
       document.getElementById('btnToggleSound').addEventListener('click', () => {
