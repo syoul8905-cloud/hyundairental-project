@@ -4686,15 +4686,17 @@
           var dataRows = rows.slice(1);
 
           // 헤더 인덱스 매핑 헬퍼
+          // 헤더 인덱스 매핑 헬퍼 (patterns 우선순위 완벽 반영)
           function findColIndices(patterns) {
             var indices = [];
-            header.forEach(function(h, idx) {
-              for (var i = 0; i < patterns.length; i++) {
-                if (h === patterns[i] || h.indexOf(patterns[i]) !== -1) {
+            patterns.forEach(function(p) {
+              var pClean = p.toLowerCase().replace(/[\s_\-\.\/]/g, '');
+              header.forEach(function(h, idx) {
+                var hClean = (h || '').trim().toLowerCase().replace(/[\s_\-\.\/]/g, '');
+                if ((hClean === pClean || hClean.indexOf(pClean) !== -1) && indices.indexOf(idx) === -1) {
                   indices.push(idx);
-                  break;
                 }
-              }
+              });
             });
             return indices;
           }
@@ -4707,8 +4709,27 @@
           var catIndices = findColIndices(['구분']);
           var timeIndices = findColIndices(['배송시간', '방문시간', '희망시간']);
           var itemIndices = findColIndices(['제품명', '품목_수량', '품목', '상품명', '회수제품정보']);
-          var contactIndices = findColIndices(['핸드폰', '전화번호', '담당자_연락처', '연락처']);
-          var recipientIndices = findColIndices(['받는사람', '담당자']);
+          
+          // 📱 모바일 통화 전용: '핸드폰/휴대폰' 컬럼 최우선 매핑
+          var mobileIndices = findColIndices(['핸드폰', '휴대폰', '휴대전화', '무선전화', '핸드폰번호', '휴대폰번호', '이동전화', 'mobile', 'cell', 'hp']);
+          
+          // 일반 유선/대표 전화번호 (핸드폰/휴대폰 컬럼 제외)
+          var telIndices = [];
+          var telPatterns = ['전화번호', '연락처', '담당자_연락처', '유선전화', '일반전화', '대표번호', '회사전화', 'tel', 'phone'];
+          telPatterns.forEach(function(p) {
+            var pClean = p.toLowerCase().replace(/[\s_\-\.\/]/g, '');
+            header.forEach(function(h, idx) {
+              var hClean = (h || '').trim().toLowerCase().replace(/[\s_\-\.\/]/g, '');
+              if (hClean.indexOf('핸드폰') !== -1 || hClean.indexOf('휴대폰') !== -1 || hClean.indexOf('무선') !== -1 || hClean.indexOf('이동') !== -1 || hClean === 'hp' || hClean === 'mobile') {
+                return;
+              }
+              if ((hClean === pClean || hClean.indexOf(pClean) !== -1) && telIndices.indexOf(idx) === -1) {
+                telIndices.push(idx);
+              }
+            });
+          });
+
+          var recipientIndices = findColIndices(['받는사람', '담당자', '수령인', '고객담당']);
           var contractIndices = findColIndices(['계약번호', '주문번호']);
           // '출고/회수의뢰 비고'는 PC 세팅 등 출고작업자용이므로 완전히 배제하고, 오직 순수 '비고' 컬럼만 가져옴
           var memoIndices = [];
@@ -4812,12 +4833,15 @@
               var rowDate = getRowValue(r, dateIndices);
               var recordDate = forceDate ? targetDate : (rowDate || targetDate);
 
-              var contact1 = cleanPhoneNumber(getRowValue(r, contactIndices));
+              var mobileVal = cleanPhoneNumber(getRowValue(r, mobileIndices));
+              var telVal = cleanPhoneNumber(getRowValue(r, telIndices));
+              // 📱 모바일 통화 연결: '핸드폰(010 등)' 번호를 최우선 적용, 핸드폰이 공란일 때만 일반 '전화번호'를 폴백으로 사용
+              var chosenPhone = mobileVal || telVal;
               var recipient = (getRowValue(r, recipientIndices) || '').trim();
-              var contactDisplay = contact1;
-              if (recipient && contact1) contactDisplay = recipient + ' ' + contact1;
+              var contactDisplay = chosenPhone;
+              if (recipient && chosenPhone) contactDisplay = recipient + ' ' + chosenPhone;
               else if (recipient) contactDisplay = recipient;
-              else if (contact1) contactDisplay = contact1;
+              else if (chosenPhone) contactDisplay = chosenPhone;
 
               passed.push({
                 ID: Date.now() + Math.floor(Math.random() * 100000),
