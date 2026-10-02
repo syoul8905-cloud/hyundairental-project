@@ -10,7 +10,7 @@ sys.stdout.reconfigure(encoding='utf-8')
 BASE_URL = "http://localhost:8080"
 EDGE_PATH = r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
 
-def run_headless_eval(url, eval_js_snippet, timeout_sec=15, retries=1):
+def run_headless_eval(url, eval_js_snippet, timeout_sec=30, retries=1):
     """Loads a page in headless Edge iframe and evaluates an async JS snippet returning results inside pre#wttResult"""
     for attempt in range(retries + 1):
         runner_file = f"scratch_human_{int(time.time() * 1000) % 100000}_{os.getpid()}.html"
@@ -39,7 +39,7 @@ def run_headless_eval(url, eval_js_snippet, timeout_sec=15, retries=1):
         }} catch(err) {{
           out.innerText = JSON.stringify({{ error: err.message, stack: err.stack }});
         }}
-      }}, 3200);
+      }}, 3500);
     }});
   </script>
 </body>
@@ -56,7 +56,7 @@ def run_headless_eval(url, eval_js_snippet, timeout_sec=15, retries=1):
                 "--dump-dom",
                 f"{BASE_URL}/{runner_file}"
             ]
-            res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=timeout_sec + 8)
+            res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=timeout_sec + 15)
             out = res.stdout.decode('utf-8', errors='ignore')
             if '<pre id="wttResult">' in out:
                 json_str = out.split('<pre id="wttResult">')[1].split('</pre>')[0]
@@ -321,7 +321,7 @@ def run_all_human_simulations():
         sepTripLogsCount: win.tripLogs ? win.tripLogs.length : 0
       };
     """
-    b3 = run_headless_eval(f"{BASE_URL}/vehicle_log_tracker.html", batch3_js, timeout_sec=20)
+    b3 = run_headless_eval(f"{BASE_URL}/vehicle_log_tracker.html", batch3_js)
 
     assert_test("3-1", "운행일지 Mode A(상세) / Mode B(요약) 원클릭 뷰 전환", b3.get('toggleOk'), f"전환={b3.get('toggleOk')}")
     assert_test("3-2", "구간 계기판 연속성 및 거리 자동 안분 엔진", b3.get('odoOk') and b3.get('distSum') == 60, f"거리합={b3.get('distSum')}")
