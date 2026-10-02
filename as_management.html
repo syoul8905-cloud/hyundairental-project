@@ -704,9 +704,11 @@
           .neq('source_sheet', 'SYSTEM_CONFIG_USERS')
           .neq('source_sheet', 'SYSTEM_CONFIG_DRIVER_ORIGINS')
           .neq('source_sheet', 'SYSTEM_CONFIG_CUSTOMER_HANDOVERS')
-          .neq('source_sheet', 'VEHICLE_TRIP_LOGS')
           .neq('source_sheet', 'AS_RECORDS')
           .not('source_sheet', 'like', 'SYSTEM_CONFIG_%')
+          .not('source_sheet', 'like', 'VEHICLE_%')
+          .not('customer_name', 'like', 'SYSTEM_CONFIG_%')
+          .not('customer_name', 'like', 'VEHICLE_%')
           .order('delivery_date', { ascending: false })
           .limit(1000);
 
@@ -1508,12 +1510,17 @@
 
         if (res.error) throw res.error;
 
-        var allRows = (res.data || []).filter(function(r) {
-          return r.source_sheet !== 'SYSTEM_CONFIG_USERS' &&
-                 r.source_sheet !== 'SYSTEM_CONFIG_DRIVER_ORIGINS' &&
-                 r.source_sheet !== 'SYSTEM_CONFIG_CUSTOMER_HANDOVERS' &&
-                 r.source_sheet !== 'VEHICLE_TRIP_LOGS';
-        });
+          var allRows = (res.data || []).filter(function(r) {
+            var src = (r.source_sheet || '').trim();
+            var cust = (r.customer_name || '').trim();
+            return !src.startsWith('SYSTEM_CONFIG') &&
+                   !src.startsWith('VEHICLE_') &&
+                   !cust.startsWith('SYSTEM_CONFIG') &&
+                   !cust.startsWith('VEHICLE_') &&
+                   src !== 'SYSTEM_CONFIG_USERS' &&
+                   src !== 'SYSTEM_CONFIG_DRIVER_ORIGINS' &&
+                   src !== 'SYSTEM_CONFIG_CUSTOMER_HANDOVERS';
+          });
 
         if (allRows.length === 0) {
           custSub.textContent = '해당 계약번호 관련 내역 없음';

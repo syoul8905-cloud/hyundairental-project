@@ -2921,7 +2921,8 @@
         if (res.data && res.data.length > 0) {
           var dateSet = new Set();
           res.data.forEach(function(row) {
-            if (row.delivery_date && row.delivery_date !== '2099-12-31' && row.delivery_date !== '1970-01-01' && row.source_sheet !== 'SYSTEM_CONFIG_USERS') {
+            var src = (row.source_sheet || '').trim();
+            if (row.delivery_date && row.delivery_date !== '2099-12-31' && row.delivery_date !== '1970-01-01' && src !== 'AS_RECORDS' && !src.startsWith('VEHICLE_') && !src.startsWith('SYSTEM_CONFIG')) {
               dateSet.add(row.delivery_date);
             }
           });
@@ -4925,10 +4926,13 @@
           if (!existRes.error && existRes.data && existRes.data.length > 0) {
             var validDates = [targetDate, cleanDateForQuery, shortDateForQuery];
             var targetRows = existRes.data.filter(function(row) {
+              var src = (row.source_sheet || '').trim();
               return validDates.indexOf(row.delivery_date) !== -1 &&
-                     row.source_sheet !== 'VEHICLE_TRIP_LOGS' &&
-                     row.source_sheet !== 'SYSTEM_CONFIG_VEHICLES' &&
-                     row.source_sheet !== 'SYSTEM_CONFIG_USERS';
+                     src !== 'AS_RECORDS' &&
+                     !src.startsWith('VEHICLE_') &&
+                     !src.startsWith('SYSTEM_CONFIG') &&
+                     !(row.customer_name || '').startsWith('VEHICLE_') &&
+                     !(row.customer_name || '').startsWith('SYSTEM_CONFIG');
             });
 
             // 1. 기존 트래킹 정보 (출발/도착 시간, 완료 상태, 기사 등) 맵 구축
@@ -5190,35 +5194,38 @@
           var cleanTargetDate = targetDate.replace(/\./g, '-');
           var shortTargetDate = targetDate.replace(/-/g, '.');
 
-          // [핵심 방어] 해당 일자 구버전 스케줄만 삭제하며, 법인차량 운행일지(VEHICLE_TRIP_LOGS) 및 시스템 설정은 절대 삭제되지 않도록 엄격 보호
+          // [핵심 방어] 해당 일자 구버전 스케줄만 삭제하며, 법인차량 데이터(VEHICLE_%), A/S 기록(AS_RECORDS) 및 시스템 설정(SYSTEM_CONFIG_%)은 절대 삭제되지 않도록 엄격 보호
           await supabaseClient.from('delivery_schedules')
             .delete()
             .eq('delivery_date', targetDate)
-            .neq('source_sheet', 'VEHICLE_TRIP_LOGS')
-            .neq('source_sheet', 'SYSTEM_CONFIG_VEHICLES')
-            .neq('source_sheet', 'SYSTEM_CONFIG_USERS')
-            .neq('source_sheet', 'SYSTEM_CONFIG_DRIVER_ORIGINS');
+            .neq('source_sheet', 'AS_RECORDS')
+            .not('source_sheet', 'like', 'VEHICLE_%')
+            .not('source_sheet', 'like', 'SYSTEM_CONFIG_%')
+            .not('customer_name', 'like', 'VEHICLE_%')
+            .not('customer_name', 'like', 'SYSTEM_CONFIG_%');
 
           if (cleanTargetDate !== targetDate) {
             await supabaseClient.from('delivery_schedules')
               .delete()
               .eq('delivery_date', cleanTargetDate)
-              .neq('source_sheet', 'VEHICLE_TRIP_LOGS')
-              .neq('source_sheet', 'SYSTEM_CONFIG_VEHICLES')
-              .neq('source_sheet', 'SYSTEM_CONFIG_USERS')
-              .neq('source_sheet', 'SYSTEM_CONFIG_DRIVER_ORIGINS');
+              .neq('source_sheet', 'AS_RECORDS')
+              .not('source_sheet', 'like', 'VEHICLE_%')
+              .not('source_sheet', 'like', 'SYSTEM_CONFIG_%')
+              .not('customer_name', 'like', 'VEHICLE_%')
+              .not('customer_name', 'like', 'SYSTEM_CONFIG_%');
           }
           if (shortTargetDate !== targetDate) {
             await supabaseClient.from('delivery_schedules')
               .delete()
               .eq('delivery_date', shortTargetDate)
-              .neq('source_sheet', 'VEHICLE_TRIP_LOGS')
-              .neq('source_sheet', 'SYSTEM_CONFIG_VEHICLES')
-              .neq('source_sheet', 'SYSTEM_CONFIG_USERS')
-              .neq('source_sheet', 'SYSTEM_CONFIG_DRIVER_ORIGINS');
+              .neq('source_sheet', 'AS_RECORDS')
+              .not('source_sheet', 'like', 'VEHICLE_%')
+              .not('source_sheet', 'like', 'SYSTEM_CONFIG_%')
+              .not('customer_name', 'like', 'VEHICLE_%')
+              .not('customer_name', 'like', 'SYSTEM_CONFIG_%');
           }
-          await supabaseClient.from('delivery_schedules').delete().eq('source_sheet', targetDate).neq('source_sheet', 'VEHICLE_TRIP_LOGS');
-          await supabaseClient.from('delivery_schedules').delete().eq('source_sheet', shortTargetDate).neq('source_sheet', 'VEHICLE_TRIP_LOGS');
+          await supabaseClient.from('delivery_schedules').delete().eq('source_sheet', targetDate).neq('source_sheet', 'AS_RECORDS').not('source_sheet', 'like', 'VEHICLE_%').not('source_sheet', 'like', 'SYSTEM_CONFIG_%');
+          await supabaseClient.from('delivery_schedules').delete().eq('source_sheet', shortTargetDate).neq('source_sheet', 'AS_RECORDS').not('source_sheet', 'like', 'VEHICLE_%').not('source_sheet', 'like', 'SYSTEM_CONFIG_%');
 
           var res = await supabaseClient.from('delivery_schedules').insert(payload);
           if (res.error) {
@@ -6337,6 +6344,12 @@
 
         var query = supabaseClient.from('delivery_schedules')
           .select('*')
+          .neq('source_sheet', 'AS_RECORDS')
+          .not('source_sheet', 'like', 'SYSTEM_CONFIG_%')
+          .not('source_sheet', 'like', 'VEHICLE_%')
+          .not('customer_name', 'like', 'SYSTEM_CONFIG_%')
+          .not('customer_name', 'like', 'VEHICLE_%')
+          .neq('contract_no', 'HANDOVER_CONFIG')
           .order('id', { ascending: true });
 
         if (selectedDate && selectedDate !== 'all') {
@@ -6350,12 +6363,15 @@
 
         var rawData = res.data || [];
         var data = rawData.filter(function(row) {
-          return row.source_sheet !== 'SYSTEM_CONFIG_USERS' &&
-                 row.customer_name !== 'SYSTEM_CONFIG_USERS' &&
-                 row.customer_name !== '시스템_계정_설정' &&
-                 row.source_sheet !== 'SYSTEM_CONFIG_VEHICLES' &&
-                 row.source_sheet !== 'VEHICLE_TRIP_LOGS' &&
-                 row.customer_name !== 'SYSTEM_CONFIG_VEHICLES' &&
+          var src = (row.source_sheet || '').trim();
+          var cust = (row.customer_name || '').trim();
+          return src !== 'AS_RECORDS' &&
+                 !src.startsWith('VEHICLE_') &&
+                 !src.startsWith('SYSTEM_CONFIG') &&
+                 !cust.startsWith('VEHICLE_') &&
+                 !cust.startsWith('SYSTEM_CONFIG') &&
+                 cust !== '시스템_계정_설정' &&
+                 row.contract_no !== 'HANDOVER_CONFIG' &&
                  row.delivery_date !== '2099-12-31' &&
                  row.delivery_date !== '1970-01-01';
         });

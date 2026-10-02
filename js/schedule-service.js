@@ -42,6 +42,13 @@
         .select('*')
         .eq('delivery_date', dateStr);
 
+      query = query
+        .not('source_sheet', 'like', 'SYSTEM_CONFIG_%')
+        .not('source_sheet', 'like', 'VEHICLE_%')
+        .not('customer_name', 'like', 'SYSTEM_CONFIG_%')
+        .not('customer_name', 'like', 'VEHICLE_%')
+        .neq('contract_no', 'HANDOVER_CONFIG');
+
       for (var i = 0; i < EXCLUDED_SHEETS.length; i++) {
         query = query.neq('source_sheet', EXCLUDED_SHEETS[i]);
       }

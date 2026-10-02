@@ -111,6 +111,10 @@ def run_all_human_simulations():
     # =================================================================
     print("\n📦 [그룹 1: PC 관제 대시보드 실무자 업무 시나리오 (8종)]")
     batch1_js = """
+      if (typeof win.onCalendarDateChanged === 'function') {
+        win.onCalendarDateChanged('2026-10-01');
+        await new Promise(function(r) { setTimeout(r, 1800); });
+      }
       var recs = win.records || [];
       var kpi = win.DashboardUI ? win.DashboardUI.calculateKPIs(recs, 'all') : null;
       var kpiTotalEl = doc.getElementById('kpiTotal');

@@ -353,7 +353,7 @@
           var src = (r.source_sheet || '').trim();
           var cust = (r.customer_name || '').trim();
           var contract = (r.contract_no || '').trim();
-          if (src === 'AS_RECORDS' || src.startsWith('SYSTEM_CONFIG') || src === 'VEHICLE_TRIP_LOGS' || cust.startsWith('SYSTEM_CONFIG') || contract === 'HANDOVER_CONFIG') return false;
+          if (src === 'AS_RECORDS' || src.startsWith('SYSTEM_CONFIG') || src.startsWith('VEHICLE_') || cust.startsWith('SYSTEM_CONFIG') || cust.startsWith('VEHICLE_') || contract === 'HANDOVER_CONFIG') return false;
 
           var method = (r.delivery_method || '직배송').trim();
           var rDrv = (r.driver_name || '').trim();

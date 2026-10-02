@@ -2829,7 +2829,7 @@
             var src = (r.source_sheet || '').trim();
             var cust = (r.customer_name || '').trim();
             var contract = (r.contract_no || '').trim();
-            if (src === 'AS_RECORDS' || src.startsWith('SYSTEM_CONFIG') || cust.startsWith('SYSTEM_CONFIG') || contract === 'HANDOVER_CONFIG') return false;
+            if (src === 'AS_RECORDS' || src.startsWith('SYSTEM_CONFIG') || src.startsWith('VEHICLE_') || cust.startsWith('SYSTEM_CONFIG') || cust.startsWith('VEHICLE_') || contract === 'HANDOVER_CONFIG') return false;
 
             var isQuick = (r.delivery_method === '퀵배송' || r.delivery_method === '퀵' || r.driver_name === '퀵' || (r.category && r.category.indexOf('퀵') !== -1));
             var isPickup = (r.delivery_method === '방문수령' || r.driver_name === '방문수령' || (r.category === '수령' && r.delivery_method !== '직배송'));
@@ -3155,7 +3155,7 @@
             var src = (r.source_sheet || '').trim();
             var cust = (r.customer_name || '').trim();
             var contract = (r.contract_no || '').trim();
-            if (src === 'AS_RECORDS' || src.startsWith('SYSTEM_CONFIG') || cust.startsWith('SYSTEM_CONFIG') || contract === 'HANDOVER_CONFIG') return false;
+            if (src === 'AS_RECORDS' || src.startsWith('SYSTEM_CONFIG') || src.startsWith('VEHICLE_') || cust.startsWith('SYSTEM_CONFIG') || cust.startsWith('VEHICLE_') || contract === 'HANDOVER_CONFIG') return false;
 
             var isQuick = (r.delivery_method === '퀵배송' || r.delivery_method === '퀵' || r.driver_name === '퀵' || (r.category && r.category.indexOf('퀵') !== -1));
             var isPickup = (r.delivery_method === '방문수령' || r.driver_name === '방문수령' || (r.category === '수령' && r.delivery_method !== '직배송'));
@@ -3884,6 +3884,10 @@
           .eq('delivery_date', currentDate)
           .neq('source_sheet', 'AS_RECORDS')
           .not('source_sheet', 'like', 'SYSTEM_CONFIG_%')
+          .not('source_sheet', 'like', 'VEHICLE_%')
+          .not('customer_name', 'like', 'SYSTEM_CONFIG_%')
+          .not('customer_name', 'like', 'VEHICLE_%')
+          .neq('contract_no', 'HANDOVER_CONFIG')
           .order('id', { ascending: true });
 
         var res = await query;
@@ -3895,10 +3899,9 @@
           var contract = (row.contract_no || '').trim();
           var date = (row.delivery_date || '').trim();
 
-          // 모바일 배송기사 앱에서는 순수 배송/회수/수령 건만 표출 (A/S 기록, 차량운행일지, 시스템 설정 레코드 100% 배제)
-          if (src === 'AS_RECORDS' || src === 'VEHICLE_TRIP_LOGS') return false;
-          if (src.startsWith('SYSTEM_CONFIG')) return false;
-          if (cust.startsWith('SYSTEM_CONFIG') || cust === '시스템_계정_설정') return false;
+          // 모바일 배송기사 앱에서는 순수 배송/회수/수령 건만 표출 (A/S 기록, 차량운행일지, 차량파손사진, 시스템 설정 레코드 100% 배제)
+          if (src === 'AS_RECORDS' || src.startsWith('VEHICLE_') || src.startsWith('SYSTEM_CONFIG')) return false;
+          if (cust.startsWith('SYSTEM_CONFIG') || cust.startsWith('VEHICLE_') || cust === '시스템_계정_설정') return false;
           if (contract === 'HANDOVER_CONFIG') return false;
           if (date === '2099-12-31' || date === '1970-01-01') return false;
 
