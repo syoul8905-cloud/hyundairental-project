@@ -2158,16 +2158,24 @@
 
       if (totalLegCount <= 0) return [];
 
-      // Check if legs have explicit distance_km
+      // Check if legs have explicit distance_km AND match the day's start_km -> end_km
       var allHaveDist = true;
+      var sumStopDist = 0;
       for (var i = startIdx; i < stops.length; i++) {
         if (stops[i].distance_km === undefined || stops[i].distance_km === null || isNaN(stops[i].distance_km) || stops[i].distance_km <= 0) {
           allHaveDist = false;
           break;
         }
+        sumStopDist += Number(stops[i].distance_km);
       }
 
       var dayTotalDist = log.distance_km || (log.end_km - log.start_km) || 0;
+      var firstLegStart = stops[startIdx] ? Number(stops[startIdx].start_km) : Number(log.start_km);
+      var lastLegEnd = stops[stops.length - 1] ? Number(stops[stops.length - 1].end_km) : Number(log.end_km);
+      if (sumStopDist !== dayTotalDist || firstLegStart !== Number(log.start_km) || lastLegEnd !== Number(log.end_km)) {
+        allHaveDist = false;
+      }
+
       var runningOdo = log.start_km;
 
       if (!allHaveDist && dayTotalDist > 0) {
@@ -3667,6 +3675,28 @@
       }
 
       var distanceKm = endKm - startKm;
+      if (Array.isArray(modalStops) && modalStops.length > 0) {
+        var hasOrig = (modalStops[0] && modalStops[0].type === 'origin');
+        var legStartIdx = hasOrig ? 1 : 0;
+        var legCnt = modalStops.length - legStartIdx;
+        if (hasOrig) {
+          modalStops[0].start_km = startKm;
+          modalStops[0].end_km = startKm;
+          modalStops[0].distance_km = 0;
+        }
+        if (legCnt > 0) {
+          var baseLegDist = Math.floor(distanceKm / legCnt);
+          var remLegDist = distanceKm % legCnt;
+          var runOdo = startKm;
+          for (var si = legStartIdx; si < modalStops.length; si++) {
+            var d = distanceKm > 0 ? (baseLegDist + ((si - legStartIdx) < remLegDist ? 1 : 0)) : 0;
+            modalStops[si].distance_km = d;
+            modalStops[si].start_km = runOdo;
+            modalStops[si].end_km = runOdo + d;
+            runOdo += d;
+          }
+        }
+      }
       var logPayload = {
         vehicle_no: vehicleNo,
         trip_date: tripDate,
