@@ -1092,6 +1092,63 @@
     </div>
   </div>
 
+  <!-- ========================================== -->
+  <!-- ⚡ Quick Receipt Date/Time Mini Modal (퀵 접수 날짜·시간 미니 입력창) -->
+  <!-- ========================================== -->
+  <div id="mobileQuickReceiptModal" class="fixed inset-0 bg-slate-900/75 backdrop-blur-sm z-[130] hidden flex items-center justify-center p-4" onclick="closeMobileQuickReceiptModal()">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden border border-purple-200" onclick="event.stopPropagation()">
+      <div class="bg-gradient-to-r from-purple-700 to-indigo-700 px-4 py-3 text-white flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <i class="fa-solid fa-clipboard-check text-purple-200"></i>
+          <div>
+            <h3 class="text-xs font-black tracking-tight">퀵 접수 날짜·시간 확인/입력</h3>
+            <p id="mobileQuickReceiptCustomerName" class="text-[10px] text-purple-200 font-medium truncate max-w-[210px]">-</p>
+          </div>
+        </div>
+        <button type="button" onclick="closeMobileQuickReceiptModal()" class="w-7 h-7 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center text-white text-xs transition">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div class="p-4 space-y-3">
+        <div class="bg-purple-50 border border-purple-200 rounded-xl p-2.5 text-[11px] text-purple-900 leading-relaxed">
+          <i class="fa-solid fa-circle-info text-purple-600 mr-1"></i>
+          현재 날짜와 시간이 기본 입력되어 있습니다. 전날 미리 접수했거나 시각을 조정하려면 변경 후 <b>[접수 기록 저장]</b>을 눌러주세요.
+        </div>
+        <div class="grid grid-cols-2 gap-2.5">
+          <div>
+            <label class="block text-[10px] font-extrabold text-slate-600 mb-1">📅 접수 일자</label>
+            <input type="date" id="mobileQuickReceiptDateInput" class="w-full px-2.5 py-2 border border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-purple-500 bg-slate-50">
+          </div>
+          <div>
+            <label class="block text-[10px] font-extrabold text-slate-600 mb-1">⏰ 접수 시각</label>
+            <input type="time" id="mobileQuickReceiptTimeInput" class="w-full px-2.5 py-2 border border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-purple-500 bg-slate-50">
+          </div>
+        </div>
+        <div class="flex items-center justify-between gap-1.5 pt-0.5">
+          <div class="flex items-center gap-1">
+            <button type="button" onclick="shiftMobileQuickReceiptDate(-1)" class="px-2 py-1 bg-slate-100 active:bg-purple-100 text-slate-700 rounded-lg text-[10px] font-bold border border-slate-200">
+              ◀ 어제 날짜로
+            </button>
+            <button type="button" onclick="setMobileQuickReceiptNow()" class="px-2 py-1 bg-slate-100 active:bg-purple-100 text-slate-700 rounded-lg text-[10px] font-bold border border-slate-200">
+              🕒 지금 시각
+            </button>
+          </div>
+          <button type="button" id="mobileQuickReceiptResetBtn" onclick="resetMobileQuickReceiptModal()" class="hidden px-2 py-1 bg-rose-50 text-rose-600 rounded-lg text-[10px] font-bold border border-rose-200">
+            <i class="fa-solid fa-rotate-left"></i> 접수 취소
+          </button>
+        </div>
+      </div>
+      <div class="bg-slate-50 px-4 py-3 border-t border-slate-200 flex items-center justify-end gap-2">
+        <button type="button" onclick="closeMobileQuickReceiptModal()" class="px-3.5 py-2 bg-white border border-slate-300 text-slate-700 text-xs font-bold rounded-xl">
+          닫기
+        </button>
+        <button type="button" onclick="confirmMobileQuickReceiptModal()" class="px-4 py-2 bg-purple-600 active:bg-purple-700 text-white text-xs font-black rounded-xl shadow-sm flex items-center gap-1.5">
+          <i class="fa-solid fa-check"></i> 접수 기록 저장
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- Toast Notification -->
   <div id="toast" class="fixed top-4 inset-x-4 max-w-sm mx-auto bg-slate-900/95 text-white px-4 py-2.5 rounded-2xl shadow-xl z-[9999] flex items-center gap-2 text-xs font-bold transition-all duration-300 -translate-y-12 opacity-0 pointer-events-none">
     <i class="fa-solid fa-bell text-amber-400"></i>
@@ -1776,9 +1833,9 @@
 
     function parseTimeMinutes(timeStr) {
       if (!timeStr) return 0;
-      var parts = timeStr.split(':');
-      if (parts.length < 2) return 0;
-      return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+      var m = String(timeStr).match(/(\d{1,2}):(\d{2})/);
+      if (!m) return 0;
+      return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
     }
 
     function calculateDurationMinutes(departTime, arriveTime) {
@@ -1853,6 +1910,7 @@
 
     function getStopTimes(record) {
       var depart = '';
+      var depart_iso = '';
       var arrive = '';
       var issue = '';
       var issueAuthor = '';
@@ -1869,6 +1927,7 @@
           var parsed = JSON.parse(raw);
           if (parsed && typeof parsed === 'object') {
             depart = parsed.depart || '';
+            depart_iso = parsed.depart_iso || '';
             arrive = parsed.arrive || '';
             issue = parsed.issue || '';
             issueAuthor = parsed.issue_author || '';
@@ -1910,6 +1969,7 @@
       }
       return {
         depart: depart,
+        depart_iso: depart_iso,
         arrive: arrive,
         issue: issue,
         issueAuthor: issueAuthor,
@@ -4922,8 +4982,10 @@
       }
     }
 
-    // ⚡ 모바일: 퀵 접수완료 기록
-    async function recordQuickReceiptMobile(idx) {
+    // ⚡ 모바일: 퀵 접수완료 기록 (날짜·시간 미니 입력창)
+    var currentMobileQuickReceiptIdx = -1;
+
+    function recordQuickReceiptMobile(idx) {
       var r = driverRecords[idx];
       if (!r) return;
 
@@ -4933,40 +4995,154 @@
         return;
       }
 
-      if (!confirm(`⚡ [${r.customer_name}] 퀵 접수를 완료하셨습니까?\n현재 시각으로 퀵 접수완료가 기록됩니다.`)) {
+      currentMobileQuickReceiptIdx = idx;
+      var modal = document.getElementById('mobileQuickReceiptModal');
+      if (!modal) return;
+
+      var custEl = document.getElementById('mobileQuickReceiptCustomerName');
+      if (custEl) custEl.textContent = (r.customer_name || '-') + ' (' + (r.delivery_date || '') + ' 배송건)';
+
+      var times = getStopTimes(r);
+      var resetBtn = document.getElementById('mobileQuickReceiptResetBtn');
+      if (resetBtn) {
+        if (times.depart) resetBtn.classList.remove('hidden');
+        else resetBtn.classList.add('hidden');
+      }
+
+      setMobileQuickReceiptNow();
+
+      if (times.depart_iso && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(times.depart_iso)) {
+        var parts = times.depart_iso.split('T');
+        document.getElementById('mobileQuickReceiptDateInput').value = parts[0];
+        document.getElementById('mobileQuickReceiptTimeInput').value = parts[1].slice(0, 5);
+      } else if (times.depart) {
+        var m = String(times.depart).match(/(?:(\d{1,2})\/(\d{1,2})\s+)?(\d{1,2}):(\d{2})/);
+        if (m) {
+          var hh = String(m[3]).padStart(2, '0');
+          var mm = String(m[4]).padStart(2, '0');
+          document.getElementById('mobileQuickReceiptTimeInput').value = hh + ':' + mm;
+          if (m[1] && m[2]) {
+            var baseYear = (r.delivery_date && /^\d{4}/.test(r.delivery_date)) ? r.delivery_date.slice(0, 4) : String(new Date().getFullYear());
+            var mo = String(m[1]).padStart(2, '0');
+            var da = String(m[2]).padStart(2, '0');
+            document.getElementById('mobileQuickReceiptDateInput').value = baseYear + '-' + mo + '-' + da;
+          }
+        }
+      }
+
+      modal.classList.remove('hidden');
+    }
+
+    function setMobileQuickReceiptNow() {
+      var now = new Date();
+      var yyyy = now.getFullYear();
+      var mm = String(now.getMonth() + 1).padStart(2, '0');
+      var dd = String(now.getDate()).padStart(2, '0');
+      var hh = String(now.getHours()).padStart(2, '0');
+      var min = String(now.getMinutes()).padStart(2, '0');
+      var dateInput = document.getElementById('mobileQuickReceiptDateInput');
+      var timeInput = document.getElementById('mobileQuickReceiptTimeInput');
+      if (dateInput) dateInput.value = yyyy + '-' + mm + '-' + dd;
+      if (timeInput) timeInput.value = hh + ':' + min;
+    }
+
+    function shiftMobileQuickReceiptDate(days) {
+      var dateInput = document.getElementById('mobileQuickReceiptDateInput');
+      if (!dateInput) return;
+      var base = dateInput.value ? new Date(dateInput.value + 'T00:00:00') : new Date();
+      base.setDate(base.getDate() + days);
+      var yyyy = base.getFullYear();
+      var mm = String(base.getMonth() + 1).padStart(2, '0');
+      var dd = String(base.getDate()).padStart(2, '0');
+      dateInput.value = yyyy + '-' + mm + '-' + dd;
+    }
+
+    function closeMobileQuickReceiptModal() {
+      var modal = document.getElementById('mobileQuickReceiptModal');
+      if (modal) modal.classList.add('hidden');
+      currentMobileQuickReceiptIdx = -1;
+    }
+
+    async function confirmMobileQuickReceiptModal() {
+      var idx = currentMobileQuickReceiptIdx;
+      var r = driverRecords[idx];
+      if (!r) { closeMobileQuickReceiptModal(); return; }
+
+      var dateVal = (document.getElementById('mobileQuickReceiptDateInput').value || '').trim();
+      var timeVal = (document.getElementById('mobileQuickReceiptTimeInput').value || '').trim();
+      if (!dateVal || !timeVal) {
+        alert('접수 일자와 시각을 모두 입력해주세요.');
         return;
       }
-      var nowStr = new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false });
+
+      var dParts = dateVal.split('-');
+      var formattedStr = (dParts.length === 3) ? (dParts[1] + '/' + dParts[2] + ' ' + timeVal) : timeVal;
+
       var times = getStopTimes(r);
-      times.depart = nowStr;
+      times.depart = formattedStr;
+      times.depart_iso = dateVal + 'T' + timeVal;
+      var nextStatus = (r.status === '완료' || r.status === '배송완료' || r.status === '퀵출발') ? r.status : '접수완료';
       var jsonStr = JSON.stringify(times);
 
-      showToast('⏳ [서버 전송 중] 퀵 접수완료 기록 중...');
+      closeMobileQuickReceiptModal();
+      showToast('⏳ [서버 전송 중] 퀵 접수 시각 저장 중...');
 
       if (supabaseClient && r.id) {
         try {
           var res = await supabaseClient.from('delivery_schedules').update({
             memo_special: jsonStr,
-            status: '접수완료'
+            status: nextStatus
           }).eq('id', r.id);
           if (res.error) throw res.error;
 
           r.memo_special = jsonStr;
-          r.status = '접수완료';
-          r.depart_time = nowStr;
+          r.status = nextStatus;
+          r.depart_time = formattedStr;
           renderCards();
-          showToast('⚡ [' + r.customer_name + '] 퀵 접수 완료! (' + nowStr + ')');
+          showToast('⚡ [' + r.customer_name + '] 퀵 접수 (' + formattedStr + ')');
         } catch(err) {
           console.error('Quick receipt error:', err);
           alert('⚠️ 통신 오류: 퀵 접수 저장 실패\n' + (err.message || err));
         }
       } else {
         r.memo_special = jsonStr;
-        r.status = '접수완료';
-        r.depart_time = nowStr;
+        r.status = nextStatus;
+        r.depart_time = formattedStr;
         renderCards();
-        showToast('⚡ [' + r.customer_name + '] 퀵 접수 완료! (' + nowStr + ')');
+        showToast('⚡ [' + r.customer_name + '] 퀵 접수 (' + formattedStr + ')');
       }
+    }
+
+    async function resetMobileQuickReceiptModal() {
+      var idx = currentMobileQuickReceiptIdx;
+      var r = driverRecords[idx];
+      if (!r) { closeMobileQuickReceiptModal(); return; }
+      if (!confirm('[' + r.customer_name + '] 건의 퀵 접수 시각 기록을 초기화하시겠습니까?')) return;
+
+      var times = getStopTimes(r);
+      times.depart = '';
+      times.depart_iso = '';
+      var nextStatus = times.arrive ? r.status : '대기';
+      var jsonStr = JSON.stringify(times);
+
+      closeMobileQuickReceiptModal();
+      if (supabaseClient && r.id) {
+        try {
+          var res = await supabaseClient.from('delivery_schedules').update({
+            memo_special: jsonStr,
+            status: nextStatus
+          }).eq('id', r.id);
+          if (res.error) throw res.error;
+        } catch(err) {
+          alert('⚠️ 통신 오류: 초기화 실패\n' + (err.message || err));
+          return;
+        }
+      }
+      r.memo_special = jsonStr;
+      r.status = nextStatus;
+      r.depart_time = '';
+      renderCards();
+      showToast('🔄 [' + r.customer_name + '] 퀵 접수 기록이 초기화되었습니다.');
     }
 
     // ⚡ 모바일: 퀵 기사 픽업 및 출발 기록
@@ -4983,9 +5159,14 @@
       if (!confirm(`🚀 [${r.customer_name}] 퀵 기사님이 물품을 픽업하여 출발했습니까?\n현재 시각으로 퀵 출발이 기록됩니다.`)) {
         return;
       }
-      var nowStr = new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false });
+      var now = new Date();
+      var nowStr = now.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false });
       var times = getStopTimes(r);
-      if (!times.depart) times.depart = nowStr;
+      if (!times.depart) {
+        var mm = String(now.getMonth() + 1).padStart(2, '0');
+        var dd = String(now.getDate()).padStart(2, '0');
+        times.depart = mm + '/' + dd + ' ' + nowStr;
+      }
       times.arrive = nowStr;
       var dur = calculateDurationMinutes(times.depart, times.arrive);
       var jsonStr = JSON.stringify(times);
