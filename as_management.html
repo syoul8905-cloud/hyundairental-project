@@ -264,18 +264,23 @@
           <label class="block text-[11px] font-bold text-slate-600 mb-1">
             증상 <span class="text-rose-500">*</span>
           </label>
-          <input type="text" id="inputSymptom" placeholder="증상 요약 (예: 인쇄 시 용지 걸림 빈발, 원격 IP 세팅)" 
+          <input type="text" id="inputSymptom" placeholder="증상 요약 (예: 부팅 불량, 포멧, 블루스크린, 화면 안나옴)" 
                  class="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 font-bold text-xs text-slate-800 focus:bg-white focus:outline-none focus:border-indigo-500 transition mb-1.5">
           
           <!-- Symptom Quick Chips -->
           <div class="flex flex-wrap gap-1">
             <button type="button" onclick="appendSymptom('부팅 불량')" class="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-md text-[10px] font-bold transition">부팅 불량</button>
-            <button type="button" onclick="appendSymptom('네트워크/스캔 끊김')" class="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-md text-[10px] font-bold transition">네트워크/스캔 끊김</button>
-            <button type="button" onclick="appendSymptom('용지 걸림')" class="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-md text-[10px] font-bold transition">용지 걸림</button>
-            <button type="button" onclick="appendSymptom('토너/화질 흐림')" class="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-md text-[10px] font-bold transition">토너/화질 흐림</button>
-            <button type="button" onclick="appendSymptom('화면 깜빡임')" class="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-md text-[10px] font-bold transition">화면 깜빡임</button>
-            <button type="button" onclick="appendSymptom('소음 발생')" class="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-md text-[10px] font-bold transition">소음 발생</button>
             <button type="button" onclick="appendSymptom('전원 꺼짐')" class="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-md text-[10px] font-bold transition">전원 꺼짐</button>
+            <button type="button" onclick="appendSymptom('화면 안나옴')" class="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-md text-[10px] font-bold transition">화면 안나옴</button>
+            <button type="button" onclick="appendSymptom('화면 깜빡임')" class="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-md text-[10px] font-bold transition">화면 깜빡임</button>
+            <button type="button" onclick="appendSymptom('액정 파손')" class="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-md text-[10px] font-bold transition">액정 파손</button>
+            <button type="button" onclick="appendSymptom('포멧')" class="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-md text-[10px] font-bold transition">포멧</button>
+            <button type="button" onclick="appendSymptom('블루스크린')" class="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-md text-[10px] font-bold transition">블루스크린</button>
+            <button type="button" onclick="appendSymptom('공장 초기화')" class="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-md text-[10px] font-bold transition">공장 초기화</button>
+            <button type="button" onclick="appendSymptom('충전/배터리')" class="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-md text-[10px] font-bold transition">충전/배터리</button>
+            <button type="button" onclick="appendSymptom('소음 발생')" class="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-md text-[10px] font-bold transition">소음 발생</button>
+            <button type="button" onclick="appendSymptom('키보드/마우스')" class="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-md text-[10px] font-bold transition">키보드/마우스</button>
+            <button type="button" onclick="appendSymptom('정품인증')" class="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-md text-[10px] font-bold transition">정품인증</button>
           </div>
         </div>
 
