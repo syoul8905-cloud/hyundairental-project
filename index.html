@@ -1644,28 +1644,43 @@
     </div>
   </div>
 
-  <!-- Photo Viewer Lightbox Modal -->
-  <div id="photoViewerModal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50" onclick="if(event.target===this)closePhotoViewerModal()">
-    <div class="bg-white rounded-3xl max-w-lg w-full p-4 shadow-2xl border border-slate-200 space-y-3 flex flex-col max-h-[90vh]">
+  <!-- Photo Viewer Lightbox Modal (최상위 z-[10000] 레이어 · 좌우 이전/다음 슬라이드 지원) -->
+  <div id="photoViewerModal" class="fixed inset-0 bg-slate-900/85 backdrop-blur-sm hidden flex items-center justify-center p-4 z-[10000]" onclick="if(event.target===this)closePhotoViewerModal()">
+    <div class="bg-white rounded-3xl max-w-2xl w-full p-4 shadow-2xl border border-slate-200 space-y-3 flex flex-col max-h-[92vh]" onclick="event.stopPropagation()">
       <div class="flex items-center justify-between border-b border-slate-100 pb-2.5 shrink-0">
-        <div class="flex items-center gap-2">
-          <span class="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center text-xs">
+        <div class="flex items-center gap-2 min-w-0">
+          <span class="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center text-xs shrink-0">
             <i class="fa-solid fa-camera"></i>
           </span>
-          <h3 id="photoViewerTitle" class="font-black text-xs text-slate-900 truncate max-w-[280px]">현장 사진 확대 보기</h3>
+          <h3 id="photoViewerTitle" class="font-black text-xs text-slate-900 truncate max-w-[340px]">현장 사진 확대 보기</h3>
+          <span id="photoViewerCounter" class="hidden px-2 py-0.5 bg-indigo-100 text-indigo-800 rounded-full font-black text-[10px] border border-indigo-200 shrink-0">1 / 1</span>
         </div>
-        <button type="button" onclick="closePhotoViewerModal()" class="w-7 h-7 rounded-full bg-slate-100 text-slate-500 hover:text-slate-800 flex items-center justify-center text-xs">
+        <button type="button" onclick="closePhotoViewerModal()" class="w-7 h-7 rounded-full bg-slate-100 text-slate-500 hover:text-slate-800 flex items-center justify-center text-xs shrink-0">
           <i class="fa-solid fa-xmark"></i>
         </button>
       </div>
-      <div class="flex-1 overflow-auto flex items-center justify-center bg-slate-950 rounded-2xl p-1 min-h-[250px]">
-        <img id="photoViewerImg" src="" alt="현장 사진" class="max-h-[70vh] w-auto max-w-full rounded-xl object-contain shadow-lg">
+      <div class="relative flex-1 overflow-hidden flex items-center justify-center bg-slate-950 rounded-2xl p-1 min-h-[280px] select-none">
+        <button type="button" id="photoViewerPrevBtn" onclick="event.stopPropagation(); navigatePhotoViewer(-1)" class="hidden absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-slate-900/80 hover:bg-indigo-600 text-white border border-white/30 shadow-lg flex items-center justify-center text-sm transition active:scale-95 z-10 cursor-pointer" title="이전 사진 (←)">
+          <i class="fa-solid fa-chevron-left"></i>
+        </button>
+        <img id="photoViewerImg" src="" alt="현장 사진" class="max-h-[72vh] w-auto max-w-full rounded-xl object-contain shadow-lg">
+        <button type="button" id="photoViewerNextBtn" onclick="event.stopPropagation(); navigatePhotoViewer(1)" class="hidden absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-slate-900/80 hover:bg-indigo-600 text-white border border-white/30 shadow-lg flex items-center justify-center text-sm transition active:scale-95 z-10 cursor-pointer" title="다음 사진 (→)">
+          <i class="fa-solid fa-chevron-right"></i>
+        </button>
       </div>
       <div class="flex items-center justify-between pt-1 shrink-0 text-xs">
-        <span class="text-[11px] text-slate-400 font-medium">현장 기사가 촬영 및 첨부한 원본 사진입니다.</span>
-        <button type="button" onclick="closePhotoViewerModal()" class="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl text-xs">
-          닫기
-        </button>
+        <span id="photoViewerFooterHint" class="text-[11px] text-slate-400 font-medium">현장 기사가 촬영 및 첨부한 원본 사진입니다.</span>
+        <div class="flex items-center gap-1.5">
+          <button type="button" id="photoViewerPrevBottomBtn" onclick="navigatePhotoViewer(-1)" class="hidden px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition">
+            ◀ 이전
+          </button>
+          <button type="button" id="photoViewerNextBottomBtn" onclick="navigatePhotoViewer(1)" class="hidden px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition">
+            다음 ▶
+          </button>
+          <button type="button" onclick="closePhotoViewerModal()" class="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl text-xs">
+            닫기
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -4250,15 +4265,94 @@
     }
 
     // ==========================================
-    // Photo Viewer Lightbox Engine
+    // Photo Viewer Lightbox Engine (좌우 이전/다음 슬라이드 지원)
     // ==========================================
-    function openPhotoViewerModal(src, title) {
-      if (!src) return;
-      var modal = document.getElementById('photoViewerModal');
+    var photoViewerGallery = []; // [ { src, title } ]
+    var photoViewerCurrentIdx = 0;
+
+    function renderPhotoViewerSlide() {
       var img = document.getElementById('photoViewerImg');
       var titleEl = document.getElementById('photoViewerTitle');
-      if (img) img.src = src;
-      if (titleEl) titleEl.innerText = title ? ('[📷 현장 사진] ' + title) : '현장 사진 확대 보기';
+      var counterEl = document.getElementById('photoViewerCounter');
+      var prevBtn = document.getElementById('photoViewerPrevBtn');
+      var nextBtn = document.getElementById('photoViewerNextBtn');
+      var prevBottomBtn = document.getElementById('photoViewerPrevBottomBtn');
+      var nextBottomBtn = document.getElementById('photoViewerNextBottomBtn');
+      var hintEl = document.getElementById('photoViewerFooterHint');
+
+      if (!photoViewerGallery || photoViewerGallery.length === 0) return;
+      if (photoViewerCurrentIdx < 0) photoViewerCurrentIdx = photoViewerGallery.length - 1;
+      if (photoViewerCurrentIdx >= photoViewerGallery.length) photoViewerCurrentIdx = 0;
+
+      var item = photoViewerGallery[photoViewerCurrentIdx];
+      if (img && item) img.src = item.src;
+      if (titleEl && item) {
+        var rawTitle = item.title || '현장 사진 확대 보기';
+        titleEl.innerText = rawTitle.indexOf('[📷') === 0 ? rawTitle : ('[📷 사진 확인] ' + rawTitle);
+      }
+
+      var hasMulti = photoViewerGallery.length > 1;
+      if (counterEl) {
+        if (hasMulti) {
+          counterEl.innerText = (photoViewerCurrentIdx + 1) + ' / ' + photoViewerGallery.length;
+          counterEl.classList.remove('hidden');
+        } else {
+          counterEl.classList.add('hidden');
+        }
+      }
+      if (prevBtn) prevBtn.classList.toggle('hidden', !hasMulti);
+      if (nextBtn) nextBtn.classList.toggle('hidden', !hasMulti);
+      if (prevBottomBtn) prevBottomBtn.classList.toggle('hidden', !hasMulti);
+      if (nextBottomBtn) nextBottomBtn.classList.toggle('hidden', !hasMulti);
+      if (hintEl) {
+        hintEl.innerText = hasMulti ? '양옆 화살표(◀/▶) 또는 키보드 방향키(←/→)로 이전·다음 사진을 확인하세요.' : '현장 기사가 촬영 및 첨부한 원본 사진입니다.';
+      }
+    }
+
+    function navigatePhotoViewer(step) {
+      if (!photoViewerGallery || photoViewerGallery.length <= 1) return;
+      photoViewerCurrentIdx = (photoViewerCurrentIdx + step + photoViewerGallery.length) % photoViewerGallery.length;
+      renderPhotoViewerSlide();
+    }
+
+    function openInspectPhotoInViewer(photoIdx) {
+      if (!Array.isArray(cachedInspectPhotos) || cachedInspectPhotos.length === 0) return;
+      var list = cachedInspectPhotos.map(function(p, i) {
+        return {
+          src: p.data || p.url || '',
+          title: '검수 사진 #' + (i + 1) + ' (' + (p.uploader || '출고담당') + ' · ' + (p.timestamp || '등록') + ')'
+        };
+      }).filter(function(item) { return !!item.src; });
+      if (list.length === 0) return;
+      var targetIdx = (typeof photoIdx === 'number' && photoIdx >= 0 && photoIdx < list.length) ? photoIdx : 0;
+      openPhotoViewerModal(list[targetIdx].src, list[targetIdx].title, list, targetIdx);
+    }
+
+    function openPhotoViewerModal(src, title, galleryList, startIdx) {
+      if (!src && (!Array.isArray(galleryList) || galleryList.length === 0)) return;
+      if (Array.isArray(galleryList) && galleryList.length > 0) {
+        photoViewerGallery = galleryList;
+        photoViewerCurrentIdx = (typeof startIdx === 'number' && startIdx >= 0 && startIdx < galleryList.length) ? startIdx : 0;
+      } else {
+        var inspectModal = document.getElementById('parcelInspectModal');
+        var isInspectOpen = inspectModal && !inspectModal.classList.contains('hidden');
+        if (isInspectOpen && Array.isArray(cachedInspectPhotos) && cachedInspectPhotos.length > 0) {
+          photoViewerGallery = cachedInspectPhotos.map(function(p, i) {
+            return {
+              src: p.data || p.url || '',
+              title: '검수 사진 #' + (i + 1) + ' (' + (p.uploader || '출고담당') + ' · ' + (p.timestamp || '등록') + ')'
+            };
+          }).filter(function(item) { return !!item.src; });
+          var foundIdx = photoViewerGallery.findIndex(function(item) { return item.src === src; });
+          photoViewerCurrentIdx = foundIdx >= 0 ? foundIdx : 0;
+        } else {
+          photoViewerGallery = [{ src: src, title: title || '현장 사진 확대 보기' }];
+          photoViewerCurrentIdx = 0;
+        }
+      }
+
+      renderPhotoViewerSlide();
+      var modal = document.getElementById('photoViewerModal');
       if (modal) modal.classList.remove('hidden');
     }
 
@@ -4266,6 +4360,21 @@
       var modal = document.getElementById('photoViewerModal');
       if (modal) modal.classList.add('hidden');
     }
+
+    document.addEventListener('keydown', function(e) {
+      var modal = document.getElementById('photoViewerModal');
+      if (!modal || modal.classList.contains('hidden')) return;
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        navigatePhotoViewer(-1);
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        navigatePhotoViewer(1);
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        closePhotoViewerModal();
+      }
+    });
 
     function getStopTimes(r) {
       var depart = '';
@@ -5038,10 +5147,9 @@
       var html = '';
 
       cachedInspectPhotos.forEach(function(p, idx) {
-        var photoTitle = '검수 사진 #' + (idx + 1) + ' (' + (p.uploader || '출고담당') + ' · ' + (p.timestamp || '등록') + ')';
         html += `
           <div class="relative group rounded-2xl overflow-hidden border-2 border-slate-200 bg-slate-50 shadow-2xs aspect-square flex flex-col justify-between">
-            <img src="${p.data}" onclick="openPhotoViewerModal('${p.data.replace(/'/g, "\\'")}', '${photoTitle.replace(/'/g, "\\'")}')" class="w-full h-full object-cover cursor-pointer hover:scale-105 transition duration-200" alt="검수 사진 ${idx + 1}">
+            <img src="${p.data}" onclick="openInspectPhotoInViewer(${idx})" class="w-full h-full object-cover cursor-pointer hover:scale-105 transition duration-200" alt="검수 사진 ${idx + 1}">
             
             <div class="absolute top-1.5 left-1.5 px-1.5 py-0.5 bg-slate-900/70 text-white font-black text-[9.5px] rounded-md shadow-xs pointer-events-none">
               #${idx + 1}

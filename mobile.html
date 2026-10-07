@@ -473,20 +473,27 @@
   </div>
 
   <!-- ========================================== -->
-  <!-- Photo Viewer Modal (Mobile Lightbox)       -->
+  <!-- Photo Viewer Modal (Mobile Lightbox · 좌우 슬라이드 지원) -->
   <!-- ========================================== -->
-  <div id="mobilePhotoViewerModal" class="hidden fixed inset-0 bg-black/95 z-[10000] flex flex-col items-center justify-center p-3 backdrop-blur-xs">
-    <div class="w-full max-w-md flex items-center justify-between text-white pb-2 px-1">
-      <div class="flex items-center gap-1.5 truncate">
-        <i class="fa-solid fa-image text-indigo-400"></i>
+  <div id="mobilePhotoViewerModal" class="hidden fixed inset-0 bg-black/95 z-[10050] flex flex-col items-center justify-center p-3 backdrop-blur-xs" onclick="if(event.target===this)closeMobilePhotoModal()">
+    <div class="w-full max-w-md flex items-center justify-between text-white pb-2 px-1" onclick="event.stopPropagation()">
+      <div class="flex items-center gap-1.5 min-w-0">
+        <i class="fa-solid fa-image text-indigo-400 shrink-0"></i>
         <h3 id="mobilePhotoViewerTitle" class="text-xs font-bold truncate">현장 사진 확인</h3>
+        <span id="mobilePhotoViewerCounter" class="hidden px-2 py-0.5 bg-indigo-500/30 text-indigo-200 rounded-full font-black text-[10px] border border-indigo-400/40 shrink-0">1 / 1</span>
       </div>
-      <button onclick="closeMobilePhotoModal()" class="w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 active:scale-95 text-white flex items-center justify-center text-sm transition">
+      <button onclick="closeMobilePhotoModal()" class="w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 active:scale-95 text-white flex items-center justify-center text-sm transition shrink-0">
         <i class="fa-solid fa-xmark"></i>
       </button>
     </div>
-    <div class="max-w-md w-full max-h-[75vh] flex items-center justify-center bg-black/60 rounded-2xl overflow-hidden p-1 border border-white/10 shadow-2xl">
+    <div class="relative max-w-md w-full max-h-[75vh] flex items-center justify-center bg-black/60 rounded-2xl overflow-hidden p-1 border border-white/10 shadow-2xl select-none" onclick="event.stopPropagation()">
+      <button type="button" id="mobilePhotoViewerPrevBtn" onclick="event.stopPropagation(); navigateMobilePhotoViewer(-1)" class="hidden absolute left-2.5 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-slate-900/80 hover:bg-indigo-600 active:scale-95 text-white border border-white/30 shadow-lg flex items-center justify-center text-sm transition z-10" title="이전 사진">
+        <i class="fa-solid fa-chevron-left"></i>
+      </button>
       <img id="mobilePhotoViewerImg" src="" alt="현장 사진" class="max-w-full max-h-[72vh] object-contain rounded-xl">
+      <button type="button" id="mobilePhotoViewerNextBtn" onclick="event.stopPropagation(); navigateMobilePhotoViewer(1)" class="hidden absolute right-2.5 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-slate-900/80 hover:bg-indigo-600 active:scale-95 text-white border border-white/30 shadow-lg flex items-center justify-center text-sm transition z-10" title="다음 사진">
+        <i class="fa-solid fa-chevron-right"></i>
+      </button>
     </div>
   </div>
 
@@ -4266,11 +4273,10 @@
               <div class="flex items-center gap-1.5 overflow-x-auto pb-0.5">
                 ${times.inspectPhotos.map(function(p, pIdx) {
                   var pSrc = (typeof p === 'string') ? p : (p.data || p.url || '');
-                  var pUploader = (p && p.uploader) ? p.uploader : '출고담당';
                   if (!pSrc) return '';
                   return `
                     <div class="relative shrink-0">
-                      <img src="${pSrc}" onclick="openMobilePhotoModal('${pSrc.replace(/'/g, "\\'")}', '출고 검수 사진 #${pIdx + 1} (${pUploader.replace(/'/g, "\\'")})')" class="w-12 h-12 object-cover rounded-lg border-2 border-amber-300 shadow-2xs cursor-pointer hover:opacity-90 active:scale-95 transition" alt="검수사진 ${pIdx + 1}">
+                      <img src="${pSrc}" onclick="openMobileCardInspectPhotoInViewer(${idx}, ${pIdx})" class="w-12 h-12 object-cover rounded-lg border-2 border-amber-300 shadow-2xs cursor-pointer hover:opacity-90 active:scale-95 transition" alt="검수사진 ${pIdx + 1}">
                       <span class="absolute bottom-0.5 right-0.5 px-1 bg-slate-900/70 text-white text-[8px] font-black rounded pointer-events-none">#${pIdx + 1}</span>
                     </div>
                   `;
@@ -4445,13 +4451,100 @@
       });
     }
 
-    function openMobilePhotoModal(src, title) {
-      var modal = document.getElementById('mobilePhotoViewerModal');
+    var mobilePhotoViewerGallery = [];
+    var mobilePhotoViewerCurrentIdx = 0;
+
+    function renderMobilePhotoViewerSlide() {
       var img = document.getElementById('mobilePhotoViewerImg');
       var titleEl = document.getElementById('mobilePhotoViewerTitle');
-      if (!modal || !img) return;
-      img.src = src;
-      if (titleEl) titleEl.innerText = title || '현장 사진 확인';
+      var counterEl = document.getElementById('mobilePhotoViewerCounter');
+      var prevBtn = document.getElementById('mobilePhotoViewerPrevBtn');
+      var nextBtn = document.getElementById('mobilePhotoViewerNextBtn');
+
+      if (!mobilePhotoViewerGallery || mobilePhotoViewerGallery.length === 0) return;
+      if (mobilePhotoViewerCurrentIdx < 0) mobilePhotoViewerCurrentIdx = mobilePhotoViewerGallery.length - 1;
+      if (mobilePhotoViewerCurrentIdx >= mobilePhotoViewerGallery.length) mobilePhotoViewerCurrentIdx = 0;
+
+      var item = mobilePhotoViewerGallery[mobilePhotoViewerCurrentIdx];
+      if (img && item) img.src = item.src;
+      if (titleEl && item) titleEl.innerText = item.title || '현장 사진 확인';
+
+      var hasMulti = mobilePhotoViewerGallery.length > 1;
+      if (counterEl) {
+        if (hasMulti) {
+          counterEl.innerText = (mobilePhotoViewerCurrentIdx + 1) + ' / ' + mobilePhotoViewerGallery.length;
+          counterEl.classList.remove('hidden');
+        } else {
+          counterEl.classList.add('hidden');
+        }
+      }
+      if (prevBtn) prevBtn.classList.toggle('hidden', !hasMulti);
+      if (nextBtn) nextBtn.classList.toggle('hidden', !hasMulti);
+    }
+
+    function navigateMobilePhotoViewer(step) {
+      if (!mobilePhotoViewerGallery || mobilePhotoViewerGallery.length <= 1) return;
+      mobilePhotoViewerCurrentIdx = (mobilePhotoViewerCurrentIdx + step + mobilePhotoViewerGallery.length) % mobilePhotoViewerGallery.length;
+      renderMobilePhotoViewerSlide();
+    }
+
+    function openMobileInspectPhotoInViewer(photoIdx) {
+      if (!Array.isArray(cachedMobileInspectPhotos) || cachedMobileInspectPhotos.length === 0) return;
+      var list = cachedMobileInspectPhotos.map(function(p, i) {
+        return {
+          src: p.data || p.url || '',
+          title: '검수 사진 #' + (i + 1) + ' (' + (p.uploader || '출고담당') + ' · ' + (p.timestamp || '등록') + ')'
+        };
+      }).filter(function(item) { return !!item.src; });
+      if (list.length === 0) return;
+      var targetIdx = (typeof photoIdx === 'number' && photoIdx >= 0 && photoIdx < list.length) ? photoIdx : 0;
+      openMobilePhotoModal(list[targetIdx].src, list[targetIdx].title, list, targetIdx);
+    }
+
+    function openMobileCardInspectPhotoInViewer(recordIdx, photoIdx) {
+      var r = driverRecords[recordIdx];
+      if (!r) return;
+      var times = getStopTimes(r);
+      var photos = Array.isArray(times.inspectPhotos) ? times.inspectPhotos : [];
+      if (photos.length === 0) return;
+      var list = photos.map(function(p, i) {
+        var src = (typeof p === 'string') ? p : (p.data || p.url || '');
+        var uploader = (p && p.uploader) ? p.uploader : '출고담당';
+        var ts = (p && p.timestamp) ? p.timestamp : '';
+        return {
+          src: src,
+          title: '출고 검수 사진 #' + (i + 1) + ' (' + uploader + (ts ? ' · ' + ts : '') + ')'
+        };
+      }).filter(function(item) { return !!item.src; });
+      if (list.length === 0) return;
+      var targetIdx = (typeof photoIdx === 'number' && photoIdx >= 0 && photoIdx < list.length) ? photoIdx : 0;
+      openMobilePhotoModal(list[targetIdx].src, list[targetIdx].title, list, targetIdx);
+    }
+
+    function openMobilePhotoModal(src, title, galleryList, startIdx) {
+      var modal = document.getElementById('mobilePhotoViewerModal');
+      if (!modal) return;
+      if (Array.isArray(galleryList) && galleryList.length > 0) {
+        mobilePhotoViewerGallery = galleryList;
+        mobilePhotoViewerCurrentIdx = (typeof startIdx === 'number' && startIdx >= 0 && startIdx < galleryList.length) ? startIdx : 0;
+      } else {
+        var inspectModal = document.getElementById('mobileParcelInspectModal');
+        var isInspectOpen = inspectModal && !inspectModal.classList.contains('hidden');
+        if (isInspectOpen && Array.isArray(cachedMobileInspectPhotos) && cachedMobileInspectPhotos.length > 0) {
+          mobilePhotoViewerGallery = cachedMobileInspectPhotos.map(function(p, i) {
+            return {
+              src: p.data || p.url || '',
+              title: '검수 사진 #' + (i + 1) + ' (' + (p.uploader || '출고담당') + ' · ' + (p.timestamp || '등록') + ')'
+            };
+          }).filter(function(item) { return !!item.src; });
+          var foundIdx = mobilePhotoViewerGallery.findIndex(function(item) { return item.src === src; });
+          mobilePhotoViewerCurrentIdx = foundIdx >= 0 ? foundIdx : 0;
+        } else {
+          mobilePhotoViewerGallery = [{ src: src, title: title || '현장 사진 확인' }];
+          mobilePhotoViewerCurrentIdx = 0;
+        }
+      }
+      renderMobilePhotoViewerSlide();
       modal.classList.remove('hidden');
     }
 
@@ -5089,10 +5182,9 @@
       var html = '';
 
       cachedMobileInspectPhotos.forEach(function(p, idx) {
-        var photoTitle = '검수 사진 #' + (idx + 1) + ' (' + (p.uploader || '출고담당') + ' · ' + (p.timestamp || '등록') + ')';
         html += `
           <div class="relative group rounded-2xl overflow-hidden border-2 border-slate-200 bg-slate-50 shadow-2xs aspect-square flex flex-col justify-between">
-            <img src="${p.data}" onclick="openMobilePhotoModal('${p.data.replace(/'/g, "\\'")}', '${photoTitle.replace(/'/g, "\\'")}')" class="w-full h-full object-cover cursor-pointer hover:scale-105 active:scale-95 transition duration-200" alt="검수 사진 ${idx + 1}">
+            <img src="${p.data}" onclick="openMobileInspectPhotoInViewer(${idx})" class="w-full h-full object-cover cursor-pointer hover:scale-105 active:scale-95 transition duration-200" alt="검수 사진 ${idx + 1}">
             
             <div class="absolute top-1.5 left-1.5 px-1.5 py-0.5 bg-slate-900/70 text-white font-black text-[9.5px] rounded-md shadow-xs pointer-events-none">
               #${idx + 1}
