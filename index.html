@@ -1041,6 +1041,7 @@
               <option value="직배송">🚚 직배송</option>
               <option value="방문수령">🏢 방문수령</option>
               <option value="퀵배송">⚡ 퀵배송</option>
+              <option value="택배">📮 택배</option>
             </select>
           </div>
           <div>
@@ -1292,6 +1293,7 @@
               <option value="직배송" selected>🚚 직배송</option>
               <option value="방문수령">🏢 방문수령</option>
               <option value="퀵배송">⚡ 퀵배송</option>
+              <option value="택배">📮 택배</option>
             </select>
           </div>
           <div>
@@ -8561,6 +8563,8 @@
       var assignedDriver = (currentFilterDriver && currentFilterDriver !== 'all') ? currentFilterDriver : '';
       if (method === '방문수령' && !assignedDriver) {
         assignedDriver = '방문수령';
+      } else if (method === '택배' && !assignedDriver) {
+        assignedDriver = '택배';
       }
 
       var chosenDate = (document.getElementById('calendarDateInput') && document.getElementById('calendarDateInput').value)

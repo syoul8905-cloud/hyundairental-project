@@ -743,6 +743,8 @@
             <select id="editMethod" class="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-indigo-500 font-semibold">
               <option value="직배송">🚚 직배송</option>
               <option value="방문수령">🏢 방문수령</option>
+              <option value="퀵배송">⚡ 퀵배송</option>
+              <option value="택배">📮 택배</option>
             </select>
           </div>
           <div>
@@ -969,6 +971,8 @@
             <select id="addMethod" class="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-indigo-500 font-semibold">
               <option value="직배송" selected>🚚 직배송</option>
               <option value="방문수령">🏢 방문수령</option>
+              <option value="퀵배송">⚡ 퀵배송</option>
+              <option value="택배">📮 택배</option>
             </select>
           </div>
           <div>
@@ -6244,6 +6248,8 @@
       var assignedDriver = (currentFilterDriver && currentFilterDriver !== 'all') ? currentFilterDriver : '';
       if (method === '방문수령' && !assignedDriver) {
         assignedDriver = '방문수령';
+      } else if (method === '택배' && !assignedDriver) {
+        assignedDriver = '택배';
       }
 
       var chosenDate = (document.getElementById('calendarDateInput') && document.getElementById('calendarDateInput').value)
