@@ -1670,7 +1670,7 @@
     </div>
   </div>
 
-  <!-- 📮 Parcel Inspection & Packing Photo Modal (최대 10장 통합 사진 보관함 & 자동 워터마크) -->
+  <!-- 📷 출고 검수 & 실물 확인 사진 통합 보관함 모달 (전 배송수단 지원 · 최대 10장 · 자동 워터마크) -->
   <div id="parcelInspectModal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50" onclick="if(event.target===this)closeParcelInspectPhotoModal()">
     <div class="bg-white rounded-3xl max-w-lg w-full p-5 shadow-2xl border border-slate-200 space-y-3.5 max-h-[92vh] flex flex-col" onclick="event.stopPropagation()">
       <div class="flex items-center justify-between border-b border-slate-100 pb-3 shrink-0">
@@ -1680,10 +1680,13 @@
           </span>
           <div>
             <div class="flex items-center gap-2">
-              <h3 class="font-black text-sm text-slate-900">택배 출고 검수 사진</h3>
+              <h3 class="font-black text-sm text-slate-900">출고 검수 사진 보관함</h3>
               <span id="inspectPhotoCountBadge" class="text-[10px] text-amber-800 font-black bg-amber-100 px-2 py-0.5 rounded-full border border-amber-300">0 / 10장</span>
             </div>
-            <p id="inspectModalCustName" class="text-xs font-bold text-amber-800 truncate max-w-[260px]">고객사명</p>
+            <div class="flex items-center gap-1.5 mt-0.5">
+              <p id="inspectModalCustName" class="text-xs font-bold text-amber-800 truncate max-w-[220px]">고객사명</p>
+              <span id="inspectModalMethodBadge" class="px-1.5 py-0.2 bg-slate-100 text-slate-700 rounded font-bold text-[9.5px] border border-slate-200">🚚 직배송</span>
+            </div>
           </div>
         </div>
         <button type="button" onclick="closeParcelInspectPhotoModal()" class="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center text-xs transition">
@@ -4270,12 +4273,12 @@
       var issue = '';
       var issueAuthor = '';
       var photo = '';
-      var tonerPhoto = '';
-      var bulkPhoto = '';
+      var inspectPhotos = [];
       var local_dismissal = false;
       var dismissal_type = 'registered';
       var dismissal_addr = '';
       var dismissal_name = '';
+      var updated_at = '';
       var raw = (r && (r.추후일정_특이사항 || r.memo_special)) ? (r.추후일정_특이사항 || r.memo_special) : '';
       if (raw) {
         try {
@@ -4284,14 +4287,35 @@
             depart = parsed.depart || '';
             arrive = parsed.arrive || '';
             issue = parsed.issue || '';
-            issueAuthor = parsed.issue_author || '';
+            issueAuthor = parsed.issue_author || parsed.issueAuthor || '';
             photo = parsed.photo || '';
-            tonerPhoto = parsed.toner_photo || parsed.tonerPhoto || '';
-            bulkPhoto = parsed.bulk_photo || parsed.bulkPhoto || '';
+            if (Array.isArray(parsed.inspectPhotos) && parsed.inspectPhotos.length > 0) {
+              inspectPhotos = parsed.inspectPhotos.map(function(item, idx) {
+                if (typeof item === 'string') {
+                  return { id: 'p_' + idx, data: item, uploader: '출고담당', timestamp: parsed.updated_at || '' };
+                }
+                return {
+                  id: item.id || ('p_' + idx),
+                  data: item.data || item.url || '',
+                  uploader: (item.uploader && item.uploader !== '토너검수' && item.uploader !== '대량포장') ? item.uploader : '출고담당',
+                  timestamp: item.timestamp || parsed.updated_at || ''
+                };
+              }).filter(function(p) { return !!p.data; });
+            } else {
+              var legacyToner = parsed.toner_photo || parsed.tonerPhoto || '';
+              var legacyBulk = parsed.bulk_photo || parsed.bulkPhoto || '';
+              if (legacyToner) {
+                inspectPhotos.push({ id: 'p_0', data: legacyToner, uploader: '출고담당', timestamp: parsed.updated_at || '' });
+              }
+              if (legacyBulk) {
+                inspectPhotos.push({ id: 'p_1', data: legacyBulk, uploader: '출고담당', timestamp: parsed.updated_at || '' });
+              }
+            }
             local_dismissal = Boolean(parsed.local_dismissal);
             dismissal_type = parsed.dismissal_type || 'registered';
             dismissal_addr = parsed.dismissal_addr || '';
             dismissal_name = parsed.dismissal_name || '';
+            updated_at = parsed.updated_at || '';
           }
         } catch(e) {
           var dMatch = String(raw).match(/출발[:\s]*(\d{1,2}:\d{2})/);
@@ -4306,12 +4330,12 @@
         issue: issue,
         issueAuthor: issueAuthor,
         photo: photo,
-        tonerPhoto: tonerPhoto,
-        bulkPhoto: bulkPhoto,
+        inspectPhotos: inspectPhotos,
         local_dismissal: local_dismissal,
         dismissal_type: dismissal_type,
         dismissal_addr: dismissal_addr,
-        dismissal_name: dismissal_name
+        dismissal_name: dismissal_name,
+        updated_at: updated_at
       };
     }
 
@@ -4954,44 +4978,36 @@
       activeInspectPhotoIdx = realIdx;
 
       var times = getStopTimes(r);
-      cachedInspectPhotos = [];
-
-      if (Array.isArray(times.inspectPhotos) && times.inspectPhotos.length > 0) {
-        cachedInspectPhotos = times.inspectPhotos.map(function(item, idx) {
-          if (typeof item === 'string') {
-            return { id: 'p_' + idx, data: item, uploader: '출고담당', timestamp: '' };
-          }
-          return {
-            id: item.id || ('p_' + idx),
-            data: item.data || item.url || '',
-            uploader: item.uploader || '출고담당',
-            timestamp: item.timestamp || ''
-          };
-        }).filter(function(p) { return !!p.data; });
-      } else {
-        // 하위 호환: 기존 단일 사진 마이그레이션
-        if (times.tonerPhoto) {
-          cachedInspectPhotos.push({
-            id: 'legacy_toner',
-            data: times.tonerPhoto,
-            uploader: '토너검수',
-            timestamp: times.updated_at || ''
-          });
-        }
-        if (times.bulkPhoto) {
-          cachedInspectPhotos.push({
-            id: 'legacy_bulk',
-            data: times.bulkPhoto,
-            uploader: '대량포장',
-            timestamp: times.updated_at || ''
-          });
-        }
-      }
+      cachedInspectPhotos = Array.isArray(times.inspectPhotos) ? times.inspectPhotos.map(function(p, idx) {
+        return {
+          id: p.id || ('p_' + idx),
+          data: p.data || p.url || '',
+          uploader: p.uploader || '출고담당',
+          timestamp: p.timestamp || ''
+        };
+      }) : [];
 
       var custEl = document.getElementById('inspectModalCustName');
       var itemEl = document.getElementById('inspectModalItemInfo');
+      var methodBadgeEl = document.getElementById('inspectModalMethodBadge');
       if (custEl) custEl.innerText = r.고객사 || '고객사 미정';
       if (itemEl) itemEl.innerText = (r.품목_수량 || r.제품명 || '품목 정보 없음') + ' | ' + (r.주소 || '');
+      if (methodBadgeEl) {
+        var m = r.배송방법 || (r.담당기사 === '택배' ? '택배' : r.담당기사 === '방문수령' ? '방문수령' : '직배송');
+        if (m === '택배') {
+          methodBadgeEl.innerText = '📮 택배출고';
+          methodBadgeEl.className = 'px-1.5 py-0.2 bg-amber-100 text-amber-900 rounded font-bold text-[9.5px] border border-amber-300';
+        } else if (m === '퀵배송') {
+          methodBadgeEl.innerText = '⚡ 퀵배송';
+          methodBadgeEl.className = 'px-1.5 py-0.2 bg-purple-100 text-purple-900 rounded font-bold text-[9.5px] border border-purple-300';
+        } else if (m === '방문수령') {
+          methodBadgeEl.innerText = '🏢 방문수령';
+          methodBadgeEl.className = 'px-1.5 py-0.2 bg-emerald-100 text-emerald-900 rounded font-bold text-[9.5px] border border-emerald-300';
+        } else {
+          methodBadgeEl.innerText = '🚚 직배송';
+          methodBadgeEl.className = 'px-1.5 py-0.2 bg-blue-50 text-blue-800 rounded font-bold text-[9.5px] border border-blue-200';
+        }
+      }
 
       renderInspectGalleryUI();
 
@@ -5107,9 +5123,8 @@
 
       var times = getStopTimes(r);
       times.inspectPhotos = cachedInspectPhotos;
-      // 100% 하위 호환 단일 필드 유지
-      times.tonerPhoto = cachedInspectPhotos[0] ? cachedInspectPhotos[0].data : '';
-      times.bulkPhoto = cachedInspectPhotos[1] ? cachedInspectPhotos[1].data : '';
+      delete times.tonerPhoto;
+      delete times.bulkPhoto;
       times.updated_at = new Date().toISOString();
 
       var jsonStr = JSON.stringify(times);
@@ -5642,7 +5657,7 @@
               <div class="mx-2 ml-6 p-1.5 bg-amber-50/80 border border-amber-200 rounded-xl flex items-center justify-between gap-2 cursor-pointer hover:bg-amber-100/60 transition" onclick="event.stopPropagation(); openParcelInspectPhotoModal(${realIdx});">
                 <div class="flex items-center gap-1.5 overflow-hidden">
                   <div class="flex items-center -space-x-2">
-                    ${times.inspectPhotos.slice(0, 3).map(function(p, pIdx) {
+                    ${times.inspectPhotos.slice(0, 4).map(function(p, pIdx) {
                       return `<img src="${p.data}" class="w-8 h-8 rounded-lg object-cover border-2 border-white shadow-xs" alt="사진 ${pIdx+1}">`;
                     }).join('')}
                   </div>
@@ -5653,14 +5668,9 @@
                 </div>
                 <span class="text-[9.5px] font-bold text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded shrink-0 border border-amber-300">보기/추가</span>
               </div>
-            ` : (times.tonerPhoto || times.bulkPhoto) ? `
-              <div class="mx-2 ml-6 p-1.5 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-2 cursor-pointer hover:bg-amber-100/60 transition" onclick="event.stopPropagation(); openParcelInspectPhotoModal(${realIdx});">
-                <img src="${times.tonerPhoto || times.bulkPhoto}" class="w-8 h-8 rounded-lg object-cover border border-amber-300" alt="사진">
-                <span class="text-[10px] font-black text-amber-950">📷 검수 사진 (1장)</span>
-              </div>
             ` : ''}
 
-            <!-- Mobile Quick Buttons (통화 & 티맵 출발 & 배송지 도착 & 소요시간) -->
+            <!-- Mobile Quick Buttons (통화 & 티맵 출발 & 배송지 도착 & 검수사진 & 소요시간) -->
             <div class="flex items-center flex-wrap gap-1.5 pl-6 pt-1">
               ${phoneNum ? `
                 <a href="tel:${phoneNum}" onclick="event.stopPropagation(); return confirmPhoneCall('${(contactName || r.고객사).replace(/'/g, "\\'")}', '${phoneNum}', event);" class="px-2 py-1 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-lg text-[10px] flex items-center gap-1 shadow-xs transition" title="${contactDisplay}">
@@ -5672,13 +5682,8 @@
                 </button>
               `}
               ${(r.배송방법 === '택배' || r.담당기사 === '택배') ? `
-                <!-- 📮 택배: 티맵 숨김, 발송완료 및 선택 검수사진 버튼 -->
                 <button onclick="event.stopPropagation(); recordParcelDeparture(${realIdx});" class="px-2.5 py-1 ${times.arrive ? 'bg-amber-600 text-white' : 'bg-slate-100 hover:bg-amber-50 text-slate-700 hover:text-amber-700 border border-slate-200 hover:border-amber-300'} font-bold rounded-lg text-[10px] flex items-center gap-1 transition" title="택배사 인계 및 발송 완료 처리">
                   <i class="fa-solid fa-paper-plane text-[9px]"></i> ${times.arrive ? '발송완료 ' + times.arrive : '택배 발송완료'}
-                </button>
-                <button type="button" onclick="event.stopPropagation(); openParcelInspectPhotoModal(${realIdx});" class="px-2 py-1 ${(times.inspectPhotos && times.inspectPhotos.length > 0) ? 'bg-amber-50 text-amber-900 border-amber-300 font-black' : (times.tonerPhoto || times.bulkPhoto) ? 'bg-amber-50 text-amber-900 border-amber-300 font-bold' : 'bg-white text-slate-700 border-slate-200 hover:text-indigo-700'} border rounded-lg text-[10px] flex items-center gap-1 transition shadow-2xs" title="출고 검수 사진 등록 및 확인 (최대 10장)">
-                  <i class="fa-solid fa-camera ${(times.inspectPhotos && times.inspectPhotos.length > 0) || times.tonerPhoto || times.bulkPhoto ? 'text-amber-600' : 'text-indigo-500'} text-[9px]"></i>
-                  <span>${(times.inspectPhotos && times.inspectPhotos.length > 0) ? '검수사진 (' + times.inspectPhotos.length + '장)' : (times.tonerPhoto || times.bulkPhoto) ? '사진 확인' : '검수사진(선택)'}</span>
                 </button>
               ` : (r.배송방법 === '방문수령' || r.담당기사 === '방문수령') ? `
                 <button onclick="event.stopPropagation(); recordPickupArrival(${realIdx});" class="px-2.5 py-1 ${times.arrive ? 'bg-emerald-600 text-white' : 'bg-emerald-50 text-emerald-800 border border-emerald-300'} font-bold rounded-lg text-[10px] flex items-center gap-1 transition">
@@ -5692,6 +5697,10 @@
                   <i class="fa-solid fa-flag-checkered"></i> ${times.arrive ? '도착 ' + times.arrive : '배송지 도착'}
                 </button>
               `}
+              <button type="button" onclick="event.stopPropagation(); openParcelInspectPhotoModal(${realIdx});" class="px-2 py-1 ${(times.inspectPhotos && times.inspectPhotos.length > 0) ? 'bg-amber-50 text-amber-900 border-amber-300 font-black' : 'bg-white text-slate-700 border-slate-200 hover:text-indigo-700'} border rounded-lg text-[10px] flex items-center gap-1 transition shadow-2xs" title="출고 검수 사진 등록 및 확인 (최대 10장 · 워터마크 자동 합성)">
+                <i class="fa-solid fa-camera ${(times.inspectPhotos && times.inspectPhotos.length > 0) ? 'text-amber-600' : 'text-indigo-500'} text-[9px]"></i>
+                <span>${(times.inspectPhotos && times.inspectPhotos.length > 0) ? '검수사진 (' + times.inspectPhotos.length + '장)' : '검수사진(선택)'}</span>
+              </button>
               ${durMin !== null ? `
                 <span class="px-1.5 py-0.5 bg-indigo-50 text-indigo-700 font-bold text-[10px] rounded border border-indigo-200">
                   ⏱️ ${durMin}분 소요
@@ -7241,16 +7250,15 @@
                 </button>
               </div>
             ` : ''}
-            ${times.tonerPhoto ? `
-              <div class="mt-1 flex items-center gap-1.5 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
-                <img src="${times.tonerPhoto}" onclick="openPhotoViewerModal('${times.tonerPhoto.replace(/'/g, "\\'")}', '${r.고객사} - 토너 수량 확인')" class="w-6 h-6 rounded object-cover border border-amber-300 shadow-2xs cursor-pointer hover:opacity-80" alt="토너사진">
-                <span class="text-[9.5px] text-amber-900 font-bold">🖨️ 토너수량</span>
-              </div>
-            ` : ''}
-            ${times.bulkPhoto ? `
-              <div class="mt-1 flex items-center gap-1.5 bg-sky-50 px-1.5 py-0.5 rounded border border-sky-200">
-                <img src="${times.bulkPhoto}" onclick="openPhotoViewerModal('${times.bulkPhoto.replace(/'/g, "\\'")}', '${r.고객사} - 대량 포장 마감')" class="w-6 h-6 rounded object-cover border border-sky-300 shadow-2xs cursor-pointer hover:opacity-80" alt="포장사진">
-                <span class="text-[9.5px] text-sky-900 font-bold">📦 대량포장</span>
+            ${(times.inspectPhotos && times.inspectPhotos.length > 0) ? `
+              <div onclick="openParcelInspectPhotoModal(${realIdx})" class="mt-1 inline-flex items-center gap-1.5 bg-amber-50 hover:bg-amber-100 px-2 py-0.5 rounded-md border border-amber-300 cursor-pointer transition shadow-2xs" title="클릭하여 출고 검수 사진 갤러리 보기/추가">
+                <div class="flex items-center -space-x-1.5">
+                  ${times.inspectPhotos.slice(0, 4).map(function(p, pIdx) {
+                    var pSrc = (typeof p === 'string') ? p : (p.data || p.url || '');
+                    return pSrc ? `<img src="${pSrc}" class="w-5 h-5 rounded object-cover border border-white shadow-2xs" alt="검수${pIdx+1}">` : '';
+                  }).join('')}
+                </div>
+                <span class="text-[9.5px] text-amber-950 font-black">📷 검수사진 ${times.inspectPhotos.length}장</span>
               </div>
             ` : ''}
           </td>
@@ -7271,38 +7279,42 @@
             <div class="flex flex-col items-center gap-1">
               ${isMidRow ? `
                 <!-- 🏢 중간 복귀: 티맵 & 센터도착 -->
-                <button onclick="openTmapNav('${r.고객사}', '${r.주소}', ${realIdx})" class="px-2 py-0.5 ${times.depart ? 'bg-purple-700 text-white' : 'bg-purple-600 hover:bg-purple-700 text-white'} rounded font-bold text-[10px] inline-flex items-center gap-1 shadow-xs transition" title="스마트폰 티맵 센터 복귀 길안내">
-                  <i class="fa-solid fa-location-arrow"></i> ${times.depart ? times.depart : '복귀티맵'}
-                </button>
-                ${times.arrive ? `
-                  <span class="px-1.5 py-0.5 bg-purple-50 text-purple-800 rounded font-bold text-[9px] border border-purple-200">
-                    🏢 ${times.arrive}
-                  </span>
-                ` : `
-                  <button onclick="recordArrivalTime(${realIdx})" class="px-2 py-0.5 bg-slate-100 hover:bg-purple-50 text-slate-600 hover:text-purple-700 border border-slate-200 hover:border-purple-300 rounded font-bold text-[9px] transition" title="센터 도착 시간 기록">
-                    도착
+                <div class="flex items-center justify-center gap-1">
+                  <button onclick="openTmapNav('${r.고객사}', '${r.주소}', ${realIdx})" class="px-2 py-0.5 ${times.depart ? 'bg-purple-700 text-white' : 'bg-purple-600 hover:bg-purple-700 text-white'} rounded font-bold text-[10px] inline-flex items-center gap-1 shadow-xs transition" title="스마트폰 티맵 센터 복귀 길안내">
+                    <i class="fa-solid fa-location-arrow"></i> ${times.depart ? times.depart : '복귀티맵'}
                   </button>
-                `}
+                  ${times.arrive ? `
+                    <span class="px-1.5 py-0.5 bg-purple-50 text-purple-800 rounded font-bold text-[9px] border border-purple-200">
+                      🏢 ${times.arrive}
+                    </span>
+                  ` : `
+                    <button onclick="recordArrivalTime(${realIdx})" class="px-2 py-0.5 bg-slate-100 hover:bg-purple-50 text-slate-600 hover:text-purple-700 border border-slate-200 hover:border-purple-300 rounded font-bold text-[9px] transition" title="센터 도착 시간 기록">
+                      도착
+                    </button>
+                  `}
+                </div>
               ` : isQuickRow ? `
                 <!-- ⚡ 퀵 배송: 티맵 -> 접수완료, 도착 -> 퀵 출발 -->
-                ${times.depart ? `
-                  <span class="px-2 py-0.5 bg-purple-100 text-purple-800 rounded font-bold text-[10px] inline-flex items-center gap-1 border border-purple-200" title="퀵 접수 완료 시각">
-                    <i class="fa-solid fa-clipboard-check text-purple-600"></i> ${times.depart}
-                  </span>
-                ` : `
-                  <button onclick="recordQuickReceipt(${realIdx})" class="px-2 py-0.5 ${!isMyRecord ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-purple-600 hover:bg-purple-700 text-white shadow-xs'} rounded font-bold text-[10px] inline-flex items-center gap-1 transition active:scale-95" title="퀵 접수 완료 시각 기록">
-                    <i class="fa-solid fa-clipboard-check"></i> 접수완료
-                  </button>
-                `}
-                ${times.arrive ? `
-                  <span class="px-1.5 py-0.5 bg-indigo-100 text-indigo-900 rounded font-bold text-[9.5px] border border-indigo-200 flex items-center gap-1" title="퀵 기사 픽업 및 출발 완료">
-                    <i class="fa-solid fa-motorcycle text-indigo-600"></i> ${times.arrive}
-                  </span>
-                ` : `
-                  <button onclick="recordQuickDeparture(${realIdx})" class="px-2 py-0.5 ${!isMyRecord ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 border border-slate-200 hover:border-indigo-300'} rounded font-bold text-[9px] transition active:scale-95" title="퀵 기사 픽업 및 출발 시각 기록">
-                    퀵 출발
-                  </button>
-                `}
+                <div class="flex items-center justify-center gap-1">
+                  ${times.depart ? `
+                    <span class="px-2 py-0.5 bg-purple-100 text-purple-800 rounded font-bold text-[10px] inline-flex items-center gap-1 border border-purple-200" title="퀵 접수 완료 시각">
+                      <i class="fa-solid fa-clipboard-check text-purple-600"></i> ${times.depart}
+                    </span>
+                  ` : `
+                    <button onclick="recordQuickReceipt(${realIdx})" class="px-2 py-0.5 ${!isMyRecord ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-purple-600 hover:bg-purple-700 text-white shadow-xs'} rounded font-bold text-[10px] inline-flex items-center gap-1 transition active:scale-95" title="퀵 접수 완료 시각 기록">
+                      <i class="fa-solid fa-clipboard-check"></i> 접수완료
+                    </button>
+                  `}
+                  ${times.arrive ? `
+                    <span class="px-1.5 py-0.5 bg-indigo-100 text-indigo-900 rounded font-bold text-[9.5px] border border-indigo-200 flex items-center gap-1" title="퀵 기사 픽업 및 출발 완료">
+                      <i class="fa-solid fa-motorcycle text-indigo-600"></i> ${times.arrive}
+                    </span>
+                  ` : `
+                    <button onclick="recordQuickDeparture(${realIdx})" class="px-2 py-0.5 ${!isMyRecord ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 border border-slate-200 hover:border-indigo-300'} rounded font-bold text-[9px] transition active:scale-95" title="퀵 기사 픽업 및 출발 시각 기록">
+                      퀵 출발
+                    </button>
+                  `}
+                </div>
               ` : isPickupRow ? `
                 <!-- 🏢 방문수령: 티맵 삭제(숨김), 도착 -> 수령 완료 -->
                 ${times.arrive ? `
@@ -7315,37 +7327,40 @@
                   </button>
                 `}
               ` : isParcelRow ? `
-                <!-- 📮 택배: 티맵 숨김, 발송완료 및 선택 검수사진 버튼 -->
-                <div class="flex flex-col items-center gap-1">
-                  ${times.arrive ? `
-                    <span class="px-2 py-0.5 bg-amber-100 text-amber-900 rounded font-bold text-[10px] border border-amber-200 flex items-center gap-1" title="택배사 인계 및 발송 완료">
-                      <i class="fa-solid fa-paper-plane text-amber-700 text-[9px]"></i> ${times.arrive}
-                    </span>
-                  ` : `
-                    <button onclick="recordParcelDeparture(${realIdx})" class="px-2.5 py-1 ${!isMyRecord ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-amber-600 hover:bg-amber-700 text-white shadow-xs'} rounded-lg font-bold text-[10px] transition active:scale-95 flex items-center gap-1" title="택배사 인계 및 발송 완료 처리">
-                      <i class="fa-solid fa-paper-plane text-[9px]"></i> 발송 완료
-                    </button>
-                  `}
-                  <button type="button" onclick="openParcelInspectPhotoModal(${realIdx})" class="px-2 py-0.5 ${(times.inspectPhotos && times.inspectPhotos.length > 0) ? 'bg-amber-50 text-amber-900 border-amber-300 font-black' : (times.tonerPhoto || times.bulkPhoto) ? 'bg-amber-50 text-amber-900 border-amber-300 font-bold' : 'bg-white hover:bg-indigo-50 border-slate-200 text-slate-700 hover:text-indigo-700'} border rounded text-[9.5px] flex items-center gap-1 transition shadow-2xs" title="택배 출고 검수 사진 등록 및 확인 (최대 10장)">
-                    <i class="fa-solid fa-camera ${(times.inspectPhotos && times.inspectPhotos.length > 0) || times.tonerPhoto || times.bulkPhoto ? 'text-amber-600' : 'text-indigo-500'} text-[9px]"></i>
-                    <span>${(times.inspectPhotos && times.inspectPhotos.length > 0) ? '검수사진 (' + times.inspectPhotos.length + '장)' : (times.tonerPhoto || times.bulkPhoto) ? '사진 확인' : '검수사진(선택)'}</span>
-                  </button>
-                </div>
-              ` : `
-                <!-- 🚚 일반 직배송: 기본 티맵 / 도착 버튼 -->
-                <button onclick="openTmapNav('${r.고객사}', '${r.주소}', ${realIdx})" class="px-2 py-0.5 ${!isMyRecord ? 'bg-indigo-100 text-indigo-800 border border-indigo-200' : times.depart ? 'bg-indigo-600 text-white' : 'bg-rose-500 hover:bg-rose-600 text-white'} rounded font-bold text-[10px] inline-flex items-center gap-1 shadow-xs transition" title="스마트폰 티맵 길안내 & 출발 시각 기록">
-                  <i class="fa-solid fa-location-arrow"></i> ${times.depart ? times.depart : (!isMyRecord ? '티맵보기' : '티맵')}
-                </button>
+                <!-- 📮 택배: 티맵 숨김, 발송완료 -->
                 ${times.arrive ? `
-                  <span class="px-1.5 py-0.5 bg-emerald-50 text-emerald-800 rounded font-bold text-[9px] border border-emerald-200">
-                    🏁 ${times.arrive}
+                  <span class="px-2 py-0.5 bg-amber-100 text-amber-900 rounded font-bold text-[10px] border border-amber-200 flex items-center gap-1" title="택배사 인계 및 발송 완료">
+                    <i class="fa-solid fa-paper-plane text-amber-700 text-[9px]"></i> ${times.arrive}
                   </span>
                 ` : `
-                  <button onclick="recordArrivalTime(${realIdx})" class="px-2 py-0.5 ${!isMyRecord ? 'bg-slate-100 text-slate-300 border border-slate-200 cursor-not-allowed' : 'bg-slate-100 hover:bg-emerald-50 text-slate-600 hover:text-emerald-700 border border-slate-200 hover:border-emerald-300'} rounded font-bold text-[9px] transition" title="배송지 도착 시간 기록">
-                    도착
+                  <button onclick="recordParcelDeparture(${realIdx})" class="px-2.5 py-1 ${!isMyRecord ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-amber-600 hover:bg-amber-700 text-white shadow-xs'} rounded-lg font-bold text-[10px] transition active:scale-95 flex items-center gap-1" title="택배사 인계 및 발송 완료 처리">
+                    <i class="fa-solid fa-paper-plane text-[9px]"></i> 발송 완료
                   </button>
                 `}
+              ` : `
+                <!-- 🚚 일반 직배송: 기본 티맵 / 도착 버튼 -->
+                <div class="flex items-center justify-center gap-1">
+                  <button onclick="openTmapNav('${r.고객사}', '${r.주소}', ${realIdx})" class="px-2 py-0.5 ${!isMyRecord ? 'bg-indigo-100 text-indigo-800 border border-indigo-200' : times.depart ? 'bg-indigo-600 text-white' : 'bg-rose-500 hover:bg-rose-600 text-white'} rounded font-bold text-[10px] inline-flex items-center gap-1 shadow-xs transition" title="스마트폰 티맵 길안내 & 출발 시각 기록">
+                    <i class="fa-solid fa-location-arrow"></i> ${times.depart ? times.depart : (!isMyRecord ? '티맵보기' : '티맵')}
+                  </button>
+                  ${times.arrive ? `
+                    <span class="px-1.5 py-0.5 bg-emerald-50 text-emerald-800 rounded font-bold text-[9px] border border-emerald-200">
+                      🏁 ${times.arrive}
+                    </span>
+                  ` : `
+                    <button onclick="recordArrivalTime(${realIdx})" class="px-2 py-0.5 ${!isMyRecord ? 'bg-slate-100 text-slate-300 border border-slate-200 cursor-not-allowed' : 'bg-slate-100 hover:bg-emerald-50 text-slate-600 hover:text-emerald-700 border border-slate-200 hover:border-emerald-300'} rounded font-bold text-[9px] transition" title="배송지 도착 시간 기록">
+                      도착
+                    </button>
+                  `}
+                </div>
               `}
+              ${!isMidRow ? `
+                <!-- 📷 전 배송수단(직배송·퀵·방문·택배) 공통: 출고 검수 사진 버튼 -->
+                <button type="button" onclick="openParcelInspectPhotoModal(${realIdx})" class="px-2 py-0.5 ${(times.inspectPhotos && times.inspectPhotos.length > 0) ? 'bg-amber-50 text-amber-900 border-amber-300 font-black' : 'bg-white hover:bg-indigo-50 border-slate-200 text-slate-700 hover:text-indigo-700'} border rounded text-[9.5px] flex items-center gap-1 transition shadow-2xs" title="출고 검수 사진 등록 및 확인 (최대 10장 · 워터마크 자동 합성)">
+                  <i class="fa-solid fa-camera ${(times.inspectPhotos && times.inspectPhotos.length > 0) ? 'text-amber-600' : 'text-indigo-500'} text-[9px]"></i>
+                  <span>${(times.inspectPhotos && times.inspectPhotos.length > 0) ? '검수사진 (' + times.inspectPhotos.length + '장)' : '검수사진(선택)'}</span>
+                </button>
+              ` : ''}
             </div>
           </td>
           <td class="py-2.5 px-2.5 text-center">

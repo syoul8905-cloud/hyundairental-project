@@ -1030,13 +1030,13 @@
       <!-- Modal Header -->
       <div class="flex items-center justify-between border-b border-slate-100 pb-3">
         <div class="flex items-center gap-2">
-          <span class="w-8 h-8 rounded-full bg-amber-100 text-amber-800 flex items-center justify-center text-sm font-bold">📮</span>
+          <span class="w-8 h-8 rounded-full bg-amber-100 text-amber-800 flex items-center justify-center text-sm font-bold">📷</span>
           <div>
             <div class="flex items-center gap-1.5">
-              <h3 class="font-black text-slate-800 text-base leading-tight">택배 출고 검수 사진</h3>
+              <h3 class="font-black text-slate-800 text-base leading-tight">출고 검수 사진 보관함</h3>
               <span id="mobileInspectPhotoCountBadge" class="text-[10px] text-amber-800 font-black bg-amber-100 px-2 py-0.5 rounded-full border border-amber-300">0 / 10장</span>
             </div>
-            <p class="text-[11px] text-amber-600 font-bold mt-0.5">선택 사항 (필요 시에만 등록)</p>
+            <p class="text-[11px] text-amber-600 font-bold mt-0.5">선택 사항 (최대 10장 · 워터마크 자동 합성)</p>
           </div>
         </div>
         <button type="button" onclick="closeMobileParcelInspectModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition active:scale-95 text-xs">
@@ -1048,7 +1048,7 @@
       <div class="p-3 bg-amber-50/70 border border-amber-200/80 rounded-2xl space-y-1">
         <div class="flex items-center justify-between">
           <span id="mobileInspectCustName" class="font-black text-slate-900 text-sm">고객사명</span>
-          <span class="px-2 py-0.5 bg-amber-200 text-amber-900 rounded font-bold text-[10px]">📮 택배출고</span>
+          <span id="mobileInspectMethodBadge" class="px-2 py-0.5 bg-amber-200 text-amber-900 rounded font-bold text-[10px]">🚚 직배송</span>
         </div>
         <div class="text-[11px] text-slate-700">
           📦 <span id="mobileInspectItemInfo" class="font-bold text-slate-800">품목 정보</span>
@@ -1850,8 +1850,8 @@
       var issue = '';
       var issueAuthor = '';
       var photo = '';
-      var tonerPhoto = '';
-      var bulkPhoto = '';
+      var inspectPhotos = [];
+      var updated_at = '';
       var local_dismissal = false;
       var dismissal_type = 'registered';
       var dismissal_addr = '';
@@ -1866,8 +1866,29 @@
             issue = parsed.issue || '';
             issueAuthor = parsed.issue_author || '';
             photo = parsed.photo || '';
-            tonerPhoto = parsed.toner_photo || parsed.tonerPhoto || '';
-            bulkPhoto = parsed.bulk_photo || parsed.bulkPhoto || '';
+            updated_at = parsed.updated_at || '';
+            if (Array.isArray(parsed.inspectPhotos) && parsed.inspectPhotos.length > 0) {
+              inspectPhotos = parsed.inspectPhotos.map(function(item, idx) {
+                if (typeof item === 'string') {
+                  return { id: 'p_' + idx, data: item, uploader: '출고담당', timestamp: updated_at };
+                }
+                return {
+                  id: item.id || ('p_' + idx),
+                  data: item.data || item.url || '',
+                  uploader: (item.uploader && item.uploader !== '토너검수' && item.uploader !== '대량포장') ? item.uploader : '출고담당',
+                  timestamp: item.timestamp || updated_at
+                };
+              }).filter(function(p) { return !!p.data; });
+            } else {
+              var legacyToner = parsed.toner_photo || parsed.tonerPhoto || '';
+              var legacyBulk = parsed.bulk_photo || parsed.bulkPhoto || '';
+              if (legacyToner) {
+                inspectPhotos.push({ id: 'p_0', data: legacyToner, uploader: '출고담당', timestamp: updated_at });
+              }
+              if (legacyBulk && legacyBulk !== legacyToner) {
+                inspectPhotos.push({ id: 'p_1', data: legacyBulk, uploader: '출고담당', timestamp: updated_at });
+              }
+            }
             local_dismissal = Boolean(parsed.local_dismissal);
             dismissal_type = parsed.dismissal_type || 'registered';
             dismissal_addr = parsed.dismissal_addr || '';
@@ -1886,8 +1907,8 @@
         issue: issue,
         issueAuthor: issueAuthor,
         photo: photo,
-        tonerPhoto: tonerPhoto,
-        bulkPhoto: bulkPhoto,
+        inspectPhotos: inspectPhotos,
+        updated_at: updated_at,
         local_dismissal: local_dismissal,
         dismissal_type: dismissal_type,
         dismissal_addr: dismissal_addr,
@@ -4221,14 +4242,19 @@
               </div>
             ` : ''}
 
-            <button type="button" onclick="openMobileMemoModal(${idx})" class="w-full py-2.5 px-3 ${(times.issue || times.photo) ? 'bg-slate-50 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 border-slate-200' : 'bg-indigo-50/70 hover:bg-indigo-100 text-indigo-700 border-indigo-200'} font-black text-xs rounded-xl border shadow-2xs flex items-center justify-center gap-1.5 transition active:scale-98">
-              <i class="fa-solid fa-pen-to-square ${(times.issue || times.photo) ? 'text-slate-500' : 'text-indigo-600'}"></i>
-              <span>${(times.issue || times.photo) ? '현장 특이사항 / 사진 수정' : '📝 현장 특이사항 / 사진 등록'}</span>
-              ${!(times.issue || times.photo) ? '<span class="text-[9.5px] bg-indigo-600 text-white px-1.5 py-0.2 rounded-full font-bold ml-0.5">원터치</span>' : ''}
-            </button>
+            <div class="grid grid-cols-12 gap-1.5">
+              <button type="button" onclick="openMobileMemoModal(${idx})" class="col-span-7 py-2.5 px-2.5 ${(times.issue || times.photo) ? 'bg-slate-50 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 border-slate-200' : 'bg-indigo-50/70 hover:bg-indigo-100 text-indigo-700 border-indigo-200'} font-black text-xs rounded-xl border shadow-2xs flex items-center justify-center gap-1 transition active:scale-98">
+                <i class="fa-solid fa-pen-to-square ${(times.issue || times.photo) ? 'text-slate-500' : 'text-indigo-600'}"></i>
+                <span class="truncate">${(times.issue || times.photo) ? '현장 특이사항 / 사진 수정' : '📝 현장 특이사항 / 사진 등록'}</span>
+              </button>
+              <button type="button" onclick="openMobileParcelInspectModal(${idx})" class="col-span-5 py-2.5 px-2.5 ${(times.inspectPhotos && times.inspectPhotos.length > 0) ? 'bg-amber-100 hover:bg-amber-200 text-amber-950 border-amber-300' : 'bg-amber-50/80 hover:bg-amber-100 text-amber-900 border-amber-200'} font-black text-xs rounded-xl border shadow-2xs flex items-center justify-center gap-1 transition active:scale-98" title="출고 검수 사진 등록/확인 (최대 10장)">
+                <i class="fa-solid fa-camera text-amber-600"></i>
+                <span class="truncate">${(times.inspectPhotos && times.inspectPhotos.length > 0) ? `검수사진 (${times.inspectPhotos.length}장)` : '📷 검수사진'}</span>
+              </button>
+            </div>
           </div>
 
-          <!-- 📮 택배 검수/포장 사진 썸네일 (최대 10장 통합 보관함 지원) -->
+          <!-- 📷 출고 검수 사진 썸네일 (전 배송유형 최대 10장 통합 보관함) -->
           ${(Array.isArray(times.inspectPhotos) && times.inspectPhotos.length > 0) ? `
             <div class="p-2.5 bg-amber-50/90 border border-amber-200 rounded-xl space-y-1.5">
               <div class="flex items-center justify-between">
@@ -4240,31 +4266,15 @@
               <div class="flex items-center gap-1.5 overflow-x-auto pb-0.5">
                 ${times.inspectPhotos.map(function(p, pIdx) {
                   var pSrc = (typeof p === 'string') ? p : (p.data || p.url || '');
+                  var pUploader = (p && p.uploader) ? p.uploader : '출고담당';
                   if (!pSrc) return '';
                   return `
                     <div class="relative shrink-0">
-                      <img src="${pSrc}" onclick="openMobilePhotoModal('${pSrc.replace(/'/g, "\\'")}', '출고 검수 사진 #${pIdx + 1}')" class="w-12 h-12 object-cover rounded-lg border-2 border-amber-300 shadow-2xs cursor-pointer hover:opacity-90 active:scale-95 transition" alt="검수사진 ${pIdx + 1}">
+                      <img src="${pSrc}" onclick="openMobilePhotoModal('${pSrc.replace(/'/g, "\\'")}', '출고 검수 사진 #${pIdx + 1} (${pUploader.replace(/'/g, "\\'")})')" class="w-12 h-12 object-cover rounded-lg border-2 border-amber-300 shadow-2xs cursor-pointer hover:opacity-90 active:scale-95 transition" alt="검수사진 ${pIdx + 1}">
                       <span class="absolute bottom-0.5 right-0.5 px-1 bg-slate-900/70 text-white text-[8px] font-black rounded pointer-events-none">#${pIdx + 1}</span>
                     </div>
                   `;
                 }).join('')}
-              </div>
-            </div>
-          ` : (times.tonerPhoto || times.bulkPhoto) ? `
-            <div class="p-2.5 bg-amber-50/90 border border-amber-200 rounded-xl space-y-1.5">
-              <div class="flex items-center justify-between">
-                <span class="text-[11px] font-black text-amber-950 flex items-center gap-1.5">
-                  <i class="fa-solid fa-camera text-amber-600"></i> 출고 검수 사진 (하위 호환)
-                </span>
-                <button type="button" onclick="openMobileParcelInspectModal(${idx})" class="text-[10px] text-amber-900 font-bold underline px-2 py-0.5 bg-amber-100/80 rounded-md">수정/추가</button>
-              </div>
-              <div class="flex items-center gap-1.5">
-                ${times.tonerPhoto ? `
-                  <img src="${times.tonerPhoto}" onclick="openMobilePhotoModal('${times.tonerPhoto.replace(/'/g, "\\'")}', '토너 실물 수량 확인 사진')" class="w-12 h-12 object-cover rounded-lg border-2 border-amber-300 shadow-2xs cursor-pointer" alt="토너">
-                ` : ''}
-                ${times.bulkPhoto ? `
-                  <img src="${times.bulkPhoto}" onclick="openMobilePhotoModal('${times.bulkPhoto.replace(/'/g, "\\'")}', '대량/지방 택배 포장 마감 사진')" class="w-12 h-12 object-cover rounded-lg border-2 border-sky-300 shadow-2xs cursor-pointer" alt="대량포장">
-                ` : ''}
               </div>
             </div>
           ` : ''}
@@ -4328,7 +4338,7 @@
                   <i class="fa-solid fa-paper-plane"></i> ${times.arrive ? '발송완료 (' + times.arrive + ')' : (!isMyRecord ? '발송완료(조회)' : '택배 발송완료')}
                 </button>
                 <button type="button" onclick="openMobileParcelInspectModal(${idx})" class="btn-touch w-full bg-white hover:bg-indigo-50 active:bg-indigo-100 border border-slate-300 text-slate-700 hover:text-indigo-700 font-black text-xs rounded-xl shadow-2xs transition gap-1">
-                  <i class="fa-solid fa-camera text-indigo-600"></i> ${(times.inspectPhotos && times.inspectPhotos.length > 0) ? `검수사진 (${times.inspectPhotos.length}장)` : (times.tonerPhoto || times.bulkPhoto) ? '사진 확인' : '검수사진(선택)'}
+                  <i class="fa-solid fa-camera text-indigo-600"></i> ${(times.inspectPhotos && times.inspectPhotos.length > 0) ? `검수사진 (${times.inspectPhotos.length}장)` : '검수사진(선택)'}
                 </button>
               </div>
             ` : `
@@ -5029,43 +5039,27 @@
 
       var custEl = document.getElementById('mobileInspectCustName');
       var itemEl = document.getElementById('mobileInspectItemInfo');
+      var methodBadgeEl = document.getElementById('mobileInspectMethodBadge');
       if (custEl) custEl.innerText = r.customer_name || '고객사';
       if (itemEl) itemEl.innerText = r.item_info || r.items || '품목 정보 없음';
+      if (methodBadgeEl) {
+        var methodStr = String(r.delivery_method || r.배송방법 || '직배송').trim();
+        var methodIcon = (methodStr.indexOf('택배') !== -1) ? '📮 택배출고' : (methodStr.indexOf('퀵') !== -1) ? '⚡ 퀵배송' : (methodStr.indexOf('방문') !== -1) ? '🏢 방문수령' : '🚚 직배송';
+        methodBadgeEl.innerText = methodIcon + ' · ' + (r.driver_name || '담당미지정');
+      }
 
       var times = getStopTimes(r);
-      cachedMobileInspectPhotos = [];
-
-      if (Array.isArray(times.inspectPhotos) && times.inspectPhotos.length > 0) {
-        cachedMobileInspectPhotos = times.inspectPhotos.map(function(item, i) {
-          if (typeof item === 'string') {
-            return { id: 'p_' + i, data: item, uploader: '출고담당', timestamp: '' };
-          }
-          return {
-            id: item.id || ('p_' + i),
-            data: item.data || item.url || '',
-            uploader: item.uploader || '출고담당',
-            timestamp: item.timestamp || ''
-          };
-        }).filter(function(p) { return !!p.data; });
-      } else {
-        // 하위 호환: 기존 단일 사진 마이그레이션
-        if (times.tonerPhoto) {
-          cachedMobileInspectPhotos.push({
-            id: 'legacy_toner',
-            data: times.tonerPhoto,
-            uploader: '토너검수',
-            timestamp: times.updated_at || ''
-          });
+      cachedMobileInspectPhotos = Array.isArray(times.inspectPhotos) ? times.inspectPhotos.map(function(item, i) {
+        if (typeof item === 'string') {
+          return { id: 'p_' + i, data: item, uploader: '출고담당', timestamp: '' };
         }
-        if (times.bulkPhoto) {
-          cachedMobileInspectPhotos.push({
-            id: 'legacy_bulk',
-            data: times.bulkPhoto,
-            uploader: '대량포장',
-            timestamp: times.updated_at || ''
-          });
-        }
-      }
+        return {
+          id: item.id || ('p_' + i),
+          data: item.data || item.url || '',
+          uploader: item.uploader || '출고담당',
+          timestamp: item.timestamp || ''
+        };
+      }).filter(function(p) { return !!p.data; }) : [];
 
       renderMobileInspectGalleryUI();
       var modal = document.getElementById('mobileParcelInspectModal');
@@ -5280,8 +5274,8 @@
 
       var times = getStopTimes(r);
       times.inspectPhotos = cachedMobileInspectPhotos;
-      times.tonerPhoto = cachedMobileInspectPhotos[0] ? cachedMobileInspectPhotos[0].data : '';
-      times.bulkPhoto = cachedMobileInspectPhotos[1] ? cachedMobileInspectPhotos[1].data : '';
+      delete times.tonerPhoto;
+      delete times.bulkPhoto;
       times.updated_at = new Date().toISOString();
 
       var jsonStr = JSON.stringify(times);
