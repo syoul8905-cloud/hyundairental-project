@@ -1986,7 +1986,7 @@
           </div>
           <div>
             <h3 class="font-black text-sm text-slate-900">관리자 설정 (임직원 계정 및 권한 관리)</h3>
-            <p class="text-[11px] text-slate-400">새로운 계정을 발급하거나 기존 계정의 권한 및 비밀번호를 수정합니다.</p>
+            <p class="text-[11px] text-slate-400">새로운 계정을 발급하거나 기존 계정의 이름, 권한 및 비밀번호를 수정합니다.</p>
           </div>
         </div>
         <button onclick="closeAdminSettingsModal()" class="text-slate-400 hover:text-slate-600 text-lg">
@@ -2031,7 +2031,7 @@
           <h4 class="text-xs font-black text-slate-800 flex items-center gap-1.5">
             <i class="fa-solid fa-users text-indigo-600"></i> 등록된 임직원 계정 목록 (<span id="adminUserCount">0</span>명)
           </h4>
-          <span class="text-[10px] text-slate-400">* 비밀번호 변경 시 바로 입력 후 [저장]을 누르세요.</span>
+          <span class="text-[10px] text-slate-400">* 이름 또는 비밀번호 변경 시 입력 후 [저장]을 누르세요.</span>
         </div>
         <div class="overflow-x-auto custom-scroll border border-slate-200 rounded-xl">
           <table class="w-full text-left text-xs whitespace-nowrap">
@@ -2474,10 +2474,18 @@
       authUsers.forEach(function(u, idx) {
         var tr = document.createElement('tr');
         tr.className = 'hover:bg-slate-50 transition';
+        var isMe = Boolean(currentUser && currentUser.id === u.id);
         tr.innerHTML = `
           <td class="py-2 px-3 font-bold text-slate-800">
-            ${u.id}
-            ${currentUser && currentUser.id === u.id ? '<span class="ml-1 text-[10px] text-indigo-600 font-bold">(나)</span>' : ''}
+            <div class="flex items-center gap-1.5">
+              <input type="text" id="adminUserId_${idx}" value="${u.id}"
+                     onkeydown="if(event.key==='Enter'){event.preventDefault();onAdminSaveUserName(${idx});}"
+                     class="w-24 px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-800 focus:outline-none focus:border-indigo-500">
+              <button type="button" onclick="onAdminSaveUserName(${idx})" class="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold rounded-lg text-[11px] border border-indigo-200 transition" title="이름 수정 저장">
+                저장
+              </button>
+              ${isMe ? '<span class="text-[10px] text-indigo-600 font-bold">(나)</span>' : ''}
+            </div>
           </td>
           <td class="py-2 px-3">
             <select onchange="onAdminChangeRole(${idx}, this.value)" class="py-1 px-2 bg-slate-100 border border-slate-200 rounded-lg text-xs font-bold focus:outline-none">
@@ -2489,14 +2497,15 @@
             <div class="flex items-center gap-1.5">
               <input type="text" id="adminUserPw_${idx}" value="${u.pw}" maxlength="4" inputmode="numeric" pattern="[0-9]*"
                      oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 4)"
+                     onkeydown="if(event.key==='Enter'){event.preventDefault();onAdminSavePassword(${idx});}"
                      class="w-20 px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-mono font-bold text-center tracking-widest focus:outline-none focus:border-indigo-500 text-slate-700">
-              <button onclick="onAdminSavePassword(${idx})" class="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold rounded-lg text-[11px] border border-indigo-200 transition">
+              <button type="button" onclick="onAdminSavePassword(${idx})" class="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold rounded-lg text-[11px] border border-indigo-200 transition" title="비밀번호(및 이름) 저장">
                 저장
               </button>
             </div>
           </td>
           <td class="py-2 px-3 text-center">
-            ${(currentUser && currentUser.id === u.id) ? `
+            ${isMe ? `
               <span class="text-[10px] text-slate-400">본인삭제불가</span>
             ` : `
               <button onclick="onAdminDeleteUser(${idx})" class="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold rounded-lg text-[11px] border border-rose-200 transition">
@@ -2507,6 +2516,57 @@
         `;
         tbody.appendChild(tr);
       });
+    }
+
+    async function onAdminSaveUserName(idx) {
+      if (idx < 0 || idx >= authUsers.length) return;
+      var inp = document.getElementById('adminUserId_' + idx);
+      if (!inp) return;
+      var newId = (inp.value || '').trim();
+      if (!newId) {
+        alert('아이디(이름)를 입력해주세요.');
+        inp.value = authUsers[idx].id;
+        return;
+      }
+      var oldId = authUsers[idx].id;
+      if (newId === oldId) {
+        showToast('ℹ️ [' + oldId + '] 이름이 동일합니다.');
+        return;
+      }
+      var dup = authUsers.some(function(u, i) { return i !== idx && u.id === newId; });
+      if (dup) {
+        alert('이미 존재하는 계정 이름입니다.');
+        inp.value = oldId;
+        return;
+      }
+
+      authUsers[idx].id = newId;
+
+      if (typeof DRIVER_LIST !== 'undefined' && Array.isArray(DRIVER_LIST)) {
+        var dIdx = DRIVER_LIST.indexOf(oldId);
+        if (dIdx !== -1) {
+          DRIVER_LIST[dIdx] = newId;
+        } else if (authUsers[idx].role === 'driver' && DRIVER_LIST.indexOf(newId) === -1) {
+          DRIVER_LIST.push(newId);
+        }
+      }
+
+      if (currentUser && currentUser.id === oldId) {
+        currentUser.id = newId;
+        var dispName = document.getElementById('userMenuDisplayName');
+        var dropName = document.getElementById('userMenuDropdownName');
+        if (dispName) dispName.innerText = newId;
+        if (dropName) dropName.innerText = newId + ' (' + (currentUser.role === 'admin' ? '관리자' : '배송기사') + ')';
+        if (localStorage.getItem('DELIVERY_SAVED_ID') === oldId) {
+          localStorage.setItem('DELIVERY_SAVED_ID', newId);
+        }
+      }
+
+      await saveAuthUsersToCloud();
+      renderAdminUserTable();
+      if (typeof populateBatchDriverSelect === 'function') populateBatchDriverSelect();
+      if (typeof updateDriverFilterOptions === 'function') updateDriverFilterOptions();
+      showToast('✏️ [' + oldId + '] → [' + newId + '] 계정 이름이 수정되었습니다.');
     }
 
     async function createNewUserAccount() {
@@ -2552,6 +2612,7 @@
 
     async function onAdminSavePassword(idx) {
       if (idx < 0 || idx >= authUsers.length) return;
+      var nameInp = document.getElementById('adminUserId_' + idx);
       var inp = document.getElementById('adminUserPw_' + idx);
       if (!inp || !inp.value.trim()) {
         alert('비밀번호를 입력해주세요.');
@@ -2562,9 +2623,40 @@
         alert('비밀번호는 숫자 4자리 PIN 번호로 입력해주세요.');
         return;
       }
+      var oldId = authUsers[idx].id;
+      var newId = nameInp ? (nameInp.value || '').trim() : oldId;
+      var nameChanged = false;
+      if (newId && newId !== oldId) {
+        var dup = authUsers.some(function(u, i) { return i !== idx && u.id === newId; });
+        if (dup) {
+          alert('이미 존재하는 계정 이름입니다.');
+          if (nameInp) nameInp.value = oldId;
+          return;
+        }
+        authUsers[idx].id = newId;
+        nameChanged = true;
+        if (typeof DRIVER_LIST !== 'undefined' && Array.isArray(DRIVER_LIST)) {
+          var dIdx = DRIVER_LIST.indexOf(oldId);
+          if (dIdx !== -1) DRIVER_LIST[dIdx] = newId;
+        }
+        if (currentUser && currentUser.id === oldId) {
+          currentUser.id = newId;
+          var dispName = document.getElementById('userMenuDisplayName');
+          var dropName = document.getElementById('userMenuDropdownName');
+          if (dispName) dispName.innerText = newId;
+          if (dropName) dropName.innerText = newId + ' (' + (currentUser.role === 'admin' ? '관리자' : '배송기사') + ')';
+        }
+      }
       authUsers[idx].pw = newPw;
       await saveAuthUsersToCloud();
-      showToast('🔑 [' + authUsers[idx].id + '] 비밀번호가 "' + newPw + '"(으)로 수정되었습니다.');
+      if (nameChanged) {
+        renderAdminUserTable();
+        if (typeof populateBatchDriverSelect === 'function') populateBatchDriverSelect();
+        if (typeof updateDriverFilterOptions === 'function') updateDriverFilterOptions();
+        showToast('✏️ [' + oldId + ' → ' + newId + '] 이름 및 비밀번호가 저장되었습니다.');
+      } else {
+        showToast('🔑 [' + authUsers[idx].id + '] 비밀번호가 "' + newPw + '"(으)로 수정되었습니다.');
+      }
     }
 
     async function onAdminDeleteUser(idx) {

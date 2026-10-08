@@ -573,10 +573,16 @@
           <!-- Row 2: Driver & Unoperated Toggle -->
           <div class="grid grid-cols-2 gap-2.5 items-start">
             <div>
-              <label class="block text-[11px] font-bold text-slate-500 mb-1">운전자 (복수 기사/교대 시 쉼표 구분)</label>
-              <input type="text" id="modalDriverName" required placeholder="예: 조경찬 또는 조경찬, 기타" class="w-full bg-slate-50 font-bold text-slate-800 px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+              <div class="flex items-center justify-between mb-1">
+                <label class="block text-[11px] font-bold text-slate-500">운전자 (복수 기사/교대 시 쉼표 구분)</label>
+                <button type="button" onclick="toggleQuickDriverEditBox()" id="btnToggleQuickDriverEdit" class="px-1.5 py-0.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded text-[10px] font-extrabold border border-indigo-200 transition flex items-center gap-1" title="빠른선택 운전자 이름 수정/추가/삭제">
+                  <i class="fa-solid fa-pen text-[9px]"></i>
+                  <span>이름수정</span>
+                </button>
+              </div>
+              <input type="text" id="modalDriverName" required oninput="renderModalQuickDriverButtons()" placeholder="예: 조경찬 또는 조경찬, 기타" class="w-full bg-slate-50 font-bold text-slate-800 px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none">
               <!-- Quick Driver Select Buttons -->
-              <div class="flex items-center gap-1 mt-1.5 flex-wrap">
+              <div id="modalQuickDriverButtons" class="flex items-center gap-1 mt-1.5 flex-wrap">
                 <button type="button" onclick="appendDriverNameToModal('조경찬')" class="px-1.5 py-0.5 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 rounded text-[10px] font-bold text-slate-600 border border-slate-200 transition">+조경찬</button>
                 <button type="button" onclick="appendDriverNameToModal('김승지')" class="px-1.5 py-0.5 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 rounded text-[10px] font-bold text-slate-600 border border-slate-200 transition">+김승지</button>
                 <button type="button" onclick="appendDriverNameToModal('이성호')" class="px-1.5 py-0.5 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 rounded text-[10px] font-bold text-slate-600 border border-slate-200 transition">+이성호</button>
@@ -585,6 +591,27 @@
                 <button type="button" onclick="appendDriverNameToModal('한민혁')" class="px-1.5 py-0.5 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 rounded text-[10px] font-bold text-slate-600 border border-slate-200 transition">+한민혁</button>
                 <button type="button" onclick="appendDriverNameToModal('최두성')" class="px-1.5 py-0.5 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 rounded text-[10px] font-bold text-slate-600 border border-slate-200 transition">+최두성</button>
                 <button type="button" onclick="appendDriverNameToModal('기타')" class="px-1.5 py-0.5 bg-amber-50 hover:bg-amber-100 text-amber-800 rounded text-[10px] font-black border border-amber-200 transition">+기타</button>
+              </div>
+              <!-- Inline Quick Driver Name Editor -->
+              <div id="modalQuickDriverEditBox" class="hidden mt-2 p-2.5 bg-slate-100 rounded-xl border border-indigo-200 space-y-2">
+                <div class="flex items-center justify-between">
+                  <span class="text-[11px] font-black text-indigo-900 flex items-center gap-1">
+                    <i class="fa-solid fa-user-pen text-indigo-600"></i>
+                    <span>빠른선택 운전자 이름 수정 / 추가</span>
+                  </span>
+                  <div class="flex items-center gap-1">
+                    <button type="button" onclick="addQuickDriverEditRow()" class="px-1.5 py-0.5 bg-white hover:bg-indigo-50 text-indigo-600 rounded text-[10px] font-bold border border-indigo-200 transition">+ 인원추가</button>
+                    <button type="button" onclick="toggleQuickDriverEditBox(false)" class="px-1.5 py-0.5 bg-slate-200 hover:bg-slate-300 text-slate-600 rounded text-[10px] font-bold transition">닫기</button>
+                  </div>
+                </div>
+                <div id="modalQuickDriverEditRows" class="grid grid-cols-2 gap-1.5"></div>
+                <div class="flex items-center justify-between pt-1 border-t border-slate-200">
+                  <span class="text-[10px] text-slate-500">이름을 수정하고 저장하면 버튼에 즉시 반영됩니다.</span>
+                  <button type="button" onclick="saveQuickDriverNamesEdit()" id="btnSaveQuickDriverNames" class="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[10px] font-black shadow-xs transition flex items-center gap-1">
+                    <i class="fa-solid fa-check"></i>
+                    <span>이름 저장</span>
+                  </button>
+                </div>
               </div>
             </div>
             <div class="pt-4 flex items-center gap-2">
@@ -1546,6 +1573,8 @@
     var currentYear = _initNow.getFullYear();
     var currentMonth = _initNow.getMonth() + 1; // 1-12
     var vehiclesMaster = [];
+    var quickDriverList = ['조경찬', '김승지', '이성호', '장종순', '박종환', '한민혁', '최두성'];
+    var _modalDriverTouched = false;
     var tripLogs = [];
     var schedulesCache = [];
     var currentViewMode = 'detailed'; // 'detailed' (배송지별 상세) or 'summary' (일자별 요약)
@@ -1590,6 +1619,13 @@
           if (Array.isArray(parsed) && parsed.length > 0) vehiclesMaster = parsed;
         } catch(e) {}
       }
+      var cachedQuickDrv = localStorage.getItem('TRACKER_QUICK_DRIVERS_V1');
+      if (cachedQuickDrv) {
+        try {
+          var parsedQ = JSON.parse(cachedQuickDrv);
+          if (Array.isArray(parsedQ) && parsedQ.length > 0) quickDriverList = parsedQ;
+        } catch(e) {}
+      }
 
       // Default Seed if empty
       if (vehiclesMaster.length === 0) {
@@ -1611,6 +1647,10 @@
             var config = JSON.parse(res.data[0].memo_full);
             if (config && Array.isArray(config.vehicles) && config.vehicles.length > 0) {
               vehiclesMaster = config.vehicles;
+            }
+            if (config && Array.isArray(config.quick_drivers) && config.quick_drivers.length > 0) {
+              quickDriverList = config.quick_drivers;
+              localStorage.setItem('TRACKER_QUICK_DRIVERS_V1', JSON.stringify(quickDriverList));
             }
           }
         } catch(e) {
@@ -1643,6 +1683,7 @@
         return v;
       });
       localStorage.setItem('CORPORATE_VEHICLES_MASTER_V1', JSON.stringify(vehiclesMaster));
+      localStorage.setItem('TRACKER_QUICK_DRIVERS_V1', JSON.stringify(quickDriverList));
 
       // Ensure currentSelectedVehicleNo matches a valid vehicle
       if (!currentSelectedVehicleNo || currentSelectedVehicleNo.includes('?')) {
@@ -1657,10 +1698,14 @@
 
       renderVehicleTabs();
       renderVehicleManageList();
+      if (typeof renderModalQuickDriverButtons === 'function') {
+        renderModalQuickDriverButtons();
+      }
     }
 
     async function saveVehiclesMaster() {
       localStorage.setItem('CORPORATE_VEHICLES_MASTER_V1', JSON.stringify(vehiclesMaster));
+      localStorage.setItem('TRACKER_QUICK_DRIVERS_V1', JSON.stringify(quickDriverList));
       if (!supabaseClient) return;
 
       try {
@@ -1672,7 +1717,7 @@
         if (checkRes.data && checkRes.data.length > 0 && checkRes.data[0].memo_full) {
           try { existingConfig = JSON.parse(checkRes.data[0].memo_full); } catch(e) {}
         }
-        var payload = Object.assign({}, existingConfig, { vehicles: vehiclesMaster });
+        var payload = Object.assign({}, existingConfig, { vehicles: vehiclesMaster, quick_drivers: quickDriverList });
 
         await supabaseClient.from('delivery_schedules')
           .delete()
@@ -2890,20 +2935,229 @@
       syncModalTotalFees();
     }
 
+    function renderModalQuickDriverButtons() {
+      var container = document.getElementById('modalQuickDriverButtons');
+      if (!container) return;
+      var inp = document.getElementById('modalDriverName');
+      var cur = inp ? inp.value.trim() : '';
+      var selectedParts = cur ? cur.split(',').map(function(s) { return s.trim(); }).filter(Boolean) : [];
+
+      var html = (quickDriverList || []).map(function(drv) {
+        var safeDrv = String(drv || '').trim();
+        if (!safeDrv) return '';
+        var isSelected = selectedParts.indexOf(safeDrv) !== -1;
+        var cls = isSelected
+          ? 'px-1.5 py-0.5 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 rounded text-[10px] font-extrabold border border-indigo-300 ring-1 ring-indigo-300 transition'
+          : 'px-1.5 py-0.5 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 rounded text-[10px] font-bold text-slate-600 border border-slate-200 transition';
+        var escaped = safeDrv.replace(/'/g, "\\'");
+        return `<button type="button" onclick="appendDriverNameToModal('${escaped}')" class="${cls}">+${safeDrv}</button>`;
+      }).join('');
+
+      var isEtcSelected = selectedParts.indexOf('기타') !== -1;
+      var etcCls = isEtcSelected
+        ? 'px-1.5 py-0.5 bg-amber-200 hover:bg-amber-300 text-amber-900 rounded text-[10px] font-black border border-amber-400 ring-1 ring-amber-300 transition'
+        : 'px-1.5 py-0.5 bg-amber-50 hover:bg-amber-100 text-amber-800 rounded text-[10px] font-black border border-amber-200 transition';
+      html += `<button type="button" onclick="appendDriverNameToModal('기타')" class="${etcCls}">+기타</button>`;
+      html += `<button type="button" onclick="toggleQuickDriverEditBox()" class="px-1.5 py-0.5 bg-white hover:bg-indigo-50 text-indigo-600 rounded text-[10px] font-extrabold border border-indigo-200 transition flex items-center gap-0.5" title="운전자 이름 수정/추가"><i class="fa-solid fa-pen text-[8px]"></i><span>수정</span></button>`;
+
+      container.innerHTML = html;
+    }
+
     function appendDriverNameToModal(drvName) {
       var inp = document.getElementById('modalDriverName');
       if (!inp) return;
       var cur = inp.value.trim();
-      if (!cur || cur === '미운행' || cur === '조경찬') {
+      var parts = cur ? cur.split(',').map(function(s) { return s.trim(); }).filter(Boolean) : [];
+
+      if (!cur || cur === '미운행' || (!_modalDriverTouched && drvName !== '기타' && parts.length <= 1)) {
         inp.value = drvName;
-      } else {
-        var parts = cur.split(',').map(function(s) { return s.trim(); });
-        if (parts.indexOf(drvName) === -1) {
-          parts.push(drvName);
+        _modalDriverTouched = true;
+        renderModalQuickDriverButtons();
+        showToast(`👤 운전자가 [${drvName}](으)로 설정됨`);
+        return;
+      }
+
+      _modalDriverTouched = true;
+      var existingIdx = parts.indexOf(drvName);
+      if (existingIdx !== -1) {
+        if (parts.length > 1) {
+          parts.splice(existingIdx, 1);
           inp.value = parts.join(', ');
+          renderModalQuickDriverButtons();
+          showToast(`👤 운전자에서 [${drvName}] 제외됨`);
+        } else {
+          inp.value = drvName;
+          renderModalQuickDriverButtons();
+          showToast(`👤 운전자 [${drvName}] 선택됨`);
+        }
+      } else {
+        parts.push(drvName);
+        inp.value = parts.join(', ');
+        renderModalQuickDriverButtons();
+        showToast(`👤 운전자에 [${drvName}] 추가됨`);
+      }
+    }
+
+    function toggleQuickDriverEditBox(forceState) {
+      var box = document.getElementById('modalQuickDriverEditBox');
+      if (!box) return;
+      var shouldOpen = (typeof forceState === 'boolean') ? forceState : box.classList.contains('hidden');
+      if (shouldOpen) {
+        renderQuickDriverEditRows();
+        box.classList.remove('hidden');
+      } else {
+        box.classList.add('hidden');
+      }
+    }
+
+    function renderQuickDriverEditRows() {
+      var rowsEl = document.getElementById('modalQuickDriverEditRows');
+      if (!rowsEl) return;
+      rowsEl.innerHTML = (quickDriverList || []).map(function(drv) {
+        var safeDrv = String(drv || '').replace(/"/g, '&quot;');
+        return `
+          <div class="flex items-center gap-1 quick-driver-edit-row">
+            <input type="text" value="${safeDrv}" data-orig-name="${safeDrv}" class="quick-driver-edit-input flex-1 min-w-0 bg-white font-bold text-slate-800 px-2 py-1 rounded-lg border border-slate-300 text-xs focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="운전자 이름">
+            <button type="button" onclick="removeQuickDriverEditRow(this)" class="w-6 h-6 shrink-0 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 flex items-center justify-center text-[10px] transition" title="삭제">
+              <i class="fa-solid fa-trash-can"></i>
+            </button>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function addQuickDriverEditRow() {
+      var rowsEl = document.getElementById('modalQuickDriverEditRows');
+      if (!rowsEl) return;
+      var div = document.createElement('div');
+      div.className = 'flex items-center gap-1 quick-driver-edit-row';
+      div.innerHTML = `
+        <input type="text" value="" data-orig-name="" class="quick-driver-edit-input flex-1 min-w-0 bg-white font-bold text-slate-800 px-2 py-1 rounded-lg border border-indigo-300 text-xs focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="새 운전자 이름">
+        <button type="button" onclick="removeQuickDriverEditRow(this)" class="w-6 h-6 shrink-0 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 flex items-center justify-center text-[10px] transition" title="삭제">
+          <i class="fa-solid fa-trash-can"></i>
+        </button>
+      `;
+      rowsEl.appendChild(div);
+      var inp = div.querySelector('input');
+      if (inp) inp.focus();
+    }
+
+    function removeQuickDriverEditRow(btn) {
+      var row = btn ? btn.closest('.quick-driver-edit-row') : null;
+      if (row) row.remove();
+    }
+
+    async function saveQuickDriverNamesEdit() {
+      var rowsEl = document.getElementById('modalQuickDriverEditRows');
+      if (!rowsEl) return;
+      var inputs = rowsEl.querySelectorAll('.quick-driver-edit-input');
+      var newList = [];
+      var renameMap = {};
+      var lastRenamedNew = '';
+
+      inputs.forEach(function(inp) {
+        var val = (inp.value || '').trim();
+        var orig = (inp.getAttribute('data-orig-name') || '').trim();
+        if (!val || val === '기타') return;
+        if (newList.indexOf(val) === -1) {
+          newList.push(val);
+        }
+        if (orig && orig !== val) {
+          renameMap[orig] = val;
+          lastRenamedNew = val;
+        }
+      });
+
+      if (newList.length === 0) {
+        alert('최소 1명 이상의 운전자 이름을 입력해주세요.');
+        return;
+      }
+
+      quickDriverList = newList;
+      localStorage.setItem('TRACKER_QUICK_DRIVERS_V1', JSON.stringify(quickDriverList));
+
+      // Update current #modalDriverName if any renamed driver was present
+      var drvInp = document.getElementById('modalDriverName');
+      if (drvInp && drvInp.value.trim()) {
+        var curParts = drvInp.value.split(',').map(function(s) { return s.trim(); }).filter(Boolean);
+        var updatedParts = curParts.map(function(p) {
+          return renameMap[p] ? renameMap[p] : p;
+        });
+        drvInp.value = updatedParts.join(', ');
+      }
+
+      // Sync renamed driver in vehiclesMaster default_driver if applicable
+      var masterChanged = false;
+      vehiclesMaster.forEach(function(v) {
+        if (v.default_driver && renameMap[v.default_driver]) {
+          v.default_driver = renameMap[v.default_driver];
+          masterChanged = true;
+        }
+      });
+
+      renderModalQuickDriverButtons();
+      toggleQuickDriverEditBox(false);
+      await saveVehiclesMaster();
+
+      // Also sync renamed user accounts in DELIVERY_AUTH_USERS_V3 / SYSTEM_CONFIG_USERS if matched
+      if (Object.keys(renameMap).length > 0) {
+        try {
+          var rawUsers = localStorage.getItem('DELIVERY_AUTH_USERS_V3');
+          if (rawUsers) {
+            var parsedUsers = JSON.parse(rawUsers);
+            if (Array.isArray(parsedUsers)) {
+              var uChanged = false;
+              parsedUsers.forEach(function(u) {
+                if (u && u.id && renameMap[u.id]) {
+                  u.id = renameMap[u.id];
+                  uChanged = true;
+                }
+              });
+              if (uChanged) {
+                localStorage.setItem('DELIVERY_AUTH_USERS_V3', JSON.stringify(parsedUsers));
+              }
+            }
+          }
+          if (supabaseClient) {
+            var uRes = await supabaseClient.from('delivery_schedules')
+              .select('memo_full')
+              .eq('source_sheet', 'SYSTEM_CONFIG_USERS')
+              .limit(1);
+            if (uRes.data && uRes.data.length > 0 && uRes.data[0].memo_full) {
+              var cloudUsers = JSON.parse(uRes.data[0].memo_full);
+              if (Array.isArray(cloudUsers)) {
+                var cChanged = false;
+                cloudUsers.forEach(function(u) {
+                  if (u && u.id && renameMap[u.id]) {
+                    u.id = renameMap[u.id];
+                    cChanged = true;
+                  }
+                });
+                if (cChanged) {
+                  localStorage.setItem('DELIVERY_AUTH_USERS_V3', JSON.stringify(cloudUsers));
+                  await supabaseClient.from('delivery_schedules')
+                    .delete()
+                    .eq('source_sheet', 'SYSTEM_CONFIG_USERS');
+                  await supabaseClient.from('delivery_schedules').insert([{
+                    customer_name: 'SYSTEM_CONFIG_USERS',
+                    source_sheet: 'SYSTEM_CONFIG_USERS',
+                    memo_full: JSON.stringify(cloudUsers),
+                    delivery_date: '1970-01-01'
+                  }]);
+                }
+              }
+            }
+          }
+        } catch(e) {
+          console.warn('Sync renamed driver to SYSTEM_CONFIG_USERS failed:', e);
         }
       }
-      showToast(`👤 운전자에 [${drvName}] 추가됨`);
+
+      if (masterChanged) {
+        renderVehicleTabs();
+        renderVehicleManageList();
+      }
+      showToast('✏️ 운전자 빠른선택 이름이 수정 및 저장되었습니다.');
     }
 
     function toggleModalAddStopBox() {
@@ -3284,6 +3538,10 @@
       renderModalStops();
       loadStopsForDate(todayStr);
 
+      _modalDriverTouched = false;
+      toggleQuickDriverEditBox(false);
+      renderModalQuickDriverButtons();
+
       calcModalMileage();
       document.getElementById('tripLogModal').classList.remove('hidden');
     }
@@ -3386,6 +3644,10 @@
       if (recDist > 0) {
         document.getElementById('modalSuggestedKm').innerText = recDist.toFixed(1) + ' km';
       }
+
+      _modalDriverTouched = false;
+      toggleQuickDriverEditBox(false);
+      renderModalQuickDriverButtons();
 
       calcModalMileage();
       document.getElementById('tripLogModal').classList.remove('hidden');
