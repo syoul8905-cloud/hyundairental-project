@@ -200,9 +200,10 @@
         </button>
 
         <!-- Contract History Lookup Button -->
-        <button onclick="openContractHistoryModal('')" title="계약번호별 과거 배송/회수 및 현장 메모 이력 조회" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg transition flex items-center gap-1 border border-slate-200 text-xs whitespace-nowrap shadow-xs">
+        <button id="headerHistoryLookupBtn" onclick="openContractHistoryModal('')" title="계약번호별 과거 배송/회수 및 현장 메모 이력 조회" class="relative px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg transition flex items-center gap-1 border border-slate-200 text-xs whitespace-nowrap shadow-xs">
           <i class="fa-solid fa-file-contract text-indigo-600"></i>
           <span>이력 조회</span>
+          <span id="headerHistoryNewBadge" class="hidden ml-0.5 px-1.5 py-0.5 rounded-full bg-rose-600 text-white font-black text-[9.5px] leading-none shadow-xs animate-pulse">NEW</span>
         </button>
 
         <!-- Manual Sync Button -->
@@ -343,9 +344,10 @@
         </div>
 
         <!-- Mobile History Button -->
-        <button onclick="openContractHistoryModal('')" class="h-8 px-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 flex items-center justify-center gap-0.5 text-xs shrink-0 shadow-xs transition" title="계약번호 이력 조회">
+        <button id="mobileHistoryLookupBtn" onclick="openContractHistoryModal('')" class="relative h-8 px-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 flex items-center justify-center gap-0.5 text-xs shrink-0 shadow-xs transition" title="계약번호 이력 조회">
           <i class="fa-solid fa-file-contract text-xs text-indigo-600"></i>
           <span class="font-bold text-[10px]">이력</span>
+          <span id="mobileHistoryNewBadge" class="hidden ml-0.5 px-1 py-0.5 rounded-full bg-rose-600 text-white font-black text-[9px] leading-none shadow-xs animate-pulse">N</span>
         </button>
 
         <!-- Mobile Notify Button -->
@@ -1598,7 +1600,7 @@
 
   <!-- Contract History & Field Issue Memo Modal -->
   <div id="contractHistoryModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50" onclick="if(event.target===this)closeContractHistoryModal()">
-    <div class="bg-white rounded-3xl max-w-2xl w-full p-5 sm:p-6 shadow-2xl border border-slate-200 space-y-4 max-h-[92vh] flex flex-col">
+    <div class="bg-white rounded-3xl max-w-2xl w-full p-5 sm:p-6 shadow-2xl border border-slate-200 space-y-3.5 max-h-[92vh] flex flex-col">
       <div class="flex items-center justify-between border-b border-slate-100 pb-3 shrink-0">
         <div class="flex items-center gap-2">
           <span class="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-sm font-black">
@@ -1606,9 +1608,9 @@
           </span>
           <div>
             <h3 class="font-black text-sm text-slate-900 flex items-center gap-2">
-              계약번호 과거 배송 및 현장 메모 이력
+              과거 배송 · 현장 메모 · 사진 이력 조회
             </h3>
-            <p class="text-[11px] text-slate-500 font-medium">동일 계약번호로 진행된 과거 모든 배송/회수 일정과 현장 기사 메모를 조회합니다.</p>
+            <p class="text-[11px] text-slate-500 font-medium">계약번호 없이도 원클릭 탭이나 오늘 거래처 칩을 눌러 과거 일정·현장 메모·사진을 바로 조회합니다.</p>
           </div>
         </div>
         <button onclick="closeContractHistoryModal()" class="w-7 h-7 rounded-full bg-slate-100 text-slate-400 hover:text-slate-600 flex items-center justify-center text-xs">
@@ -1619,19 +1621,52 @@
       <!-- Search Box -->
       <div class="flex items-center gap-2 bg-slate-50 p-2 rounded-2xl border border-slate-200 shrink-0">
         <i class="fa-solid fa-magnifying-glass text-slate-400 pl-1.5 text-xs"></i>
-        <input type="text" id="contractHistorySearchInput" placeholder="계약번호 입력 (예: 2R2609031)..." 
+        <input type="text" id="contractHistorySearchInput" placeholder="계약번호 또는 고객사명 입력 (예: 2R2609031, 한국프린터스)..." 
                onkeydown="if(event.key==='Enter')searchContractHistory(this.value)"
-               class="flex-1 bg-transparent border-none text-xs font-mono font-bold text-slate-900 focus:outline-none">
+               class="flex-1 bg-transparent border-none text-xs font-bold text-slate-900 focus:outline-none">
         <button onclick="searchContractHistory(document.getElementById('contractHistorySearchInput').value)" 
                 class="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-xs transition shadow-xs">
           조회
         </button>
       </div>
 
+      <!-- One-Click Quick Filter Tabs -->
+      <div class="space-y-2 shrink-0">
+        <div id="contractHistoryQuickTabs" class="grid grid-cols-3 gap-1.5">
+          <button type="button" id="histTabBtn_issues" onclick="filterContractHistoryByTab('issues')" class="px-2.5 py-2 rounded-xl text-xs font-extrabold border transition flex items-center justify-center gap-1.5 bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100 shadow-2xs">
+            <i class="fa-solid fa-triangle-exclamation text-[11px]"></i>
+            <span>현장특이사항</span>
+            <span id="histTabBadge_issues" class="hidden px-1.5 py-0.5 rounded-full bg-rose-600 text-white font-black text-[9.5px] leading-none shadow-xs">NEW</span>
+          </button>
+          <button type="button" id="histTabBtn_photos" onclick="filterContractHistoryByTab('photos')" class="px-2.5 py-2 rounded-xl text-xs font-extrabold border transition flex items-center justify-center gap-1.5 bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100 shadow-2xs">
+            <i class="fa-solid fa-camera text-[11px]"></i>
+            <span>사진모음</span>
+            <span id="histTabBadge_photos" class="hidden px-1.5 py-0.5 rounded-full bg-rose-600 text-white font-black text-[9.5px] leading-none shadow-xs">NEW</span>
+          </button>
+          <button type="button" id="histTabBtn_as" onclick="filterContractHistoryByTab('as')" class="px-2.5 py-2 rounded-xl text-xs font-extrabold border transition flex items-center justify-center gap-1.5 bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100 shadow-2xs">
+            <i class="fa-solid fa-screwdriver-wrench text-[11px]"></i>
+            <span>A/S 처리중</span>
+            <span id="histTabBadge_as" class="hidden px-1.5 py-0.5 rounded-full bg-rose-600 text-white font-black text-[9.5px] leading-none shadow-xs">NEW</span>
+          </button>
+        </div>
+
+        <!-- Today's Customers Quick Chips -->
+        <div id="contractHistoryTodayChipsBox" class="p-2 bg-slate-50/90 rounded-xl border border-slate-200/80 space-y-1">
+          <div class="flex items-center justify-between">
+            <span class="text-[10px] font-extrabold text-slate-500 flex items-center gap-1">
+              <i class="fa-solid fa-building text-indigo-500"></i>
+              <span>현재 화면(오늘) 거래처 원클릭 조회</span>
+            </span>
+            <span id="contractHistoryTodayChipsCount" class="text-[10px] font-bold text-slate-400"></span>
+          </div>
+          <div id="contractHistoryTodayChips" class="flex items-center gap-1 flex-wrap max-h-16 overflow-y-auto custom-scroll"></div>
+        </div>
+      </div>
+
       <!-- History List Container -->
       <div id="contractHistoryList" class="flex-1 overflow-y-auto custom-scroll space-y-3 pr-1 text-xs">
         <div class="py-12 text-center text-slate-400 font-medium">
-          계약번호를 입력하거나 배송 목록에서 계약번호를 클릭해주세요.
+          상단 빠른 탭(현장특이사항 / 사진모음 / A/S 처리중) 또는 거래처 칩을 클릭해주세요.
         </div>
       </div>
 
@@ -9951,6 +9986,11 @@
               if (typeof loadQuickMemos === 'function') loadQuickMemos(false);
               return;
             }
+            if (payload && (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') && payload.new) {
+              if (typeof handleRealtimeHistoryBadgeCheck === 'function') {
+                handleRealtimeHistoryBadgeCheck(payload.new);
+              }
+            }
             triggerSync(true); // 즉시 무소음 동기화로 화면 갱신
           })
           .subscribe(function(status) {
@@ -9969,6 +10009,9 @@
       syncPollingInterval = setInterval(function() {
         if (!document.hidden) {
           triggerSync(true);
+          if (typeof refreshHistoryNotificationBadges === 'function') {
+            refreshHistoryNotificationBadges();
+          }
         }
       }, 12000);
     }
@@ -9977,6 +10020,9 @@
     document.addEventListener('visibilitychange', function() {
       if (!document.hidden) {
         triggerSync(true);
+        if (typeof refreshHistoryNotificationBadges === 'function') {
+          refreshHistoryNotificationBadges();
+        }
       }
     });
     window.addEventListener('focus', function() {
@@ -9986,31 +10032,482 @@
     // ==========================================
     // Contract History & Field Issue Memo Engine
     // ==========================================
-    function openContractHistoryModal(contractNo) {
-      var modal = document.getElementById('contractHistoryModal');
-      if (!modal) return;
-      modal.classList.remove('hidden');
-      var searchInput = document.getElementById('contractHistorySearchInput');
-      if (searchInput) {
-        searchInput.value = contractNo || '';
+    var _currentHistoryTab = '';
+    var _currentHistoryRowsCache = [];
+    var _showAllAsInHistory = false;
+    var HISTORY_SEEN_STORAGE_KEY = 'delivery_history_seen_sigs_v1';
+    var HISTORY_UNREAD_STORAGE_KEY = 'delivery_history_unread_sigs_v1';
+    var _historySeenStore = { initialized: false, issues: [], photos: [], as: [] };
+    var _historyUnreadStore = { issues: [], photos: [], as: [] };
+    var _historyActiveTabViewingUnreadSigs = [];
+    var _historyActiveTabViewingCount = 0;
+
+    function loadHistoryBadgeStorage() {
+      try {
+        var rawSeen = localStorage.getItem(HISTORY_SEEN_STORAGE_KEY);
+        if (rawSeen) {
+          var parsedSeen = JSON.parse(rawSeen);
+          if (parsedSeen && typeof parsedSeen === 'object') {
+            _historySeenStore = {
+              initialized: !!parsedSeen.initialized,
+              issues: Array.isArray(parsedSeen.issues) ? parsedSeen.issues : [],
+              photos: Array.isArray(parsedSeen.photos) ? parsedSeen.photos : [],
+              as: Array.isArray(parsedSeen.as) ? parsedSeen.as : []
+            };
+          }
+        }
+      } catch(e) {}
+      try {
+        var rawUnread = localStorage.getItem(HISTORY_UNREAD_STORAGE_KEY);
+        if (rawUnread) {
+          var parsedUnread = JSON.parse(rawUnread);
+          if (parsedUnread && typeof parsedUnread === 'object') {
+            _historyUnreadStore = {
+              issues: Array.isArray(parsedUnread.issues) ? parsedUnread.issues : [],
+              photos: Array.isArray(parsedUnread.photos) ? parsedUnread.photos : [],
+              as: Array.isArray(parsedUnread.as) ? parsedUnread.as : []
+            };
+          }
+        }
+      } catch(e) {}
+    }
+
+    function saveHistoryBadgeStorage() {
+      try {
+        localStorage.setItem(HISTORY_SEEN_STORAGE_KEY, JSON.stringify(_historySeenStore));
+        localStorage.setItem(HISTORY_UNREAD_STORAGE_KEY, JSON.stringify(_historyUnreadStore));
+      } catch(e) {}
+    }
+
+    function extractHistoryItemSignature(row, tabKey) {
+      if (!row) return null;
+      if (isExcludedConfigRow(row, tabKey === 'as')) return null;
+      var rowId = String(row.id || row.ID || '').trim();
+      if (!rowId) return null;
+      var isAs = ((row.source_sheet || row.원본시트 || '') === 'AS_RECORDS');
+
+      if (tabKey === 'as') {
+        if (!isAs) return null;
+        var st = String(row.status || row.의뢰상태 || '').trim();
+        var isPending = (st === '처리중' || st === '접수대기' || st !== '처리완료');
+        if (!isPending) return null;
+        var mf = String(row.memo_full || row.비고_전문 || '').trim().slice(0, 60);
+        return rowId + '|as|' + st + '|' + mf;
       }
-      if (contractNo) {
-        searchContractHistory(contractNo);
-      } else {
-        var container = document.getElementById('contractHistoryList');
-        if (container) {
-          container.innerHTML = `
-            <div class="py-12 text-center text-slate-400 font-medium">
-              계약번호를 입력하거나 배송 목록에서 계약번호를 클릭해주세요.
-            </div>
-          `;
+
+      if (isAs) return null;
+      var memoSpecialRaw = row.memo_special || row.추후일정_특이사항 || '';
+      if (!memoSpecialRaw) return null;
+      var parsed = null;
+      try { parsed = JSON.parse(memoSpecialRaw); } catch(e) { return null; }
+      if (!parsed || typeof parsed !== 'object') return null;
+
+      if (tabKey === 'issues') {
+        var iss = String(parsed.issue || '').trim();
+        if (!iss) return null;
+        return rowId + '|issues|' + iss;
+      }
+
+      if (tabKey === 'photos') {
+        var hasFieldPhoto = !!(parsed.photo && String(parsed.photo).trim());
+        var inspectLen = Array.isArray(parsed.inspectPhotos) ? parsed.inspectPhotos.length : 0;
+        if (!hasFieldPhoto && inspectLen === 0) return null;
+        return rowId + '|photos|' + (hasFieldPhoto ? '1' : '0') + '|' + inspectLen;
+      }
+
+      return null;
+    }
+
+    function isRowNewlyAddedInHistory(row, tabKey) {
+      if (!row || !tabKey) return false;
+      var rowId = String(row.id || row.ID || '').trim();
+      if (!rowId) return false;
+      var prefix = rowId + '|' + tabKey + '|';
+      var inViewing = _historyActiveTabViewingUnreadSigs.some(function(s) { return String(s).indexOf(prefix) === 0; });
+      if (inViewing) return true;
+      var arr = _historyUnreadStore[tabKey] || [];
+      return arr.some(function(s) { return String(s).indexOf(prefix) === 0; });
+    }
+
+    function renderHistoryNotificationBadgesUI() {
+      var counts = {
+        issues: (_historyUnreadStore.issues || []).length,
+        photos: (_historyUnreadStore.photos || []).length,
+        as: (_historyUnreadStore.as || []).length
+      };
+      var totalUnread = counts.issues + counts.photos + counts.as;
+
+      var headerBadge = document.getElementById('headerHistoryNewBadge');
+      if (headerBadge) {
+        if (totalUnread > 0) {
+          headerBadge.innerText = 'NEW ' + totalUnread;
+          headerBadge.classList.remove('hidden');
+        } else {
+          headerBadge.classList.add('hidden');
+        }
+      }
+
+      var mobileBadge = document.getElementById('mobileHistoryNewBadge');
+      if (mobileBadge) {
+        if (totalUnread > 0) {
+          mobileBadge.innerText = String(totalUnread);
+          mobileBadge.classList.remove('hidden');
+        } else {
+          mobileBadge.classList.add('hidden');
+        }
+      }
+
+      ['issues', 'photos', 'as'].forEach(function(key) {
+        var badgeEl = document.getElementById('histTabBadge_' + key);
+        if (!badgeEl) return;
+        var displayCount = counts[key];
+        if (displayCount === 0 && _currentHistoryTab === key && _historyActiveTabViewingCount > 0) {
+          displayCount = _historyActiveTabViewingCount;
+        }
+        if (displayCount > 0) {
+          badgeEl.innerText = 'NEW ' + displayCount;
+          var isTabActive = (_currentHistoryTab === key);
+          badgeEl.className = isTabActive
+            ? 'px-1.5 py-0.5 rounded-full bg-white text-rose-600 font-black text-[9.5px] leading-none shadow-xs'
+            : 'px-1.5 py-0.5 rounded-full bg-rose-600 text-white font-black text-[9.5px] leading-none shadow-xs animate-pulse';
+        } else {
+          badgeEl.className = 'hidden px-1.5 py-0.5 rounded-full bg-rose-600 text-white font-black text-[9.5px] leading-none shadow-xs';
+        }
+      });
+    }
+
+    function handleRealtimeHistoryBadgeCheck(newRow) {
+      if (!newRow) return;
+      loadHistoryBadgeStorage();
+      if (!_historySeenStore.initialized) return;
+
+      var changed = false;
+      ['issues', 'photos', 'as'].forEach(function(tabKey) {
+        var sig = extractHistoryItemSignature(newRow, tabKey);
+        if (!sig) return;
+        if (_historySeenStore[tabKey].indexOf(sig) === -1) {
+          _historySeenStore[tabKey].push(sig);
+          if (_historyUnreadStore[tabKey].indexOf(sig) === -1) {
+            _historyUnreadStore[tabKey].push(sig);
+          }
+          changed = true;
+        }
+      });
+
+      if (changed) {
+        saveHistoryBadgeStorage();
+        renderHistoryNotificationBadgesUI();
+        var modal = document.getElementById('contractHistoryModal');
+        if (modal && !modal.classList.contains('hidden') && _currentHistoryTab) {
+          filterContractHistoryByTab(_currentHistoryTab);
         }
       }
     }
 
+    async function refreshHistoryNotificationBadges() {
+      loadHistoryBadgeStorage();
+      renderHistoryNotificationBadgesUI();
+      if (!supabaseClient) return;
+
+      try {
+        var pDeliv = supabaseClient
+          .from('delivery_schedules')
+          .select('id, source_sheet, contract_no, customer_name, category, delivery_date, status, memo_special, memo_full')
+          .neq('source_sheet', 'AS_RECORDS')
+          .neq('source_sheet', 'INTERNAL_RETURN')
+          .not('source_sheet', 'like', 'SYSTEM_CONFIG_%')
+          .not('source_sheet', 'like', 'VEHICLE_%')
+          .not('customer_name', 'like', 'SYSTEM_CONFIG_%')
+          .not('customer_name', 'like', 'VEHICLE_%')
+          .order('delivery_date', { ascending: false })
+          .limit(300);
+
+        var pAs = supabaseClient
+          .from('delivery_schedules')
+          .select('id, source_sheet, contract_no, customer_name, category, delivery_date, status, memo_special, memo_full')
+          .eq('source_sheet', 'AS_RECORDS')
+          .order('delivery_date', { ascending: false });
+
+        var results = await Promise.all([pDeliv, pAs]);
+        var delivRows = (results[0] && results[0].data) ? results[0].data : [];
+        var asRows = (results[1] && results[1].data) ? results[1].data : [];
+
+        var currentSigs = { issues: [], photos: [], as: [] };
+        delivRows.forEach(function(r) {
+          var sIss = extractHistoryItemSignature(r, 'issues');
+          if (sIss) currentSigs.issues.push(sIss);
+          var sPho = extractHistoryItemSignature(r, 'photos');
+          if (sPho) currentSigs.photos.push(sPho);
+        });
+        asRows.forEach(function(r) {
+          var sAs = extractHistoryItemSignature(r, 'as');
+          if (sAs) currentSigs.as.push(sAs);
+        });
+
+        if (!_historySeenStore.initialized) {
+          _historySeenStore = {
+            initialized: true,
+            issues: currentSigs.issues,
+            photos: currentSigs.photos,
+            as: currentSigs.as
+          };
+          saveHistoryBadgeStorage();
+          renderHistoryNotificationBadgesUI();
+          return;
+        }
+
+        var hasNew = false;
+        ['issues', 'photos', 'as'].forEach(function(tabKey) {
+          currentSigs[tabKey].forEach(function(sig) {
+            if (_historySeenStore[tabKey].indexOf(sig) === -1) {
+              _historySeenStore[tabKey].push(sig);
+              if (_historyUnreadStore[tabKey].indexOf(sig) === -1) {
+                _historyUnreadStore[tabKey].push(sig);
+              }
+              hasNew = true;
+            }
+          });
+        });
+
+        if (hasNew) {
+          saveHistoryBadgeStorage();
+        }
+        renderHistoryNotificationBadgesUI();
+      } catch(e) {
+        console.warn('refreshHistoryNotificationBadges warning:', e);
+      }
+    }
+
+    function updateHistoryTabButtonsUI(activeTab) {
+      _currentHistoryTab = activeTab || '';
+      var tabs = [
+        { key: 'issues', id: 'histTabBtn_issues', activeCls: 'px-2.5 py-2 rounded-xl text-xs font-black border-2 transition flex items-center justify-center gap-1.5 bg-rose-600 text-white border-rose-600 shadow-sm', idleCls: 'px-2.5 py-2 rounded-xl text-xs font-extrabold border transition flex items-center justify-center gap-1.5 bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100 shadow-2xs' },
+        { key: 'photos', id: 'histTabBtn_photos', activeCls: 'px-2.5 py-2 rounded-xl text-xs font-black border-2 transition flex items-center justify-center gap-1.5 bg-amber-500 text-white border-amber-500 shadow-sm', idleCls: 'px-2.5 py-2 rounded-xl text-xs font-extrabold border transition flex items-center justify-center gap-1.5 bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100 shadow-2xs' },
+        { key: 'as', id: 'histTabBtn_as', activeCls: 'px-2.5 py-2 rounded-xl text-xs font-black border-2 transition flex items-center justify-center gap-1.5 bg-indigo-600 text-white border-indigo-600 shadow-sm', idleCls: 'px-2.5 py-2 rounded-xl text-xs font-extrabold border transition flex items-center justify-center gap-1.5 bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100 shadow-2xs' }
+      ];
+      tabs.forEach(function(t) {
+        var btn = document.getElementById(t.id);
+        if (btn) {
+          btn.className = (t.key === _currentHistoryTab) ? t.activeCls : t.idleCls;
+        }
+      });
+      renderHistoryNotificationBadgesUI();
+    }
+
+    function renderContractHistoryTodayChips(activeCust) {
+      var chipsEl = document.getElementById('contractHistoryTodayChips');
+      var countEl = document.getElementById('contractHistoryTodayChipsCount');
+      if (!chipsEl) return;
+
+      var custList = [];
+      (records || []).forEach(function(r) {
+        if (isExcludedConfigRow(r)) return;
+        var cName = (r.고객사 || '').trim();
+        if (!cName) return;
+        if (custList.indexOf(cName) === -1) {
+          custList.push(cName);
+        }
+      });
+
+      if (countEl) {
+        countEl.innerText = custList.length > 0 ? ('총 ' + custList.length + '개 업체') : '';
+      }
+
+      if (custList.length === 0) {
+        chipsEl.innerHTML = '<span class="text-[10px] text-slate-400">현재 날짜에 표시된 거래처가 없습니다.</span>';
+        return;
+      }
+
+      chipsEl.innerHTML = custList.map(function(cName) {
+        var isSel = (activeCust && activeCust === cName);
+        var cls = isSel
+          ? 'px-2 py-0.5 rounded-lg text-[10.5px] font-black bg-indigo-600 text-white border border-indigo-600 shadow-2xs transition cursor-pointer'
+          : 'px-2 py-0.5 rounded-lg text-[10.5px] font-bold bg-white hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 border border-slate-200 transition cursor-pointer';
+        var escaped = cName.replace(/'/g, "\\'");
+        return `<button type="button" onclick="selectContractHistoryCustomerChip('${escaped}')" class="${cls}">🏢 ${cName}</button>`;
+      }).join('');
+    }
+
+    function selectContractHistoryCustomerChip(custName) {
+      _historyActiveTabViewingUnreadSigs = [];
+      _historyActiveTabViewingCount = 0;
+      var searchInput = document.getElementById('contractHistorySearchInput');
+      if (searchInput) searchInput.value = custName;
+      updateHistoryTabButtonsUI('');
+      renderContractHistoryTodayChips(custName);
+      searchContractHistory(custName);
+    }
+
+    function openContractHistoryModal(contractNo) {
+      var modal = document.getElementById('contractHistoryModal');
+      if (!modal) return;
+      modal.classList.remove('hidden');
+      loadHistoryBadgeStorage();
+      var searchInput = document.getElementById('contractHistorySearchInput');
+      if (searchInput) {
+        searchInput.value = contractNo || '';
+      }
+      renderContractHistoryTodayChips('');
+      if (contractNo) {
+        _historyActiveTabViewingUnreadSigs = [];
+        _historyActiveTabViewingCount = 0;
+        updateHistoryTabButtonsUI('');
+        searchContractHistory(contractNo);
+      } else {
+        // 신규 알림 배지가 있는 탭이 있으면 해당 탭을 우선 오픈
+        var targetTab = 'issues';
+        if ((_historyUnreadStore.issues || []).length > 0) {
+          targetTab = 'issues';
+        } else if ((_historyUnreadStore.photos || []).length > 0) {
+          targetTab = 'photos';
+        } else if ((_historyUnreadStore.as || []).length > 0) {
+          targetTab = 'as';
+        }
+        filterContractHistoryByTab(targetTab);
+      }
+    }
+
     function closeContractHistoryModal() {
+      _historyActiveTabViewingUnreadSigs = [];
+      _historyActiveTabViewingCount = 0;
+      renderHistoryNotificationBadgesUI();
       var modal = document.getElementById('contractHistoryModal');
       if (modal) modal.classList.add('hidden');
+    }
+
+    function isExcludedConfigRow(row, allowAsRecords) {
+      var s = String(row.source_sheet || row.원본시트 || '').trim();
+      var c = String(row.contract_no || row.계약번호 || '').trim();
+      var cust = String(row.customer_name || row.고객사 || '').trim();
+      var cat = String(row.category || row.구분 || '').trim();
+      var d = String(row.delivery_date || row.배송일자 || '').trim();
+      var mf = String(row.memo_full || row.비고_전문 || '').trim();
+      if (!allowAsRecords && (s === 'AS_RECORDS' || cust === 'AS_RECORDS')) return true;
+      if (s.startsWith('SYSTEM_CONFIG') || s.startsWith('VEHICLE_') || s === 'INTERNAL_RETURN') return true;
+      if (cust.startsWith('SYSTEM_CONFIG') || cust.startsWith('VEHICLE_') || cust === '시스템_빠른메모_설정') return true;
+      if (c === 'HANDOVER_CONFIG' || d === '1970-01-01' || d === '2099-12-31') return true;
+      if (cat === 'mid_return' || cust.indexOf('(중간 복귀)') !== -1) return true;
+      if (mf.startsWith('{"id":"dmg_') || mf.startsWith('{"id":"maint_') || mf.startsWith('{"vehicles":')) return true;
+      return false;
+    }
+
+    function toggleHistoryAsAllFilter() {
+      _showAllAsInHistory = !_showAllAsInHistory;
+      filterContractHistoryByTab('as');
+    }
+
+    async function filterContractHistoryByTab(tabKey) {
+      if (tabKey === 'recent') tabKey = 'as';
+      loadHistoryBadgeStorage();
+      var tabUnreadArr = (_historyUnreadStore[tabKey] || []).slice();
+      if (tabUnreadArr.length > 0) {
+        _historyActiveTabViewingUnreadSigs = tabUnreadArr;
+        _historyActiveTabViewingCount = tabUnreadArr.length;
+        _historyUnreadStore[tabKey] = [];
+        saveHistoryBadgeStorage();
+      } else if (_currentHistoryTab !== tabKey) {
+        _historyActiveTabViewingUnreadSigs = [];
+        _historyActiveTabViewingCount = 0;
+      }
+      updateHistoryTabButtonsUI(tabKey);
+      renderContractHistoryTodayChips('');
+      var searchInput = document.getElementById('contractHistorySearchInput');
+      if (searchInput) searchInput.value = '';
+
+      var container = document.getElementById('contractHistoryList');
+      if (!container) return;
+
+      var labelMap = {
+        issues: '⚠️ 현장특이사항 모음',
+        photos: '📷 사진·검수사진 모음',
+        as: _showAllAsInHistory ? '🛠️ 전체 A/S 접수·처리 내역' : '🛠️ A/S 처리중 (대기·진행중) 내역'
+      };
+      var tabTitle = labelMap[tabKey] || '이력 조회';
+
+      container.innerHTML = `<div class="py-8 text-center text-slate-500 font-bold flex items-center justify-center gap-2"><i class="fa-solid fa-spinner fa-spin"></i> [${tabTitle}] 불러오는 중...</div>`;
+
+      if (tabKey === 'as') {
+        var asRows = [];
+        if (!supabaseClient) {
+          asRows = (records || []).filter(function(r) {
+            return (r.source_sheet || r.원본시트) === 'AS_RECORDS';
+          });
+        } else {
+          try {
+            var asRes = await supabaseClient
+              .from('delivery_schedules')
+              .select('*')
+              .eq('source_sheet', 'AS_RECORDS')
+              .order('delivery_date', { ascending: false });
+            if (asRes.error) throw asRes.error;
+            asRows = asRes.data || [];
+          } catch (err) {
+            console.error('filterContractHistoryByTab AS error:', err);
+            asRows = [];
+          }
+        }
+
+        var activeAsRows = _showAllAsInHistory
+          ? asRows
+          : asRows.filter(function(r) {
+              var st = String(r.status || r.의뢰상태 || '').trim();
+              return st === '처리중' || st === '접수대기' || st !== '처리완료';
+            });
+
+        renderContractHistoryResults(activeAsRows, tabTitle, {
+          isAsTab: true,
+          totalAsCount: asRows.length,
+          showAllAs: _showAllAsInHistory
+        });
+        return;
+      }
+
+      var rawRows = [];
+      if (!supabaseClient) {
+        rawRows = (records || []).slice();
+      } else {
+        try {
+          var query = supabaseClient
+            .from('delivery_schedules')
+            .select('*')
+            .neq('source_sheet', 'AS_RECORDS')
+            .neq('source_sheet', 'INTERNAL_RETURN')
+            .not('source_sheet', 'like', 'SYSTEM_CONFIG_%')
+            .not('source_sheet', 'like', 'VEHICLE_%')
+            .not('customer_name', 'like', 'SYSTEM_CONFIG_%')
+            .not('customer_name', 'like', 'VEHICLE_%')
+            .order('delivery_date', { ascending: false })
+            .limit(300);
+          var res = await query;
+          if (res.error) throw res.error;
+          rawRows = res.data || [];
+        } catch (err) {
+          console.error('filterContractHistoryByTab error:', err);
+          rawRows = (records || []).slice();
+        }
+      }
+
+      var validRows = rawRows.filter(function(row) {
+        return !isExcludedConfigRow(row, false);
+      });
+
+      var filtered = validRows.filter(function(row) {
+        var memoSpecialRaw = row.memo_special || row.추후일정_특이사항 || '';
+        var parsed = null;
+        if (memoSpecialRaw) {
+          try { parsed = JSON.parse(memoSpecialRaw); } catch(e) {}
+        }
+        if (tabKey === 'issues') {
+          return !!(parsed && parsed.issue && String(parsed.issue).trim());
+        } else if (tabKey === 'photos') {
+          var hasFieldPhoto = !!(parsed && parsed.photo && String(parsed.photo).trim());
+          var hasInspectPhotos = !!(parsed && Array.isArray(parsed.inspectPhotos) && parsed.inspectPhotos.length > 0);
+          return hasFieldPhoto || hasInspectPhotos;
+        }
+        return true;
+      });
+
+      renderContractHistoryResults(filtered, tabTitle);
     }
 
     async function searchContractHistory(queryNo) {
@@ -10019,34 +10516,72 @@
       if (!container) return;
 
       if (!q) {
-        container.innerHTML = '<div class="py-8 text-center text-slate-400 font-bold">계약번호를 입력해주세요.</div>';
+        filterContractHistoryByTab('issues');
         return;
       }
 
-      container.innerHTML = '<div class="py-8 text-center text-slate-500 font-bold flex items-center justify-center gap-2"><i class="fa-solid fa-spinner fa-spin"></i> 과거 배송 및 현장 메모 이력 조회 중...</div>';
+      updateHistoryTabButtonsUI('');
+      container.innerHTML = '<div class="py-8 text-center text-slate-500 font-bold flex items-center justify-center gap-2"><i class="fa-solid fa-spinner fa-spin"></i> 과거 배송·현장 메모 및 A/S 이력 통합 조회 중...</div>';
 
       if (!supabaseClient) {
+        var qLower = q.toLowerCase();
         var matches = records.filter(function(r) {
-          return (r.계약번호 || '').toLowerCase().indexOf(q.toLowerCase()) !== -1;
+          if (isExcludedConfigRow(r, true)) return false;
+          var cMatch = (r.계약번호 || '').toLowerCase().indexOf(qLower) !== -1;
+          var nMatch = (r.고객사 || '').toLowerCase().indexOf(qLower) !== -1;
+          return cMatch || nMatch;
         });
         renderContractHistoryResults(matches, q);
         return;
       }
 
       try {
-        var res = await supabaseClient
-          .from('delivery_schedules')
-          .select('*')
-          .ilike('contract_no', '%' + q + '%')
-          .order('delivery_date', { ascending: false });
+        // Also strip (주) / 주식회사 / 재단법인 / 농업회사법인 core keyword to match flexible customer names in AS_RECORDS (e.g. '경기연구원' <-> '재단법인 경기연구원')
+        var coreQ = q.replace(/주식회사|\(주\)|㈜|재단법인|사단법인|농업회사법인|\(유\)/g, '').trim();
+        var queries = [
+          supabaseClient
+            .from('delivery_schedules')
+            .select('*')
+            .ilike('contract_no', '%' + q + '%')
+            .order('delivery_date', { ascending: false }),
+          supabaseClient
+            .from('delivery_schedules')
+            .select('*')
+            .ilike('customer_name', '%' + q + '%')
+            .order('delivery_date', { ascending: false })
+        ];
+        if (coreQ && coreQ !== q && coreQ.length >= 2) {
+          queries.push(
+            supabaseClient
+              .from('delivery_schedules')
+              .select('*')
+              .ilike('customer_name', '%' + coreQ + '%')
+              .order('delivery_date', { ascending: false })
+          );
+        }
 
-        if (res.error) throw res.error;
-        var rows = (res.data || []).filter(function(row) {
-          var s = (row.source_sheet || '');
-          var c = (row.contract_no || '');
-          return !s.startsWith('SYSTEM_CONFIG') &&
-                 c !== 'HANDOVER_CONFIG' &&
-                 row.customer_name !== 'SYSTEM_CONFIG_USERS';
+        var pairRes = await Promise.all(queries);
+
+        var mergedMap = {};
+        var mergedList = [];
+        pairRes.forEach(function(rObj) {
+          if (rObj && Array.isArray(rObj.data)) {
+            rObj.data.forEach(function(row) {
+              var key = row.id || (row.source_sheet + '_' + row.contract_no + '_' + row.delivery_date + '_' + row.customer_name);
+              if (!mergedMap[key]) {
+                mergedMap[key] = true;
+                mergedList.push(row);
+              }
+            });
+          }
+        });
+
+        mergedList.sort(function(a, b) {
+          return String(b.delivery_date || '').localeCompare(String(a.delivery_date || ''));
+        });
+
+        var rows = mergedList.filter(function(row) {
+          return !isExcludedConfigRow(row, true);
         });
         renderContractHistoryResults(rows, q);
       } catch (err) {
@@ -10055,45 +10590,170 @@
       }
     }
 
-    function renderContractHistoryResults(rows, query) {
+    function openHistoryInspectPhoto(rowIdx, photoIdx) {
+      var row = _currentHistoryRowsCache[rowIdx];
+      if (!row) return;
+      var cust = row.customer_name || row.고객사 || '고객사';
+      var contract = row.contract_no || row.계약번호 || '';
+      var memoSpecialRaw = row.memo_special || row.추후일정_특이사항 || '';
+      var inspectPhotos = [];
+      try {
+        var p = JSON.parse(memoSpecialRaw);
+        if (p && Array.isArray(p.inspectPhotos)) inspectPhotos = p.inspectPhotos;
+      } catch(e) {}
+      if (inspectPhotos.length === 0) return;
+
+      var galleryList = inspectPhotos.map(function(item, i) {
+        var src = (typeof item === 'string') ? item : (item.data || item.url || '');
+        return {
+          src: src,
+          title: cust + (contract ? ' (' + contract + ')' : '') + ' - 검수사진 ' + (i + 1)
+        };
+      }).filter(function(g) { return !!g.src; });
+
+      if (galleryList.length === 0) return;
+      var targetIdx = Math.min(Math.max(0, photoIdx || 0), galleryList.length - 1);
+      openPhotoViewerModal(galleryList[targetIdx].src, galleryList[targetIdx].title, galleryList, targetIdx);
+    }
+
+    function renderContractHistoryResults(rows, query, opts) {
       var container = document.getElementById('contractHistoryList');
       if (!container) return;
 
+      opts = opts || {};
+      _currentHistoryRowsCache = rows || [];
+
+      var asToggleBtnHtml = '';
+      if (opts.isAsTab) {
+        asToggleBtnHtml = `
+          <button type="button" onclick="toggleHistoryAsAllFilter()" class="px-2 py-0.5 rounded-lg text-[10px] font-black border transition ${opts.showAllAs ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white hover:bg-slate-100 text-slate-600 border-slate-300'}">
+            ${opts.showAllAs ? '⏳ 처리중만 보기' : `📋 완료 포함 전체 A/S 보기 (${opts.totalAsCount || 0}건)`}
+          </button>
+        `;
+      }
+
       if (!rows || rows.length === 0) {
         container.innerHTML = `
+          ${opts.isAsTab ? `<div class="flex justify-end pb-1">${asToggleBtnHtml}</div>` : ''}
           <div class="py-12 text-center text-slate-400 space-y-2">
             <i class="fa-solid fa-file-circle-question text-3xl text-slate-300"></i>
-            <p class="font-bold text-slate-600 text-xs">일치하는 계약번호 [${query}] 내역이 없습니다.</p>
+            <p class="font-bold text-slate-600 text-xs">[${query}] 조건에 해당하는 내역이 없습니다.</p>
           </div>
         `;
         return;
       }
 
+      var asCountInResults = rows.filter(function(r) { return (r.source_sheet || r.원본시트) === 'AS_RECORDS'; }).length;
+      var delivCountInResults = rows.length - asCountInResults;
+      var summaryCountText = opts.isAsTab
+        ? `총 <b>${rows.length}</b>건의 A/S 내역이 조회되었습니다.`
+        : (asCountInResults > 0
+            ? `총 <b>${rows.length}</b>건 (배송/회수 <b>${delivCountInResults}</b>건 · 🛠️ A/S <b>${asCountInResults}</b>건)`
+            : `총 <b>${rows.length}</b>건의 일정 및 메모가 조회되었습니다.`);
+
       var html = `
-        <div class="text-[11px] text-slate-500 font-bold pb-1 flex items-center justify-between">
-          <span>총 <b>${rows.length}</b>건의 관련 일정 및 메모가 조회되었습니다.</span>
-          <span class="text-indigo-600">최신일자순</span>
+        <div class="text-[11px] text-slate-500 font-bold pb-1 flex items-center justify-between flex-wrap gap-1">
+          <span><b class="text-indigo-700">[${query}]</b> ${summaryCountText}</span>
+          <div class="flex items-center gap-2">
+            ${asToggleBtnHtml}
+            <span class="text-indigo-600">최신일자순</span>
+          </div>
         </div>
         <div class="space-y-2.5">
       `;
 
-      rows.forEach(function(row) {
+      rows.forEach(function(row, rowIdx) {
+        var isAsRow = ((row.source_sheet || row.원본시트) === 'AS_RECORDS');
         var date = row.delivery_date || row.배송일자 || '-';
         var cust = row.customer_name || row.고객사 || '-';
         var addr = row.address || row.주소 || '-';
         var driver = row.driver_name || row.담당기사 || '미배정';
-        var cat = row.category || row.구분 || '배송';
+        var cat = row.category || row.구분 || (isAsRow ? '입고수리' : '배송');
         var items = row.items || row.품목_수량 || '';
         var status = row.status || row.의뢰상태 || '진행중';
         var memoSpecialRaw = row.memo_special || row.추후일정_특이사항 || '';
         var memoFull = row.memo_full || row.비고_전문 || '';
-        var contract = row.contract_no || row.계약번호 || query;
+        var contract = row.contract_no || row.계약번호 || '-';
+
+        if (isAsRow) {
+          var assetNo = '';
+          var symptom = '';
+          var receiptDate = date;
+          var processedDate = '';
+          if (memoSpecialRaw) {
+            try {
+              var spAs = JSON.parse(memoSpecialRaw);
+              if (spAs && typeof spAs === 'object') {
+                assetNo = spAs.asset_no || '';
+                symptom = spAs.symptom || '';
+                receiptDate = spAs.receipt_date || date;
+                processedDate = spAs.processed_date || '';
+              }
+            } catch(e) {}
+          }
+          var isPendingAs = (status === '처리중' || status === '접수대기' || status !== '처리완료');
+          var isNewAsItem = isRowNewlyAddedInHistory(row, 'as');
+          var statusBadgeCls = isPendingAs
+            ? 'bg-rose-600 text-white border-rose-600 animate-pulse'
+            : 'bg-emerald-100 text-emerald-800 border-emerald-300';
+          var cardBorderCls = isPendingAs
+            ? 'bg-rose-50/40 hover:bg-white border-2 border-rose-300 shadow-xs'
+            : 'bg-slate-50 hover:bg-white border border-slate-200';
+
+          html += `
+            <div class="p-3.5 rounded-2xl transition space-y-2 ${cardBorderCls}">
+              <div class="flex items-center justify-between flex-wrap gap-1">
+                <div class="flex items-center gap-1.5 font-bold flex-wrap">
+                  ${isNewAsItem ? `<span class="px-1.5 py-0.5 rounded-full bg-rose-600 text-white font-black text-[9.5px] leading-none shadow-xs animate-bounce">🔴 NEW</span>` : ''}
+                  <span class="px-2 py-0.5 rounded-lg text-[10px] font-black border ${statusBadgeCls}">
+                    🛠️ A/S ${status}
+                  </span>
+                  <span class="px-2 py-0.5 rounded-lg text-[10px] font-black bg-indigo-100 text-indigo-800 border border-indigo-200">
+                    ${cat}
+                  </span>
+                  <span class="text-xs font-black text-slate-900 cursor-pointer hover:text-indigo-600 hover:underline" onclick="selectContractHistoryCustomerChip('${cust.replace(/'/g, "\\'")}')" title="이 거래처의 배송+A/S 이력 모아보기">${cust}</span>
+                  <span class="text-[10px] font-mono text-slate-400">(${contract})</span>
+                </div>
+                <div class="flex items-center gap-1.5 text-[11px]">
+                  <span class="font-bold text-slate-700 bg-white px-2 py-0.5 rounded-md border border-slate-200" title="접수일자">
+                    <i class="fa-regular fa-calendar text-rose-500"></i> 접수: ${receiptDate}
+                  </span>
+                  <span class="font-bold text-indigo-900 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-200">
+                    👤 담당: ${driver}
+                  </span>
+                </div>
+              </div>
+
+              ${(symptom || (assetNo && assetNo !== '미지정')) ? `
+                <div class="p-2 bg-white border border-rose-200 rounded-xl flex items-center justify-between flex-wrap gap-2">
+                  <div class="flex items-center gap-1.5 text-xs font-black text-rose-800">
+                    <i class="fa-solid fa-screwdriver-wrench text-rose-600"></i>
+                    <span>고장 증상: ${symptom || '-'}</span>
+                  </div>
+                  ${(assetNo && assetNo !== '미지정') ? `<span class="px-2 py-0.5 bg-slate-100 text-slate-700 rounded font-mono font-bold text-[10px] border border-slate-200">자산번호: ${assetNo}</span>` : ''}
+                </div>
+              ` : ''}
+
+              ${memoFull ? `
+                <div class="p-2.5 bg-amber-50/90 border border-amber-200 rounded-xl text-[11px] text-slate-800 space-y-1">
+                  <div class="font-black text-[10.5px] text-amber-900 flex items-center justify-between">
+                    <span><i class="fa-solid fa-clipboard-check text-amber-600 mr-1"></i>상세 조치 및 진행 내역</span>
+                    ${processedDate ? `<span class="text-[10px] text-slate-500 font-bold">최근 업데이트: ${processedDate}</span>` : ''}
+                  </div>
+                  <div class="font-semibold leading-relaxed whitespace-pre-wrap text-slate-800 pl-1">${memoFull}</div>
+                </div>
+              ` : ''}
+            </div>
+          `;
+          return;
+        }
 
         var depart = '';
         var arrive = '';
         var issue = '';
         var issueAuthor = '';
         var photo = '';
+        var inspectPhotos = [];
         if (memoSpecialRaw) {
           try {
             var p = JSON.parse(memoSpecialRaw);
@@ -10103,18 +10763,22 @@
               issue = p.issue || '';
               issueAuthor = p.issue_author || '';
               photo = p.photo || '';
+              if (Array.isArray(p.inspectPhotos)) inspectPhotos = p.inspectPhotos;
             }
           } catch(e) {
             issue = '';
           }
         }
 
+        var isNewDelivItem = isRowNewlyAddedInHistory(row, _currentHistoryTab || 'issues') || isRowNewlyAddedInHistory(row, 'photos');
+
         html += `
-          <div class="p-3 bg-slate-50 hover:bg-white rounded-2xl border border-slate-200 transition space-y-2">
+          <div class="p-3 bg-slate-50 hover:bg-white rounded-2xl border ${isNewDelivItem ? 'border-2 border-rose-400 bg-rose-50/20' : 'border-slate-200'} transition space-y-2">
             <div class="flex items-center justify-between flex-wrap gap-1">
               <div class="flex items-center gap-1.5 font-bold">
+                ${isNewDelivItem ? `<span class="px-1.5 py-0.5 rounded-full bg-rose-600 text-white font-black text-[9.5px] leading-none shadow-xs animate-bounce">🔴 NEW</span>` : ''}
                 <span class="px-2 py-0.5 rounded-lg text-[10px] font-black bg-indigo-100 text-indigo-800">${cat}</span>
-                <span class="text-xs font-black text-slate-900">${cust}</span>
+                <span class="text-xs font-black text-slate-900 cursor-pointer hover:text-indigo-600 hover:underline" onclick="selectContractHistoryCustomerChip('${cust.replace(/'/g, "\\'")}')" title="이 거래처 이력만 모아보기">${cust}</span>
                 <span class="text-[10px] font-mono text-slate-400">(${contract})</span>
               </div>
               <div class="flex items-center gap-1.5 text-[11px]">
@@ -10162,12 +10826,30 @@
             <!-- 당시 현장 사진 -->
             ${photo ? `
               <div class="p-2 bg-white rounded-xl border border-slate-200 flex items-center gap-2.5">
-                <img src="${photo}" onclick="openPhotoViewerModal('${photo.replace(/'/g, "\\'")}', '${cust} (${contract})')" class="w-14 h-14 rounded-lg object-cover border border-slate-300 shadow-xs cursor-pointer hover:opacity-80 shrink-0" alt="현장 사진">
+                <img src="${photo}" onclick="openPhotoViewerModal('${photo.replace(/'/g, "\\'")}', '${cust.replace(/'/g, "\\'")} (${contract})')" class="w-14 h-14 rounded-lg object-cover border border-slate-300 shadow-xs cursor-pointer hover:opacity-80 shrink-0" alt="현장 사진">
                 <div class="text-xs">
-                  <span class="font-black text-indigo-900 flex items-center gap-1 cursor-pointer hover:underline" onclick="openPhotoViewerModal('${photo.replace(/'/g, "\\'")}', '${cust} (${contract})')">
+                  <span class="font-black text-indigo-900 flex items-center gap-1 cursor-pointer hover:underline" onclick="openPhotoViewerModal('${photo.replace(/'/g, "\\'")}', '${cust.replace(/'/g, "\\'")} (${contract})')">
                     <i class="fa-solid fa-camera text-indigo-600"></i> 당시 현장 사진
                   </span>
                   <span class="text-[10px] text-slate-500 block">배송/회수 현장에서 기사가 등록한 사진입니다. (클릭 확대)</span>
+                </div>
+              </div>
+            ` : ''}
+
+            <!-- 출고 검수사진 갤러리 -->
+            ${(inspectPhotos && inspectPhotos.length > 0) ? `
+              <div class="p-2 bg-amber-50/70 rounded-xl border border-amber-200 space-y-1.5">
+                <div class="flex items-center justify-between">
+                  <span class="font-black text-[11px] text-amber-900 flex items-center gap-1 cursor-pointer hover:underline" onclick="openHistoryInspectPhoto(${rowIdx}, 0)">
+                    <i class="fa-solid fa-images text-amber-600"></i> 출고 검수사진 (${inspectPhotos.length}장)
+                  </span>
+                  <span class="text-[10px] text-amber-700 font-bold">클릭하여 좌우 슬라이드 보기</span>
+                </div>
+                <div class="flex items-center gap-1.5 flex-wrap">
+                  ${inspectPhotos.map(function(pItem, pIdx) {
+                    var pSrc = (typeof pItem === 'string') ? pItem : (pItem.data || pItem.url || '');
+                    return pSrc ? `<img src="${pSrc}" onclick="openHistoryInspectPhoto(${rowIdx}, ${pIdx})" class="w-12 h-12 rounded-lg object-cover border border-amber-300 shadow-2xs cursor-pointer hover:opacity-80 transition" alt="검수사진 ${pIdx + 1}">` : '';
+                  }).join('')}
                 </div>
               </div>
             ` : ''}
@@ -10318,6 +11000,9 @@
       }
       await fetchContractHistoryIndex();
       await triggerSync(false);
+      if (typeof refreshHistoryNotificationBadges === 'function') {
+        refreshHistoryNotificationBadges();
+      }
       if (typeof loadQuickMemos === 'function') {
         await loadQuickMemos();
       }
